@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type { UserRole, UnitStatus } from '@velnari/shared-types';
 import type { CreateIncidentDto } from '@velnari/shared-types';
-import type { Unit, Incident, Sector, IncidentEvent, LocationHistoryPoint, IncidentStats, UnitStats } from './types';
+import type { Unit, Incident, Sector, IncidentEvent, LocationHistoryPoint, IncidentStats, UnitStats, UnitWithDistance } from './types';
 
 const API_URL = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001/api';
 
@@ -62,6 +62,11 @@ export const unitsApi = {
     api.get<Incident[]>(`/units/${id}/incidents`, { params: { from, to } }),
 
   getStats: () => api.get<UnitStats>('/units/stats'),
+
+  getNearby: (lat: number, lng: number, radiusKm?: number) =>
+    api.get<UnitWithDistance[]>('/units/nearby', {
+      params: { lat, lng, ...(radiusKm ? { radiusKm } : {}) },
+    }),
 };
 
 // ─── Incidents ────────────────────────────────────────────────────────────────

@@ -82,3 +82,7 @@ export interface UnitStats {
   onScene: number;
   outOfService: number;
 }
+
+export interface UnitWithDistance extends Unit {
+  distanceKm: number;
+}
