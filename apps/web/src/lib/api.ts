@@ -1,5 +1,7 @@
 import axios from 'axios';
-import { UserRole } from '@velnari/shared-types';
+import type { UserRole } from '@velnari/shared-types';
+import type { CreateIncidentDto } from '@velnari/shared-types';
+import type { Unit, Incident, Sector } from './types';
 
 const API_URL = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001/api';
 
@@ -8,7 +10,6 @@ export const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Inject access token on every request
 api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
     const token = sessionStorage.getItem('accessToken');
@@ -19,7 +20,8 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Auth API calls
+// ─── Auth ────────────────────────────────────────────────────────────────────
+
 export const authApi = {
   login: (email: string, password: string) =>
     api.post<{ accessToken: string; refreshToken: string; expiresIn: number }>(
@@ -40,4 +42,49 @@ export const authApi = {
     api.post<{ accessToken: string; expiresIn: number }>('/auth/refresh', {
       refreshToken,
     }),
+};
+
+// ─── Units ───────────────────────────────────────────────────────────────────
+
+export const unitsApi = {
+  getAll: (params?: { status?: string; sectorId?: string }) =>
+    api.get<Unit[]>('/units', { params }),
+
+  getById: (id: string) => api.get<Unit>(`/units/${id}`),
+
+  updateStatus: (id: string, status: string) =>
+    api.patch<Unit>(`/units/${id}/status`, { status }),
+};
+
+// ─── Incidents ────────────────────────────────────────────────────────────────
+
+export const incidentsApi = {
+  getAll: (params?: { status?: string; sectorId?: string; priority?: string }) =>
+    api.get<Incident[]>('/incidents', { params }),
+
+  getById: (id: string) => api.get<Incident>(`/incidents/${id}`),
+
+  create: (dto: CreateIncidentDto) => api.post<Incident>('/incidents', dto),
+
+  close: (id: string, resolution: string, notes?: string) =>
+    api.post<Incident>(`/incidents/${id}/close`, { resolution, notes }),
+
+  addNote: (id: string, text: string) =>
+    api.post(`/incidents/${id}/notes`, { text }),
+
+  getEvents: (id: string) =>
+    api.get(`/incidents/${id}/events`),
+};
+
+// ─── Dispatch ────────────────────────────────────────────────────────────────
+
+export const dispatchApi = {
+  assignUnit: (incidentId: string, unitId: string) =>
+    api.post<Incident>(`/incidents/${incidentId}/assign`, { unitId }),
+};
+
+// ─── Sectors ─────────────────────────────────────────────────────────────────
+
+export const sectorsApi = {
+  getAll: () => api.get<Sector[]>('/sectors'),
 };
