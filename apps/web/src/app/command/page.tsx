@@ -3,6 +3,8 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth.store';
+import { useIncidentsStore } from '@/store/incidents.store';
+import { incidentsApi } from '@/lib/api';
 import dynamic from 'next/dynamic';
 import IncidentList from '@/components/incidents/IncidentList';
 
@@ -18,6 +20,7 @@ const CommandMap = dynamic(() => import('@/components/map/CommandMap'), {
 
 export default function CommandPage() {
   const { isAuthenticated, user, clearAuth } = useAuthStore();
+  const { setIncidents, setLoading } = useIncidentsStore();
   const router = useRouter();
 
   useEffect(() => {
@@ -25,6 +28,15 @@ export default function CommandPage() {
       router.push('/login');
     }
   }, [isAuthenticated, router]);
+
+  useEffect(() => {
+    setLoading(true);
+    incidentsApi
+      .getAll()
+      .then((res) => setIncidents(res.data))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [setIncidents, setLoading]);
 
   if (!isAuthenticated) return null;
 
