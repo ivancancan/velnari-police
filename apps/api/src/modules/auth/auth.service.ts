@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
@@ -54,5 +54,23 @@ export class AuthService {
 
   async getProfile(userId: string): Promise<UserEntity | null> {
     return this.userRepo.findOne({ where: { id: userId } });
+  }
+
+  async refreshToken(
+    userId: string,
+    role: string,
+  ): Promise<{ accessToken: string; expiresIn: number }> {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException();
+    }
+
+    const payload = { sub: userId, email: user.email, role };
+    const accessToken = await this.jwtService.signAsync(payload, {
+      secret: this.config.get<string>('jwt.secret'),
+      expiresIn: this.config.get<string>('jwt.expiresIn'),
+    });
+
+    return { accessToken, expiresIn: 900 };
   }
 }

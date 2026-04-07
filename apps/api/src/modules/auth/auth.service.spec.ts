@@ -117,4 +117,19 @@ describe('AuthService', () => {
       expect(result.expiresIn).toBe(900);
     });
   });
+
+  describe('refreshToken', () => {
+    it('retorna nuevo accessToken a partir del userId y role', async () => {
+      mockJwtService.signAsync.mockResolvedValueOnce('new_access_token');
+      mockUserRepository.findOne.mockResolvedValue({
+        ...mockUser,
+        passwordHash: 'hashed',
+      });
+
+      const result = await service.refreshToken('user-uuid-1', UserRole.OPERATOR);
+
+      expect(result.accessToken).toBe('new_access_token');
+      expect(result.expiresIn).toBe(900);
+    });
+  });
 });
