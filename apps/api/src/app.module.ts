@@ -10,6 +10,7 @@ import { IncidentsModule } from './modules/incidents/incidents.module';
 import { DispatchModule } from './modules/dispatch/dispatch.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
 import { AuditInterceptor } from './shared/interceptors/audit.interceptor';
+import { RedisCacheService } from './shared/services/redis-cache.service';
 
 @Module({
   imports: [
@@ -44,6 +45,16 @@ import { AuditInterceptor } from './shared/interceptors/audit.interceptor';
       provide: APP_INTERCEPTOR,
       useClass: AuditInterceptor,
     },
+    {
+      provide: RedisCacheService,
+      useFactory: (config: ConfigService) =>
+        new RedisCacheService({
+          host: config.get<string>('redis.host') ?? 'localhost',
+          port: config.get<number>('redis.port') ?? 6379,
+        }),
+      inject: [ConfigService],
+    },
   ],
+  exports: [RedisCacheService],
 })
 export class AppModule {}
