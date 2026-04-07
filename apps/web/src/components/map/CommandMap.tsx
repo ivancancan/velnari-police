@@ -1,3 +1,4 @@
+// apps/web/src/components/map/CommandMap.tsx
 'use client';
 
 import Map, { Marker } from 'react-map-gl/maplibre';
@@ -5,11 +6,10 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { useUnitsStore } from '@/store/units.store';
 import { useIncidentsStore } from '@/store/incidents.store';
 import UnitMarker from './UnitMarker';
+import UnitTrail from './UnitTrail';
+import type { LocationHistoryPoint } from '@/lib/types';
 
-// CARTO Voyager: free, no API key, Google Maps-like street style
 const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
-
-// Mexico City center as default view
 const DEFAULT_VIEW = { latitude: 19.4326, longitude: -99.1332, zoom: 12 };
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -19,13 +19,15 @@ const PRIORITY_COLORS: Record<string, string> = {
   low: '#22C55E',
 };
 
-export default function CommandMap() {
-  const { units, positions } = useUnitsStore();
+interface CommandMapProps {
+  trailPoints?: LocationHistoryPoint[];
+}
+
+export default function CommandMap({ trailPoints = [] }: CommandMapProps) {
+  const { units, positions, selectedUnitId, selectUnit } = useUnitsStore();
   const { incidents, selectedId, selectIncident } = useIncidentsStore();
 
-  const activeIncidents = incidents.filter(
-    (i) => i.status !== 'closed',
-  );
+  const activeIncidents = incidents.filter((i) => i.status !== 'closed');
 
   return (
     <Map
@@ -33,13 +35,22 @@ export default function CommandMap() {
       style={{ width: '100%', height: '100%' }}
       mapStyle={MAP_STYLE}
     >
-      {/* Unit markers — only for units that have a known position */}
+      {/* Unit trail polyline */}
+      {selectedUnitId && trailPoints.length > 0 && (
+        <UnitTrail unitId={selectedUnitId} points={trailPoints} />
+      )}
+
+      {/* Unit markers */}
       {units.map((unit) => {
         const pos = positions[unit.id];
         if (!pos) return null;
         return (
           <Marker key={unit.id} latitude={pos.lat} longitude={pos.lng}>
-            <UnitMarker callSign={unit.callSign} status={unit.status} />
+            <UnitMarker
+              callSign={unit.callSign}
+              status={unit.status}
+              onClick={() => selectUnit(unit.id === selectedUnitId ? null : unit.id)}
+            />
           </Marker>
         );
       })}
