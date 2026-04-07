@@ -5,13 +5,13 @@ const config: Config = {
   rootDir: 'src',
   testRegex: '.*\\.spec\\.ts$',
   transform: {
-    '^.+\\.(t|j)s$': 'ts-jest',
+    '^.+\\.(t|j)s$': ['ts-jest', { tsconfig: '<rootDir>/../tsconfig.jest.json' }],
   },
   collectCoverageFrom: ['**/*.(t|j)s'],
   coverageDirectory: '../coverage',
   testEnvironment: 'node',
   moduleNameMapper: {
-    '^@velnari/shared-types$': '<rootDir>/../../packages/shared-types/src',
+    '^@velnari/shared-types$': '<rootDir>/../../../packages/shared-types/src',
   },
 };
 
