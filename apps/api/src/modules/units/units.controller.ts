@@ -23,6 +23,8 @@ import {
   UnitLocationDto,
 } from '@velnari/shared-types';
 import type { UnitEntity } from '../../entities/unit.entity';
+import type { UnitLocationHistoryEntity } from '../../entities/unit-location-history.entity';
+import type { IncidentEntity } from '../../entities/incident.entity';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 
 function startOfDay(d: Date): Date {
@@ -101,22 +103,22 @@ export class UnitsController {
   @Get(':id/history')
   getHistory(
     @Param('id', ParseUUIDPipe) id: string,
-    @Query('from') from: string,
-    @Query('to') to: string,
-  ) {
-    const fromDate = from ? new Date(from) : startOfDay(new Date());
-    const toDate = to ? new Date(to) : endOfDay(new Date());
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ): Promise<UnitLocationHistoryEntity[]> {
+    const fromDate = from && !isNaN(Date.parse(from)) ? new Date(from) : startOfDay(new Date());
+    const toDate = to && !isNaN(Date.parse(to)) ? new Date(to) : endOfDay(new Date());
     return this.service.getHistory(id, fromDate, toDate);
   }
 
   @Get(':id/incidents')
   getIncidentsByUnit(
     @Param('id', ParseUUIDPipe) id: string,
-    @Query('from') from: string,
-    @Query('to') to: string,
-  ) {
-    const fromDate = from ? new Date(from) : startOfDay(new Date());
-    const toDate = to ? new Date(to) : endOfDay(new Date());
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ): Promise<IncidentEntity[]> {
+    const fromDate = from && !isNaN(Date.parse(from)) ? new Date(from) : startOfDay(new Date());
+    const toDate = to && !isNaN(Date.parse(to)) ? new Date(to) : endOfDay(new Date());
     return this.service.getIncidentsByUnit(id, fromDate, toDate);
   }
 }
