@@ -64,3 +64,21 @@ export interface LocationHistoryPoint {
   lng: number;
   recordedAt: string;
 }
+
+export interface IncidentStats {
+  total: number;
+  open: number;
+  assigned: number;
+  closed: number;
+  byPriority: Record<string, number>;
+  byType: Record<string, number>;
+  avgResponseMinutes: number | null;
+}
+
+export interface UnitStats {
+  total: number;
+  available: number;
+  enRoute: number;
+  onScene: number;
+  outOfService: number;
+}

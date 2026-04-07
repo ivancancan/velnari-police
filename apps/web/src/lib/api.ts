@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type { UserRole, UnitStatus } from '@velnari/shared-types';
 import type { CreateIncidentDto } from '@velnari/shared-types';
-import type { Unit, Incident, Sector, IncidentEvent, LocationHistoryPoint } from './types';
+import type { Unit, Incident, Sector, IncidentEvent, LocationHistoryPoint, IncidentStats, UnitStats } from './types';
 
 const API_URL = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001/api';
 
@@ -60,6 +60,8 @@ export const unitsApi = {
 
   getIncidentsByUnit: (id: string, from: string, to: string) =>
     api.get<Incident[]>(`/units/${id}/incidents`, { params: { from, to } }),
+
+  getStats: () => api.get<UnitStats>('/units/stats'),
 };
 
 // ─── Incidents ────────────────────────────────────────────────────────────────
@@ -80,6 +82,9 @@ export const incidentsApi = {
 
   getEvents: (id: string) =>
     api.get<IncidentEvent[]>(`/incidents/${id}/events`),
+
+  getStats: (date?: string) =>
+    api.get<IncidentStats>('/incidents/stats', { params: date ? { date } : {} }),
 };
 
 // ─── Dispatch ────────────────────────────────────────────────────────────────
