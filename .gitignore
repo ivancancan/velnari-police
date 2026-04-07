@@ -8,3 +8,28 @@ dist/
 coverage/
 .next/
 .expo/
+
+# macOS
+.DS_Store
+.DS_Store?
+._*
+
+# TypeScript build artifacts
+*.tsbuildinfo
+
+# React Native
+android/build/
+android/.gradle/
+android/app/debug/
+ios/Pods/
+ios/build/
+*.keystore
+!debug.keystore
+
+# IDE
+.idea/
+.vscode/extensions.json
+
+# Misc
+*.swp
+*.swo
