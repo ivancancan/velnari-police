@@ -5,6 +5,8 @@ interface IncidentsState {
   incidents: Incident[];
   selectedId: string | null;
   isLoading: boolean;
+  filters: { status: string | null; sectorId: string | null };
+  setFilters: (filters: Partial<{ status: string | null; sectorId: string | null }>) => void;
   setIncidents: (incidents: Incident[]) => void;
   addIncident: (incident: Incident) => void;
   updateIncident: (updated: Incident) => void;
@@ -30,4 +32,8 @@ export const useIncidentsStore = create<IncidentsState>()((set) => ({
   selectIncident: (selectedId) => set({ selectedId }),
 
   setLoading: (isLoading) => set({ isLoading }),
+
+  filters: { status: null, sectorId: null },
+  setFilters: (f) =>
+    set((state) => ({ filters: { ...state.filters, ...f } })),
 }));

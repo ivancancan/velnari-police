@@ -6,12 +6,12 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth.store';
 import { useIncidentsStore } from '@/store/incidents.store';
 import { useUnitsStore } from '@/store/units.store';
-import { incidentsApi, unitsApi } from '@/lib/api';
+import { incidentsApi, unitsApi, sectorsApi } from '@/lib/api';
 import dynamic from 'next/dynamic';
 import IncidentList from '@/components/incidents/IncidentList';
 import RealtimeProvider from '@/components/incidents/RealtimeProvider';
 import UnitDetailPanel from '@/components/units/UnitDetailPanel';
-import type { LocationHistoryPoint } from '@/lib/types';
+import type { LocationHistoryPoint, Sector } from '@/lib/types';
 import ToastContainer from '@/components/ui/ToastContainer';
 import Link from 'next/link';
 
@@ -29,6 +29,7 @@ export default function CommandPage() {
   const { setIncidents, setLoading } = useIncidentsStore();
   const { setUnits, units, selectedUnitId } = useUnitsStore();
   const [trailPoints, setTrailPoints] = useState<LocationHistoryPoint[]>([]);
+  const [sectors, setSectors] = useState<Sector[]>([]);
   const router = useRouter();
 
   useEffect(() => {
@@ -52,6 +53,10 @@ export default function CommandPage() {
       .then((res) => setUnits(res.data))
       .catch(console.error);
   }, [setUnits]);
+
+  useEffect(() => {
+    sectorsApi.getAll().then((res) => setSectors(res.data)).catch(console.error);
+  }, []);
 
   if (!isAuthenticated) return null;
 
@@ -103,7 +108,7 @@ export default function CommandPage() {
                 onTrailChange={setTrailPoints}
               />
             ) : (
-              <IncidentList />
+              <IncidentList sectors={sectors} />
             )}
           </aside>
         </div>

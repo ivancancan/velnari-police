@@ -4,10 +4,29 @@ import { useState } from 'react';
 import { useIncidentsStore } from '@/store/incidents.store';
 import IncidentCard from './IncidentCard';
 import CreateIncidentModal from './CreateIncidentModal';
+import type { Sector } from '@/lib/types';
 
-export default function IncidentList() {
-  const { incidents, selectedId, selectIncident } = useIncidentsStore();
+const STATUS_OPTIONS = [
+  { value: null, label: 'Todos' },
+  { value: 'open', label: 'Abiertos' },
+  { value: 'assigned', label: 'Asignados' },
+  { value: 'on_scene', label: 'En Escena' },
+  { value: 'closed', label: 'Cerrados' },
+];
+
+interface IncidentListProps {
+  sectors?: Sector[];
+}
+
+export default function IncidentList({ sectors = [] }: IncidentListProps) {
+  const { incidents, selectedId, selectIncident, filters, setFilters } = useIncidentsStore();
   const [showCreate, setShowCreate] = useState(false);
+
+  const filtered = incidents.filter((inc) => {
+    if (filters.status && inc.status !== filters.status) return false;
+    if (filters.sectorId && inc.sectorId !== filters.sectorId) return false;
+    return true;
+  });
 
   return (
     <div className="flex flex-col h-full">
@@ -22,14 +41,48 @@ export default function IncidentList() {
         </button>
       </div>
 
+      {/* Status filter chips */}
+      <div className="flex gap-1 px-3 py-2 border-b border-slate-800 overflow-x-auto shrink-0">
+        {STATUS_OPTIONS.map((opt) => (
+          <button
+            key={String(opt.value)}
+            onClick={() => setFilters({ status: opt.value })}
+            className={`text-xs px-3 py-1 rounded-full whitespace-nowrap transition-colors ${
+              filters.status === opt.value
+                ? 'bg-tactical-blue text-white'
+                : 'bg-slate-800 text-slate-gray hover:text-signal-white'
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Sector filter */}
+      {sectors.length > 0 && (
+        <div className="px-3 py-2 border-b border-slate-800 shrink-0">
+          <select
+            value={filters.sectorId ?? ''}
+            onChange={(e) => setFilters({ sectorId: e.target.value || null })}
+            className="w-full bg-slate-800 border border-slate-700 text-signal-white text-xs rounded px-2 py-1 focus:outline-none focus:border-tactical-blue"
+            aria-label="Filtrar por sector"
+          >
+            <option value="">Todos los sectores</option>
+            {sectors.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {/* List */}
       <div className="flex-1 overflow-y-auto">
-        {incidents.length === 0 ? (
+        {filtered.length === 0 ? (
           <p className="text-center text-slate-gray text-sm py-12">
-            Sin incidentes activos
+            Sin incidentes
           </p>
         ) : (
-          incidents.map((incident) => (
+          filtered.map((incident) => (
             <IncidentCard
               key={incident.id}
               incident={incident}
