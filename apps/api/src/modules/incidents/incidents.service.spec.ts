@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
 import { IncidentsService } from './incidents.service';
@@ -103,5 +104,78 @@ describe('IncidentsService', () => {
 
     const result = await service.close('incident-uuid-1', { resolution: 'no_action' }, 'user-uuid-1');
     expect(result.status).toBe(IncidentStatus.CLOSED);
+  });
+});
+
+describe('IncidentsService.getStats', () => {
+  let service: IncidentsService;
+
+  const mockRepo = {
+    find: jest.fn(),
+    count: jest.fn(),
+    findOne: jest.fn(),
+    createQueryBuilder: jest.fn(),
+    save: jest.fn(),
+  };
+  const mockEventRepo = {
+    find: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+  };
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        IncidentsService,
+        { provide: getRepositoryToken(IncidentEntity), useValue: mockRepo },
+        { provide: getRepositoryToken(IncidentEventEntity), useValue: mockEventRepo },
+      ],
+    }).compile();
+    service = module.get<IncidentsService>(IncidentsService);
+    jest.clearAllMocks();
+  });
+
+  it('cuenta totales por estado', async () => {
+    const now = new Date('2026-04-07T10:00:00Z');
+    mockRepo.find.mockResolvedValue([
+      { status: IncidentStatus.OPEN, priority: IncidentPriority.HIGH, type: IncidentType.ROBBERY, createdAt: now, assignedAt: null },
+      { status: IncidentStatus.ASSIGNED, priority: IncidentPriority.CRITICAL, type: IncidentType.ASSAULT, createdAt: now, assignedAt: null },
+      { status: IncidentStatus.CLOSED, priority: IncidentPriority.LOW, type: IncidentType.TRAFFIC, createdAt: now, assignedAt: null },
+    ]);
+    const stats = await service.getStats(new Date('2026-04-07'));
+    expect(stats.total).toBe(3);
+    expect(stats.open).toBe(1);
+    expect(stats.assigned).toBe(1);
+    expect(stats.closed).toBe(1);
+  });
+
+  it('cuenta incidentes por prioridad', async () => {
+    const now = new Date('2026-04-07T10:00:00Z');
+    mockRepo.find.mockResolvedValue([
+      { status: IncidentStatus.OPEN, priority: IncidentPriority.CRITICAL, type: IncidentType.ROBBERY, createdAt: now, assignedAt: null },
+      { status: IncidentStatus.OPEN, priority: IncidentPriority.CRITICAL, type: IncidentType.ASSAULT, createdAt: now, assignedAt: null },
+      { status: IncidentStatus.OPEN, priority: IncidentPriority.HIGH, type: IncidentType.TRAFFIC, createdAt: now, assignedAt: null },
+    ]);
+    const stats = await service.getStats(new Date('2026-04-07'));
+    expect(stats.byPriority['critical']).toBe(2);
+    expect(stats.byPriority['high']).toBe(1);
+  });
+
+  it('calcula avgResponseMinutes cuando hay assignedAt', async () => {
+    const createdAt = new Date('2026-04-07T10:00:00Z');
+    const assignedAt = new Date('2026-04-07T10:05:00Z');
+    mockRepo.find.mockResolvedValue([
+      { status: IncidentStatus.ASSIGNED, priority: IncidentPriority.HIGH, type: IncidentType.ROBBERY, createdAt, assignedAt },
+    ]);
+    const stats = await service.getStats(new Date('2026-04-07'));
+    expect(stats.avgResponseMinutes).toBe(5);
+  });
+
+  it('retorna null para avgResponseMinutes si no hay asignaciones', async () => {
+    mockRepo.find.mockResolvedValue([
+      { status: IncidentStatus.OPEN, priority: IncidentPriority.HIGH, type: IncidentType.ROBBERY, createdAt: new Date(), assignedAt: null },
+    ]);
+    const stats = await service.getStats(new Date('2026-04-07'));
+    expect(stats.avgResponseMinutes).toBeNull();
   });
 });

@@ -1,13 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Between, Repository } from 'typeorm';
 import { IncidentEntity } from '../../entities/incident.entity';
 import { IncidentEventEntity } from '../../entities/incident-event.entity';
 import {
   IncidentStatus,
-  type CreateIncidentDto,
-  type CloseIncidentDto,
-  type AddIncidentNoteDto,
+  CreateIncidentDto,
+  CloseIncidentDto,
+  AddIncidentNoteDto,
 } from '@velnari/shared-types';
 
 interface FindAllFilters {
@@ -46,21 +46,28 @@ export class IncidentsService {
     const count = await this.repo.count();
     const folio = `IC-${String(count + 1).padStart(3, '0')}`;
 
-    const incident = this.repo.create({
-      folio,
-      type: dto.type,
-      priority: dto.priority,
-      lat: dto.lat,
-      lng: dto.lng,
-      address: dto.address,
-      description: dto.description,
-      sectorId: dto.sectorId,
-      createdBy: actorId,
-      status: IncidentStatus.OPEN,
-      location: `SRID=4326;POINT(${dto.lng} ${dto.lat})`,
-    });
+    const result = await this.repo
+      .createQueryBuilder()
+      .insert()
+      .into(IncidentEntity)
+      .values({
+        folio,
+        type: dto.type,
+        priority: dto.priority,
+        lat: dto.lat,
+        lng: dto.lng,
+        address: dto.address,
+        description: dto.description,
+        sectorId: dto.sectorId,
+        createdBy: actorId,
+        status: IncidentStatus.OPEN,
+        location: () => `ST_SetSRID(ST_MakePoint(${dto.lng}, ${dto.lat}), 4326)`,
+      })
+      .returning('id')
+      .execute();
 
-    const saved = await this.repo.save(incident);
+    const savedId = result.raw[0]?.id as string;
+    const saved = await this.findOne(savedId);
 
     const event = this.eventRepo.create({
       incidentId: saved.id,
@@ -114,5 +121,58 @@ export class IncidentsService {
 
   saveIncident(incident: IncidentEntity): Promise<IncidentEntity> {
     return this.repo.save(incident);
+  }
+
+  async getStats(date: Date): Promise<{
+    total: number;
+    open: number;
+    assigned: number;
+    closed: number;
+    byPriority: Record<string, number>;
+    byType: Record<string, number>;
+    avgResponseMinutes: number | null;
+  }> {
+    const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
+    const dayEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
+
+    const incidents = await this.repo.find({
+      where: { createdAt: Between(dayStart, dayEnd) },
+      select: ['id', 'status', 'priority', 'type', 'createdAt', 'assignedAt'],
+    });
+
+    const byPriority: Record<string, number> = {};
+    const byType: Record<string, number> = {};
+    let open = 0, assigned = 0, closed = 0;
+    let totalResponseMs = 0, responseCount = 0;
+
+    for (const inc of incidents) {
+      if (inc.status === IncidentStatus.OPEN) open++;
+      else if (
+        inc.status === IncidentStatus.ASSIGNED ||
+        inc.status === IncidentStatus.EN_ROUTE ||
+        inc.status === IncidentStatus.ON_SCENE
+      ) assigned++;
+      else if (inc.status === IncidentStatus.CLOSED) closed++;
+
+      byPriority[inc.priority] = (byPriority[inc.priority] ?? 0) + 1;
+      byType[inc.type] = (byType[inc.type] ?? 0) + 1;
+
+      if (inc.assignedAt && inc.createdAt) {
+        totalResponseMs += new Date(inc.assignedAt).getTime() - new Date(inc.createdAt).getTime();
+        responseCount++;
+      }
+    }
+
+    return {
+      total: incidents.length,
+      open,
+      assigned,
+      closed,
+      byPriority,
+      byType,
+      avgResponseMinutes: responseCount > 0
+        ? Math.round(totalResponseMs / responseCount / 60000 * 10) / 10
+        : null,
+    };
   }
 }

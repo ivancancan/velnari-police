@@ -17,9 +17,9 @@ import type { JwtPayload } from '../../shared/decorators/current-user.decorator'
 import {
   UserRole,
   IncidentStatus,
-  type CreateIncidentDto,
-  type CloseIncidentDto,
-  type AddIncidentNoteDto,
+  CreateIncidentDto,
+  CloseIncidentDto,
+  AddIncidentNoteDto,
 } from '@velnari/shared-types';
 import type { IncidentEntity } from '../../entities/incident.entity';
 import type { IncidentEventEntity } from '../../entities/incident-event.entity';
@@ -36,6 +36,20 @@ export class IncidentsController {
     @Query('priority') priority?: string,
   ): Promise<IncidentEntity[]> {
     return this.service.findAll({ status, sectorId, priority });
+  }
+
+  @Get('stats')
+  getStats(@Query('date') date?: string): Promise<{
+    total: number;
+    open: number;
+    assigned: number;
+    closed: number;
+    byPriority: Record<string, number>;
+    byType: Record<string, number>;
+    avgResponseMinutes: number | null;
+  }> {
+    const d = date && !isNaN(Date.parse(date)) ? new Date(date) : new Date();
+    return this.service.getStats(d);
   }
 
   @Get(':id')
