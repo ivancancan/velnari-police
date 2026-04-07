@@ -18,12 +18,20 @@ import { Roles } from '../../shared/decorators/roles.decorator';
 import {
   UserRole,
   UnitStatus,
-  type CreateUnitDto,
-  type UpdateUnitStatusDto,
-  type UnitLocationDto,
+  CreateUnitDto,
+  UpdateUnitStatusDto,
+  UnitLocationDto,
 } from '@velnari/shared-types';
 import type { UnitEntity } from '../../entities/unit.entity';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
+
+function startOfDay(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+}
+
+function endOfDay(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+}
 
 @Controller('units')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -88,5 +96,27 @@ export class UnitsController {
       lng: dto.lng,
       timestamp: new Date().toISOString(),
     });
+  }
+
+  @Get(':id/history')
+  getHistory(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('from') from: string,
+    @Query('to') to: string,
+  ) {
+    const fromDate = from ? new Date(from) : startOfDay(new Date());
+    const toDate = to ? new Date(to) : endOfDay(new Date());
+    return this.service.getHistory(id, fromDate, toDate);
+  }
+
+  @Get(':id/incidents')
+  getIncidentsByUnit(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('from') from: string,
+    @Query('to') to: string,
+  ) {
+    const fromDate = from ? new Date(from) : startOfDay(new Date());
+    const toDate = to ? new Date(to) : endOfDay(new Date());
+    return this.service.getIncidentsByUnit(id, fromDate, toDate);
   }
 }
