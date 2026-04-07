@@ -7,6 +7,7 @@ import { useIncidentsStore } from '@/store/incidents.store';
 import { incidentsApi } from '@/lib/api';
 import dynamic from 'next/dynamic';
 import IncidentList from '@/components/incidents/IncidentList';
+import RealtimeProvider from '@/components/incidents/RealtimeProvider';
 
 // MapLibre GL uses browser APIs — load without SSR
 const CommandMap = dynamic(() => import('@/components/map/CommandMap'), {
@@ -41,6 +42,7 @@ export default function CommandPage() {
   if (!isAuthenticated) return null;
 
   return (
+    <RealtimeProvider>
     <div className="flex flex-col h-screen bg-midnight-command">
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-3 bg-slate-900 border-b border-slate-800 shrink-0">
@@ -82,5 +84,6 @@ export default function CommandPage() {
         </aside>
       </div>
     </div>
+    </RealtimeProvider>
   );
 }
