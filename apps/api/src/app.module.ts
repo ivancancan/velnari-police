@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import configuration from './config/configuration';
+import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import configuration from './config/configuration';
         logging: config.get('nodeEnv') === 'development',
       }),
     }),
+    AuthModule,
   ],
 })
 export class AppModule {}
