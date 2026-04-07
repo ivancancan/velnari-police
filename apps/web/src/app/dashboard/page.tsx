@@ -85,6 +85,28 @@ export default function DashboardPage() {
 
   if (!isAuthenticated) return null;
 
+  const downloadCSV = () => {
+    const headers = ['Folio', 'Tipo', 'Prioridad', 'Estado', 'Dirección', 'Hora'];
+    const rows = recentIncidents.map((inc) => [
+      inc.folio,
+      TYPE_LABELS[inc.type] ?? inc.type,
+      PRIORITY_LABELS[inc.priority] ?? inc.priority,
+      STATUS_BADGE[inc.status]?.label ?? inc.status,
+      inc.address ?? '',
+      new Date(inc.createdAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
+    ]);
+    const csv = [headers, ...rows]
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `incidentes-${date}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-midnight-command">
       {/* Header */}
@@ -101,6 +123,14 @@ export default function DashboardPage() {
           </nav>
         </div>
         <div className="flex items-center gap-4">
+          <button
+            onClick={downloadCSV}
+            disabled={recentIncidents.length === 0}
+            className="text-xs bg-slate-800 hover:bg-slate-700 disabled:opacity-40 border border-slate-700 text-signal-white px-3 py-1 rounded transition-colors"
+            aria-label="Exportar a CSV"
+          >
+            ↓ CSV
+          </button>
           <input
             type="date"
             value={date}
