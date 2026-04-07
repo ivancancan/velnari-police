@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -18,13 +20,18 @@ import {
   UnitStatus,
   type CreateUnitDto,
   type UpdateUnitStatusDto,
+  type UnitLocationDto,
 } from '@velnari/shared-types';
 import type { UnitEntity } from '../../entities/unit.entity';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 
 @Controller('units')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class UnitsController {
-  constructor(private readonly service: UnitsService) {}
+  constructor(
+    private readonly service: UnitsService,
+    private readonly realtime: RealtimeGateway,
+  ) {}
 
   @Get()
   findAll(
@@ -64,5 +71,22 @@ export class UnitsController {
     @Body() dto: UpdateUnitStatusDto,
   ): Promise<UnitEntity> {
     return this.service.updateStatus(id, dto.status);
+  }
+
+  @Patch(':id/location')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Roles(UserRole.ADMIN, UserRole.FIELD_UNIT, UserRole.SUPERVISOR)
+  async updateLocation(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UnitLocationDto,
+  ): Promise<void> {
+    await this.service.updateLocation(id, dto.lat, dto.lng);
+    const unit = await this.service.findOne(id);
+    this.realtime.emitUnitLocationChanged(unit.sectorId ?? undefined, {
+      unitId: id,
+      lat: dto.lat,
+      lng: dto.lng,
+      timestamp: new Date().toISOString(),
+    });
   }
 }

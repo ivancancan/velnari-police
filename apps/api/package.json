@@ -15,7 +15,8 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "typecheck": "tsc --noEmit",
     "db:migrate": "ts-node -r tsconfig-paths/register node_modules/.bin/typeorm migration:run -d src/database/data-source.ts",
-    "db:migrate:revert": "ts-node -r tsconfig-paths/register node_modules/.bin/typeorm migration:revert -d src/database/data-source.ts"
+    "db:migrate:revert": "ts-node -r tsconfig-paths/register node_modules/.bin/typeorm migration:revert -d src/database/data-source.ts",
+    "db:seed": "ts-node -r tsconfig-paths/register src/database/seed.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.3.2",

@@ -6,8 +6,8 @@ import { useUnitsStore } from '@/store/units.store';
 import { useIncidentsStore } from '@/store/incidents.store';
 import UnitMarker from './UnitMarker';
 
-// CARTO Dark Matter: free MapLibre-compatible style, no API key required
-const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
+// CARTO Voyager: free, no API key, Google Maps-like street style
+const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
 
 // Mexico City center as default view
 const DEFAULT_VIEW = { latitude: 19.4326, longitude: -99.1332, zoom: 12 };
