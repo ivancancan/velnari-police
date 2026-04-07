@@ -56,10 +56,12 @@ export class UnitsController {
   findNearby(
     @Query('lat') lat: string,
     @Query('lng') lng: string,
-  ): Promise<UnitEntity[]> {
+    @Query('radiusKm') radiusKm?: string,
+  ) {
     return this.service.findAvailableNearby({
       lat: parseFloat(lat),
       lng: parseFloat(lng),
+      radiusKm: radiusKm ? parseFloat(radiusKm) : undefined,
     });
   }
 

@@ -78,7 +78,19 @@ describe('UnitsService', () => {
   });
 
   it('findAvailableNearby retorna unidades disponibles', async () => {
-    mockRepo.find.mockResolvedValue([mockUnit]);
+    const innerQb = {
+      select: jest.fn().mockReturnThis(),
+      addSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      getRawAndEntities: jest.fn().mockResolvedValue({
+        raw: [{ id: 'unit-uuid-1', distance_km: '0.3' }],
+        entities: [mockUnit],
+      }),
+    };
+    mockRepo.createQueryBuilder.mockReturnValue(innerQb);
     const result = await service.findAvailableNearby({ lat: 19.4, lng: -99.1 });
     expect(result).toHaveLength(1);
   });
@@ -134,6 +146,37 @@ describe('UnitsService', () => {
       expect(stats.enRoute).toBe(1);
       expect(stats.onScene).toBe(1);
       expect(stats.outOfService).toBe(1);
+    });
+  });
+
+  describe('findAvailableNearby', () => {
+    it('retorna unidades disponibles con distancia calculada', async () => {
+      const mockQbResult = [
+        { id: 'u1', callSign: 'P-01', status: UnitStatus.AVAILABLE, isActive: true, distance_km: '0.5' },
+        { id: 'u2', callSign: 'P-02', status: UnitStatus.AVAILABLE, isActive: true, distance_km: '1.2' },
+      ];
+      const innerQb = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        getRawAndEntities: jest.fn().mockResolvedValue({
+          raw: mockQbResult,
+          entities: [
+            { id: 'u1', callSign: 'P-01', status: UnitStatus.AVAILABLE, isActive: true },
+            { id: 'u2', callSign: 'P-02', status: UnitStatus.AVAILABLE, isActive: true },
+          ],
+        }),
+      };
+      mockRepo.createQueryBuilder.mockReturnValue(innerQb);
+
+      const result = await service.findAvailableNearby({ lat: 19.4326, lng: -99.1332 });
+      expect(result).toHaveLength(2);
+      expect(result[0]).toHaveProperty('distanceKm');
+      expect(result[0]!.distanceKm).toBe(0.5);
+      expect(innerQb.orderBy).toHaveBeenCalled();
     });
   });
 });

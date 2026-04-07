@@ -107,11 +107,36 @@ export class UnitsService {
     });
   }
 
-  findAvailableNearby(point: NearbyPoint): Promise<UnitEntity[]> {
-    void point;
-    return this.repo.find({
-      where: { status: UnitStatus.AVAILABLE, isActive: true },
-    });
+  async findAvailableNearby(point: NearbyPoint): Promise<(UnitEntity & { distanceKm: number })[]> {
+    const radiusKm = point.radiusKm ?? 10;
+    const { raw, entities } = await this.repo
+      .createQueryBuilder('unit')
+      .select('unit')
+      .addSelect(
+        `ST_Distance(
+          unit.current_location::geography,
+          ST_SetSRID(ST_MakePoint(${point.lng}, ${point.lat}), 4326)::geography
+        ) / 1000`,
+        'distance_km',
+      )
+      .where('unit.is_active = true')
+      .andWhere('unit.status = :status', { status: UnitStatus.AVAILABLE })
+      .andWhere(
+        `ST_DWithin(
+          unit.current_location::geography,
+          ST_SetSRID(ST_MakePoint(${point.lng}, ${point.lat}), 4326)::geography,
+          :radiusMeters
+        )`,
+        { radiusMeters: radiusKm * 1000 },
+      )
+      .orderBy('distance_km', 'ASC')
+      .limit(20)
+      .getRawAndEntities();
+
+    return entities.map((entity, i) => ({
+      ...entity,
+      distanceKm: parseFloat(raw[i]?.distance_km ?? '0'),
+    }));
   }
 
   async getStats(): Promise<{
