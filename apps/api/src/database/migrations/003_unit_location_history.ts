@@ -18,6 +18,10 @@ export class UnitLocationHistory1704240000000 implements MigrationInterface {
       CREATE INDEX "IDX_location_history_unit_time"
         ON "unit_location_history" ("unit_id", "recorded_at" DESC)
     `);
+    await queryRunner.query(`
+      CREATE INDEX "IDX_location_history_location"
+        ON "unit_location_history" USING GIST ("location")
+    `);
   }
 
   async down(queryRunner: QueryRunner): Promise<void> {
