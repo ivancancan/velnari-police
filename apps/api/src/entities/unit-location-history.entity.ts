@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -9,6 +10,7 @@ import {
 import { UnitEntity } from './unit.entity';
 
 @Entity('unit_location_history')
+@Index(['unitId', 'recordedAt'], { synchronize: false })
 export class UnitLocationHistoryEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
