@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import configuration from './config/configuration';
 import { AuthModule } from './modules/auth/auth.module';
+import { AuditInterceptor } from './shared/interceptors/audit.interceptor';
 
 @Module({
   imports: [
@@ -26,6 +28,12 @@ import { AuthModule } from './modules/auth/auth.module';
       }),
     }),
     AuthModule,
+  ],
+  providers: [
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: AuditInterceptor,
+    },
   ],
 })
 export class AppModule {}
