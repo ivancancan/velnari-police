@@ -12,6 +12,8 @@ import IncidentList from '@/components/incidents/IncidentList';
 import RealtimeProvider from '@/components/incidents/RealtimeProvider';
 import UnitDetailPanel from '@/components/units/UnitDetailPanel';
 import type { LocationHistoryPoint } from '@/lib/types';
+import ToastContainer from '@/components/ui/ToastContainer';
+import Link from 'next/link';
 
 const CommandMap = dynamic(() => import('@/components/map/CommandMap'), {
   ssr: false,
@@ -73,6 +75,9 @@ export default function CommandPage() {
                 month: 'short',
               })}
             </span>
+            <Link href="/dashboard" className="text-xs text-slate-gray hover:text-signal-white transition-colors ml-2">
+              Dashboard →
+            </Link>
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-slate-gray">{user?.name}</span>
@@ -103,6 +108,7 @@ export default function CommandPage() {
           </aside>
         </div>
       </div>
+      <ToastContainer />
     </RealtimeProvider>
   );
 }

@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { useUnitsStore } from '@/store/units.store';
 import { useIncidentsStore } from '@/store/incidents.store';
 import type { UnitPosition, Incident, Unit } from '@/lib/types';
+import { useAlertsStore } from '@/store/alerts.store';
 
 export default function RealtimeProvider({ children }: { children: React.ReactNode }) {
   const accessToken = useAuthStore((s) => s.accessToken);
@@ -13,6 +14,7 @@ export default function RealtimeProvider({ children }: { children: React.ReactNo
   const updateUnit = useUnitsStore((s) => s.updateUnit);
   const addIncident = useIncidentsStore((s) => s.addIncident);
   const updateIncident = useIncidentsStore((s) => s.updateIncident);
+  const addAlert = useAlertsStore((s) => s.addAlert);
 
   useEffect(() => {
     if (!accessToken) return;
@@ -42,6 +44,13 @@ export default function RealtimeProvider({ children }: { children: React.ReactNo
     // New incident created
     socket.on('incident:created', (incident: Incident) => {
       addIncident(incident);
+      if (incident.priority === 'critical' || incident.priority === 'high') {
+        addAlert({
+          folio: incident.folio,
+          message: incident.description ?? incident.address ?? 'Nuevo incidente',
+          priority: incident.priority,
+        });
+      }
     });
 
     // Incident status changed
@@ -63,7 +72,7 @@ export default function RealtimeProvider({ children }: { children: React.ReactNo
       socket.off('incident:status:changed');
       disconnectSocket();
     };
-  }, [accessToken, updatePosition, updateUnit, addIncident, updateIncident]);
+  }, [accessToken, updatePosition, updateUnit, addIncident, updateIncident, addAlert]);
 
   return <>{children}</>;
 }
