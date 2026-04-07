@@ -13,9 +13,12 @@ export class UnitLocationDto {
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   accuracy?: number;
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
+  @Max(360)
   heading?: number;
 }

@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, MinLength, MaxLength } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, MinLength, MaxLength, Matches } from 'class-validator';
 
 export class CreateSectorDto {
   @IsString()
@@ -8,7 +8,8 @@ export class CreateSectorDto {
 
   @IsOptional()
   @IsString()
-  color?: string; // hex color ej. "#3B82F6"
+  @Matches(/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/, { message: 'color must be a valid hex color' })
+  color?: string;
 }
 
 export class UpdateSectorDto {
@@ -20,6 +21,7 @@ export class UpdateSectorDto {
 
   @IsOptional()
   @IsString()
+  @Matches(/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/, { message: 'color must be a valid hex color' })
   color?: string;
 
   @IsOptional()

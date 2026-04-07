@@ -1,8 +1,8 @@
-import { IsString, MinLength, MaxLength } from 'class-validator';
+import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
 
 export class AddIncidentNoteDto {
   @IsString()
-  @MinLength(1)
+  @IsNotEmpty()
   @MaxLength(500)
   text!: string;
 }

@@ -1,4 +1,4 @@
-import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { IncidentPriority } from '../../enums/incident-priority.enum';
 import { IncidentType } from '../../enums/incident-type.enum';
 
@@ -18,12 +18,14 @@ export class UpdateIncidentDto {
 
   @IsOptional()
   @IsString()
+  @MinLength(5)
   @MaxLength(500)
   description?: string;
 }
 
 export class CloseIncidentDto {
   @IsString()
+  @IsNotEmpty()
   @MaxLength(50)
   resolution!: string;
 
