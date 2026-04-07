@@ -119,4 +119,21 @@ describe('UnitsService', () => {
       expect(result).toHaveLength(1);
     });
   });
+
+  describe('getStats', () => {
+    it('cuenta unidades por estado', async () => {
+      mockRepo.find.mockResolvedValue([
+        { ...mockUnit, status: UnitStatus.AVAILABLE },
+        { ...mockUnit, id: 'u2', status: UnitStatus.EN_ROUTE },
+        { ...mockUnit, id: 'u3', status: UnitStatus.ON_SCENE },
+        { ...mockUnit, id: 'u4', status: UnitStatus.OUT_OF_SERVICE },
+      ]);
+      const stats = await service.getStats();
+      expect(stats.total).toBe(4);
+      expect(stats.available).toBe(1);
+      expect(stats.enRoute).toBe(1);
+      expect(stats.onScene).toBe(1);
+      expect(stats.outOfService).toBe(1);
+    });
+  });
 });

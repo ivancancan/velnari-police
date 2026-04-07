@@ -113,4 +113,22 @@ export class UnitsService {
       where: { status: UnitStatus.AVAILABLE, isActive: true },
     });
   }
+
+  async getStats(): Promise<{
+    total: number;
+    available: number;
+    enRoute: number;
+    onScene: number;
+    outOfService: number;
+  }> {
+    const units = await this.repo.find({ where: { isActive: true } });
+    const stats = { total: units.length, available: 0, enRoute: 0, onScene: 0, outOfService: 0 };
+    for (const unit of units) {
+      if (unit.status === UnitStatus.AVAILABLE) stats.available++;
+      else if (unit.status === UnitStatus.EN_ROUTE) stats.enRoute++;
+      else if (unit.status === UnitStatus.ON_SCENE) stats.onScene++;
+      else if (unit.status === UnitStatus.OUT_OF_SERVICE) stats.outOfService++;
+    }
+    return stats;
+  }
 }

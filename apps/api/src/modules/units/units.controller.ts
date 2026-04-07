@@ -63,6 +63,17 @@ export class UnitsController {
     });
   }
 
+  @Get('stats')
+  getStats(): Promise<{
+    total: number;
+    available: number;
+    enRoute: number;
+    onScene: number;
+    outOfService: number;
+  }> {
+    return this.service.getStats();
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseUUIDPipe) id: string): Promise<UnitEntity> {
     return this.service.findOne(id);
