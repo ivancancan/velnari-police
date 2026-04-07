@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { UserRole } from '@velnari/shared-types';
 import LoginForm from './LoginForm';
 import { authApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
@@ -52,7 +53,7 @@ describe('LoginForm', () => {
       data: { accessToken: 'at-123', refreshToken: 'rt-456', expiresIn: 900 },
     });
     mockMe.mockResolvedValue({
-      data: { id: 'u1', email: 'op@test.com', name: 'Operator', role: 'operator' },
+      data: { id: 'u1', email: 'op@test.com', name: 'Operator', role: UserRole.OPERATOR },
     });
 
     const user = userEvent.setup();

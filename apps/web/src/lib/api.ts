@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { UserRole } from '@velnari/shared-types';
 
 const API_URL = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001/api';
 
@@ -31,7 +32,7 @@ export const authApi = {
       id: string;
       email: string;
       name: string;
-      role: string;
+      role: UserRole;
       badgeNumber?: string;
     }>('/auth/me'),
 

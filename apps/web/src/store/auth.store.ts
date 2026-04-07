@@ -1,10 +1,11 @@
 import { create } from 'zustand';
+import { UserRole } from '@velnari/shared-types';
 
 export interface AuthUser {
   id: string;
   email: string;
   name: string;
-  role: string;
+  role: UserRole;
   badgeNumber?: string;
 }
 

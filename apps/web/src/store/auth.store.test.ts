@@ -1,3 +1,4 @@
+import { UserRole } from '@velnari/shared-types';
 import { useAuthStore } from './auth.store';
 
 beforeEach(() => {
@@ -11,7 +12,7 @@ describe('useAuthStore', () => {
     id: 'user-1',
     email: 'operator@test.com',
     name: 'Test Operator',
-    role: 'operator',
+    role: UserRole.OPERATOR,
   };
 
   it('setAuth guarda usuario y tokens', () => {
