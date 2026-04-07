@@ -5,16 +5,19 @@ interface UnitsState {
   units: Unit[];
   positions: Record<string, UnitPosition>;
   isLoading: boolean;
+  selectedUnitId: string | null;
   setUnits: (units: Unit[]) => void;
   updateUnit: (updated: Unit) => void;
   updatePosition: (position: UnitPosition) => void;
   setLoading: (loading: boolean) => void;
+  selectUnit: (id: string | null) => void;
 }
 
 export const useUnitsStore = create<UnitsState>()((set) => ({
   units: [],
   positions: {},
   isLoading: false,
+  selectedUnitId: null,
 
   setUnits: (units) => set({ units }),
 
@@ -29,4 +32,6 @@ export const useUnitsStore = create<UnitsState>()((set) => ({
     })),
 
   setLoading: (isLoading) => set({ isLoading }),
+
+  selectUnit: (id) => set({ selectedUnitId: id }),
 }));

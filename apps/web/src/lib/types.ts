@@ -57,3 +57,10 @@ export interface Sector {
   color: string;
   isActive: boolean;
 }
+
+export interface LocationHistoryPoint {
+  id: string;
+  lat: number;
+  lng: number;
+  recordedAt: string;
+}
