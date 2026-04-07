@@ -25,12 +25,21 @@ describe('IncidentsService', () => {
     updatedAt: new Date(),
   };
 
+  const mockQb = {
+    insert: jest.fn().mockReturnThis(),
+    into: jest.fn().mockReturnThis(),
+    values: jest.fn().mockReturnThis(),
+    returning: jest.fn().mockReturnThis(),
+    execute: jest.fn().mockResolvedValue({ raw: [{ id: 'incident-uuid-1' }] }),
+  };
+
   const mockIncidentRepo = {
     find: jest.fn(),
     findOne: jest.fn(),
     create: jest.fn(),
     save: jest.fn(),
     count: jest.fn(),
+    createQueryBuilder: jest.fn().mockReturnValue(mockQb),
   };
 
   const mockEventRepo = {
@@ -71,8 +80,8 @@ describe('IncidentsService', () => {
 
   it('create genera folio y guarda incidente', async () => {
     mockIncidentRepo.count.mockResolvedValue(0);
-    mockIncidentRepo.create.mockReturnValue({ ...mockIncident, folio: 'IC-001' });
-    mockIncidentRepo.save.mockResolvedValue(mockIncident);
+    // create uses createQueryBuilder + findOne (with relations)
+    mockIncidentRepo.findOne.mockResolvedValue({ ...mockIncident, folio: 'IC-001', events: [] });
     mockEventRepo.create.mockReturnValue({});
     mockEventRepo.save.mockResolvedValue({});
 
@@ -86,7 +95,7 @@ describe('IncidentsService', () => {
       'user-uuid-1',
     );
 
-    expect(mockIncidentRepo.save).toHaveBeenCalled();
+    expect(mockIncidentRepo.createQueryBuilder).toHaveBeenCalled();
     expect(result.folio).toBe('IC-001');
   });
 
