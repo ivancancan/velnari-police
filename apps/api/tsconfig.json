@@ -2,7 +2,7 @@
   "extends": "@velnari/config/tsconfig",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDirs": ["./src", "../../packages/shared-types/src"],
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "paths": {
