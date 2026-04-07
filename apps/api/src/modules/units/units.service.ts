@@ -1,8 +1,11 @@
+// apps/api/src/modules/units/units.service.ts
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Between, Repository } from 'typeorm';
 import { UnitEntity } from '../../entities/unit.entity';
-import { UnitStatus, type CreateUnitDto } from '@velnari/shared-types';
+import { UnitLocationHistoryEntity } from '../../entities/unit-location-history.entity';
+import { IncidentEntity } from '../../entities/incident.entity';
+import { UnitStatus, CreateUnitDto } from '@velnari/shared-types';
 
 interface FindAllFilters {
   status?: UnitStatus;
@@ -21,6 +24,10 @@ export class UnitsService {
   constructor(
     @InjectRepository(UnitEntity)
     private readonly repo: Repository<UnitEntity>,
+    @InjectRepository(UnitLocationHistoryEntity)
+    private readonly historyRepo: Repository<UnitLocationHistoryEntity>,
+    @InjectRepository(IncidentEntity)
+    private readonly incidentRepo: Repository<IncidentEntity>,
   ) {}
 
   findAll(filters: FindAllFilters): Promise<UnitEntity[]> {
@@ -68,11 +75,40 @@ export class UnitsService {
       })
       .where('id = :id', { id })
       .execute();
+
+    await this.historyRepo
+      .createQueryBuilder()
+      .insert()
+      .into(UnitLocationHistoryEntity)
+      .values({
+        unitId: id,
+        lat,
+        lng,
+        location: () => `ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)`,
+      })
+      .execute();
+  }
+
+  getHistory(id: string, from: Date, to: Date): Promise<UnitLocationHistoryEntity[]> {
+    return this.historyRepo.find({
+      where: { unitId: id, recordedAt: Between(from, to) },
+      order: { recordedAt: 'ASC' },
+      select: ['id', 'lat', 'lng', 'recordedAt'],
+    });
+  }
+
+  getIncidentsByUnit(id: string, from: Date, to: Date): Promise<IncidentEntity[]> {
+    return this.incidentRepo.find({
+      where: {
+        assignedUnitId: id,
+        assignedAt: Between(from, to),
+      },
+      order: { assignedAt: 'DESC' },
+    });
   }
 
   findAvailableNearby(point: NearbyPoint): Promise<UnitEntity[]> {
-    // MVP: returns all available units (PostGIS ST_DWithin to be added in P1)
-    void point; // used in P1 for geospatial query
+    void point;
     return this.repo.find({
       where: { status: UnitStatus.AVAILABLE, isActive: true },
     });

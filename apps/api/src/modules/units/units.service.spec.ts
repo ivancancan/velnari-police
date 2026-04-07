@@ -1,8 +1,11 @@
+import 'reflect-metadata';
 import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
 import { UnitsService } from './units.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { UnitEntity } from '../../entities/unit.entity';
+import { UnitLocationHistoryEntity } from '../../entities/unit-location-history.entity';
+import { IncidentEntity } from '../../entities/incident.entity';
 import { NotFoundException } from '@nestjs/common';
 import { UnitStatus } from '@velnari/shared-types';
 
@@ -26,11 +29,22 @@ describe('UnitsService', () => {
     createQueryBuilder: jest.fn(),
   };
 
+  const mockHistoryRepo = {
+    find: jest.fn(),
+    createQueryBuilder: jest.fn(),
+  };
+
+  const mockIncidentRepo = {
+    find: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UnitsService,
         { provide: getRepositoryToken(UnitEntity), useValue: mockRepo },
+        { provide: getRepositoryToken(UnitLocationHistoryEntity), useValue: mockHistoryRepo },
+        { provide: getRepositoryToken(IncidentEntity), useValue: mockIncidentRepo },
       ],
     }).compile();
 
@@ -59,7 +73,6 @@ describe('UnitsService', () => {
     const updatedUnit = { ...mockUnit, status: UnitStatus.EN_ROUTE };
     mockRepo.findOne.mockResolvedValue({ ...mockUnit });
     mockRepo.save.mockResolvedValue(updatedUnit);
-
     const result = await service.updateStatus('unit-uuid-1', UnitStatus.EN_ROUTE);
     expect(result.status).toBe(UnitStatus.EN_ROUTE);
   });
@@ -68,5 +81,42 @@ describe('UnitsService', () => {
     mockRepo.find.mockResolvedValue([mockUnit]);
     const result = await service.findAvailableNearby({ lat: 19.4, lng: -99.1 });
     expect(result).toHaveLength(1);
+  });
+
+  describe('updateLocation', () => {
+    it('llama a createQueryBuilder para actualizar la ubicación y guardar historial', async () => {
+      const qbUnit = { update: jest.fn().mockReturnThis(), set: jest.fn().mockReturnThis(), where: jest.fn().mockReturnThis(), execute: jest.fn().mockResolvedValue({}) };
+      const qbHistory = { insert: jest.fn().mockReturnThis(), into: jest.fn().mockReturnThis(), values: jest.fn().mockReturnThis(), execute: jest.fn().mockResolvedValue({}) };
+      mockRepo.createQueryBuilder.mockReturnValue(qbUnit);
+      mockHistoryRepo.createQueryBuilder.mockReturnValue(qbHistory);
+      await service.updateLocation('unit-uuid-1', 19.4326, -99.1332);
+      expect(qbUnit.execute).toHaveBeenCalled();
+      expect(qbHistory.execute).toHaveBeenCalled();
+    });
+  });
+
+  describe('getHistory', () => {
+    it('retorna puntos de historial en el rango dado', async () => {
+      const point = { id: 'h-1', unitId: 'unit-uuid-1', lat: 19.4326, lng: -99.1332, recordedAt: new Date() };
+      mockHistoryRepo.find.mockResolvedValue([point]);
+      const from = new Date('2026-04-07T00:00:00Z');
+      const to = new Date('2026-04-07T23:59:59Z');
+      const result = await service.getHistory('unit-uuid-1', from, to);
+      expect(result).toHaveLength(1);
+      expect(mockHistoryRepo.find).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ unitId: 'unit-uuid-1' }) }),
+      );
+    });
+  });
+
+  describe('getIncidentsByUnit', () => {
+    it('retorna incidentes asignados a la unidad en el rango dado', async () => {
+      const incident = { id: 'inc-1', folio: 'IC-001', assignedUnitId: 'unit-uuid-1', assignedAt: new Date() };
+      mockIncidentRepo.find.mockResolvedValue([incident]);
+      const from = new Date('2026-04-07T00:00:00Z');
+      const to = new Date('2026-04-07T23:59:59Z');
+      const result = await service.getIncidentsByUnit('unit-uuid-1', from, to);
+      expect(result).toHaveLength(1);
+    });
   });
 });
