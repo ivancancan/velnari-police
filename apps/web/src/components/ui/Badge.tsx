@@ -1,4 +1,4 @@
-type BadgeVariant = 'available' | 'en_route' | 'on_scene' | 'out_of_service' |
+export type BadgeVariant = 'available' | 'en_route' | 'on_scene' | 'out_of_service' |
   'critical' | 'high' | 'medium' | 'low' |
   'open' | 'assigned' | 'closed';
 
