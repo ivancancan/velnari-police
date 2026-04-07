@@ -1,0 +1,78 @@
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import { IncidentsService } from './incidents.service';
+import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
+import { RolesGuard } from '../../shared/guards/roles.guard';
+import { Roles } from '../../shared/decorators/roles.decorator';
+import { CurrentUser } from '../../shared/decorators/current-user.decorator';
+import type { JwtPayload } from '../../shared/decorators/current-user.decorator';
+import {
+  UserRole,
+  IncidentStatus,
+  type CreateIncidentDto,
+  type CloseIncidentDto,
+  type AddIncidentNoteDto,
+} from '@velnari/shared-types';
+import type { IncidentEntity } from '../../entities/incident.entity';
+import type { IncidentEventEntity } from '../../entities/incident-event.entity';
+
+@Controller('incidents')
+@UseGuards(JwtAuthGuard, RolesGuard)
+export class IncidentsController {
+  constructor(private readonly service: IncidentsService) {}
+
+  @Get()
+  findAll(
+    @Query('status') status?: IncidentStatus,
+    @Query('sectorId') sectorId?: string,
+    @Query('priority') priority?: string,
+  ): Promise<IncidentEntity[]> {
+    return this.service.findAll({ status, sectorId, priority });
+  }
+
+  @Get(':id')
+  findOne(@Param('id', ParseUUIDPipe) id: string): Promise<IncidentEntity> {
+    return this.service.findOne(id);
+  }
+
+  @Get(':id/events')
+  getEvents(@Param('id', ParseUUIDPipe) id: string): Promise<IncidentEventEntity[]> {
+    return this.service.getEvents(id);
+  }
+
+  @Post()
+  @Roles(UserRole.ADMIN, UserRole.OPERATOR, UserRole.SUPERVISOR)
+  create(
+    @Body() dto: CreateIncidentDto,
+    @CurrentUser() user: JwtPayload,
+  ): Promise<IncidentEntity> {
+    return this.service.create(dto, user.sub);
+  }
+
+  @Post(':id/close')
+  @Roles(UserRole.ADMIN, UserRole.OPERATOR, UserRole.SUPERVISOR, UserRole.FIELD_UNIT)
+  close(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CloseIncidentDto,
+    @CurrentUser() user: JwtPayload,
+  ): Promise<IncidentEntity> {
+    return this.service.close(id, dto, user.sub);
+  }
+
+  @Post(':id/notes')
+  addNote(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AddIncidentNoteDto,
+    @CurrentUser() user: JwtPayload,
+  ): Promise<IncidentEventEntity> {
+    return this.service.addNote(id, dto, user.sub);
+  }
+}

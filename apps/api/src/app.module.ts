@@ -6,6 +6,7 @@ import configuration from './config/configuration';
 import { AuthModule } from './modules/auth/auth.module';
 import { SectorsModule } from './modules/sectors/sectors.module';
 import { UnitsModule } from './modules/units/units.module';
+import { IncidentsModule } from './modules/incidents/incidents.module';
 import { AuditInterceptor } from './shared/interceptors/audit.interceptor';
 
 @Module({
@@ -32,6 +33,7 @@ import { AuditInterceptor } from './shared/interceptors/audit.interceptor';
     AuthModule,
     SectorsModule,
     UnitsModule,
+    IncidentsModule,
   ],
   providers: [
     {
