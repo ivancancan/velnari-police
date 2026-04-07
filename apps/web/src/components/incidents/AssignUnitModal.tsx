@@ -64,7 +64,7 @@ export default function AssignUnitModal({ incidentId, onClose }: AssignUnitModal
                       </span>
                     )}
                   </div>
-                  <Badge variant={unit.status as unknown as BadgeVariant} />
+                  <Badge variant={unit.status as BadgeVariant} />
                 </button>
               </li>
             ))}
