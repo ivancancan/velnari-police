@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, MinLength, MaxLength, Matches } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, MinLength, MaxLength, Matches, IsArray, ArrayMinSize } from 'class-validator';
 
 export class CreateSectorDto {
   @IsString()
@@ -27,4 +27,10 @@ export class UpdateSectorDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+}
+
+export class SetBoundaryDto {
+  @IsArray()
+  @ArrayMinSize(4)
+  coordinates!: [number, number][];
 }
