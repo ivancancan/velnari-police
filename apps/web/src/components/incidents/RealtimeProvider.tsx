@@ -65,11 +65,37 @@ export default function RealtimeProvider({ children }: { children: React.ReactNo
       },
     );
 
+    // Geofence entered
+    socket.on(
+      'geofence:entered',
+      (payload: { unitId: string; callSign: string; sectorId: string; sectorName: string }) => {
+        addAlert({
+          folio: payload.callSign,
+          message: `Entró a sector: ${payload.sectorName}`,
+          priority: 'geofence',
+        });
+      },
+    );
+
+    // Geofence exited
+    socket.on(
+      'geofence:exited',
+      (payload: { unitId: string; callSign: string; sectorId: string; sectorName: string }) => {
+        addAlert({
+          folio: payload.callSign,
+          message: `Salió de sector: ${payload.sectorName}`,
+          priority: 'geofence',
+        });
+      },
+    );
+
     return () => {
       socket.off('unit:location:changed');
       socket.off('unit:status:changed');
       socket.off('incident:created');
       socket.off('incident:status:changed');
+      socket.off('geofence:entered');
+      socket.off('geofence:exited');
       disconnectSocket();
     };
   }, [accessToken, updatePosition, updateUnit, addIncident, updateIncident, addAlert]);

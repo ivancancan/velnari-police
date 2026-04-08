@@ -9,11 +9,13 @@ interface ToastProps {
 const COLORS: Record<string, { bg: string; border: string; label: string }> = {
   critical: { bg: 'bg-red-950', border: 'border-red-500', label: 'text-red-300' },
   high: { bg: 'bg-orange-950', border: 'border-orange-500', label: 'text-orange-300' },
+  geofence: { bg: 'bg-slate-900', border: 'border-tactical-blue', label: 'text-tactical-blue' },
 };
 
 const PRIORITY_LABELS: Record<string, string> = {
   critical: 'CRÍTICO',
   high: 'ALTO',
+  geofence: 'GEOCERCA',
 };
 
 export default function Toast({ id, folio, message, priority, onDismiss }: ToastProps) {

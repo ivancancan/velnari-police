@@ -11,7 +11,7 @@ import dynamic from 'next/dynamic';
 import IncidentList from '@/components/incidents/IncidentList';
 import RealtimeProvider from '@/components/incidents/RealtimeProvider';
 import UnitDetailPanel from '@/components/units/UnitDetailPanel';
-import type { LocationHistoryPoint, Sector } from '@/lib/types';
+import type { LocationHistoryPoint, Sector, SectorWithBoundary } from '@/lib/types';
 import ToastContainer from '@/components/ui/ToastContainer';
 import Link from 'next/link';
 
@@ -30,6 +30,8 @@ export default function CommandPage() {
   const { setUnits, units, selectedUnitId } = useUnitsStore();
   const [trailPoints, setTrailPoints] = useState<LocationHistoryPoint[]>([]);
   const [sectors, setSectors] = useState<Sector[]>([]);
+  const [sectorsWithBoundary, setSectorsWithBoundary] = useState<SectorWithBoundary[]>([]);
+  const [drawSectorId, setDrawSectorId] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -58,6 +60,10 @@ export default function CommandPage() {
     sectorsApi.getAll().then((res) => setSectors(res.data)).catch(console.error);
   }, []);
 
+  useEffect(() => {
+    sectorsApi.getWithBoundary().then((res) => setSectorsWithBoundary(res.data)).catch(console.error);
+  }, []);
+
   if (!isAuthenticated) return null;
 
   const selectedUnit = selectedUnitId
@@ -83,6 +89,23 @@ export default function CommandPage() {
             <Link href="/dashboard" className="text-xs text-slate-gray hover:text-signal-white transition-colors ml-2">
               Dashboard →
             </Link>
+            {sectors.length > 0 && (
+              <select
+                onChange={(e) => {
+                  if (!e.target.value) return;
+                  setDrawSectorId(e.target.value);
+                  e.target.value = '';
+                }}
+                className="text-xs bg-slate-800 border border-slate-700 text-slate-gray rounded px-2 py-1 focus:outline-none"
+                defaultValue=""
+                aria-label="Dibujar geocerca"
+              >
+                <option value="">+ Geocerca</option>
+                {sectors.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            )}
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-slate-gray">{user?.name}</span>
@@ -98,7 +121,15 @@ export default function CommandPage() {
         {/* Main content */}
         <div className="flex flex-1 overflow-hidden">
           <div className="flex-1 relative">
-            <CommandMap trailPoints={trailPoints} />
+            <CommandMap
+              trailPoints={trailPoints}
+              sectors={sectorsWithBoundary}
+              drawSectorId={drawSectorId}
+              onBoundarySet={() => {
+                setDrawSectorId(null);
+                sectorsApi.getWithBoundary().then((res) => setSectorsWithBoundary(res.data)).catch(console.error);
+              }}
+            />
           </div>
 
           <aside className="w-[380px] shrink-0 bg-slate-900 border-l border-slate-800 flex flex-col overflow-hidden">
