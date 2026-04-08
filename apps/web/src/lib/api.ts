@@ -52,6 +52,12 @@ export const unitsApi = {
 
   getById: (id: string) => api.get<Unit>(`/units/${id}`),
 
+  create: (dto: { callSign: string; sectorId?: string; shift?: string; assignedUserId?: string }) =>
+    api.post<Unit>('/units', dto),
+
+  update: (id: string, dto: { callSign?: string; sectorId?: string; shift?: string; assignedUserId?: string; isActive?: boolean }) =>
+    api.patch<Unit>(`/units/${id}`, dto),
+
   updateStatus: (id: string, status: UnitStatus) =>
     api.patch<Unit>(`/units/${id}/status`, { status }),
 

@@ -19,6 +19,7 @@ import {
   UserRole,
   UnitStatus,
   CreateUnitDto,
+  UpdateUnitDto,
   UpdateUnitStatusDto,
   UnitLocationDto,
 } from '@velnari/shared-types';
@@ -85,6 +86,15 @@ export class UnitsController {
   @Roles(UserRole.ADMIN, UserRole.COMMANDER, UserRole.SUPERVISOR)
   create(@Body() dto: CreateUnitDto): Promise<UnitEntity> {
     return this.service.create(dto);
+  }
+
+  @Patch(':id')
+  @Roles(UserRole.ADMIN, UserRole.COMMANDER)
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateUnitDto,
+  ): Promise<UnitEntity> {
+    return this.service.update(id, dto);
   }
 
   @Patch(':id/status')

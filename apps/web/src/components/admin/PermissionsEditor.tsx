@@ -44,7 +44,7 @@ export default function PermissionsEditor({ role, customPermissions, onChange }:
   const extras = new Set(customPermissions);
 
   const togglePermission = (perm: string) => {
-    if (defaults.has(perm)) return; // permisos del rol base son inmutables
+    if (defaults.has(perm as never)) return; // permisos del rol base son inmutables
     const next = new Set(extras);
     if (next.has(perm)) {
       next.delete(perm);
@@ -54,7 +54,7 @@ export default function PermissionsEditor({ role, customPermissions, onChange }:
     onChange([...next]);
   };
 
-  const isActive = (perm: string) => defaults.has(perm) || extras.has(perm);
+  const isActive = (perm: string) => defaults.has(perm as never) || extras.has(perm);
 
   return (
     <div className="space-y-5">
@@ -70,7 +70,7 @@ export default function PermissionsEditor({ role, customPermissions, onChange }:
           <div className="space-y-0.5">
             {group.perms.map(perm => {
               const active = isActive(perm);
-              const isDefault = defaults.has(perm);
+              const isDefault = defaults.has(perm as never);
               return (
                 <label
                   key={perm}

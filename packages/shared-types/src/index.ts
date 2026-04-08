@@ -17,6 +17,7 @@ export * from './dto/sectors/sector.dto';
 
 // DTOs — Units
 export * from './dto/units/create-unit.dto';
+export * from './dto/units/update-unit.dto';
 export * from './dto/units/update-unit-status.dto';
 export * from './dto/units/unit-location.dto';
 

@@ -1,24 +1,15 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import Link from 'next/link';
 import { unitsApi } from '@/lib/api';
 import type { Unit, UnitReport } from '@/lib/types';
 import UnitReportPanel from '@/components/admin/UnitReportPanel';
-
-const TABS = [
-  { label: 'Usuarios', href: '/admin' },
-  { label: 'Sectores / Geocercas', href: '/admin/sectors' },
-  { label: 'Reportes por Unidad', href: '/admin/reports' },
-];
+import { Search } from 'lucide-react';
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
 export default function ReportsPage() {
-  const router = useRouter();
-  const pathname = usePathname();
   const [units, setUnits] = useState<Unit[]>([]);
   const [selectedUnitId, setSelectedUnitId] = useState('');
   const [from, setFrom] = useState(todayStr());
@@ -51,96 +42,78 @@ export default function ReportsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white">
-      {/* Header con tabs */}
-      <header className="px-6 pt-4 border-b border-slate-800">
-        <div className="flex items-center justify-between mb-4">
+    <div className="p-8">
+      <div className="mb-6">
+        <h1 className="text-xl font-semibold text-gray-900">Reportes por Unidad</h1>
+        <p className="text-sm text-gray-500 mt-0.5">Consulta actividad, incidentes y tiempos de respuesta por patrulla</p>
+      </div>
+
+      {/* Filtros */}
+      <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm mb-6">
+        <div className="flex flex-wrap gap-4 items-end">
           <div>
-            <h1 className="text-lg font-semibold tracking-wide">Administración</h1>
-            <p className="text-slate-400 text-xs mt-0.5">Gestiona usuarios, sectores y reportes</p>
-          </div>
-          <Link href="/command" className="text-xs text-slate-400 hover:text-white transition-colors">
-            ← Centro de Mando
-          </Link>
-        </div>
-        <nav className="flex gap-1">
-          {TABS.map(tab => (
-            <Link
-              key={tab.href}
-              href={tab.href}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
-                pathname === tab.href
-                  ? 'border-blue-500 text-white'
-                  : 'border-transparent text-slate-400 hover:text-white hover:border-slate-600'
-              }`}
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">Unidad</label>
+            <select
+              value={selectedUnitId}
+              onChange={e => setSelectedUnitId(e.target.value)}
+              className="border border-gray-300 text-gray-900 bg-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[160px]"
             >
-              {tab.label}
-            </Link>
-          ))}
-        </nav>
-      </header>
-
-      <main className="p-6 max-w-5xl mx-auto space-y-6">
-        {/* Filtros */}
-        <div className="bg-slate-800 rounded-xl p-5 border border-slate-700">
-          <h2 className="text-white font-semibold text-sm mb-4">Generar reporte</h2>
-          <div className="flex flex-wrap gap-4 items-end">
-            <div>
-              <label className="text-slate-400 text-xs block mb-1.5">Unidad</label>
-              <select
-                value={selectedUnitId}
-                onChange={e => setSelectedUnitId(e.target.value)}
-                className="bg-slate-700 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border border-slate-600 min-w-[160px]"
-              >
-                <option value="">Seleccionar unidad</option>
-                {units.map(u => (
-                  <option key={u.id} value={u.id}>{u.callSign}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-slate-400 text-xs block mb-1.5">Desde</label>
-              <input
-                type="date"
-                value={from}
-                max={to}
-                onChange={e => setFrom(e.target.value)}
-                className="bg-slate-700 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border border-slate-600"
-              />
-            </div>
-            <div>
-              <label className="text-slate-400 text-xs block mb-1.5">Hasta</label>
-              <input
-                type="date"
-                value={to}
-                min={from}
-                onChange={e => setTo(e.target.value)}
-                className="bg-slate-700 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border border-slate-600"
-              />
-            </div>
-            <button
-              onClick={fetchReport}
-              disabled={!selectedUnitId || loading}
-              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium disabled:opacity-50 transition-colors"
-            >
-              {loading ? 'Generando…' : 'Generar reporte'}
-            </button>
+              <option value="">Seleccionar unidad</option>
+              {units.map(u => (
+                <option key={u.id} value={u.id}>{u.callSign}</option>
+              ))}
+            </select>
           </div>
-          {error && (
-            <p className="text-red-400 text-xs mt-3">{error}</p>
-          )}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">Desde</label>
+            <input
+              type="date"
+              value={from}
+              max={to}
+              onChange={e => setFrom(e.target.value)}
+              className="border border-gray-300 text-gray-900 bg-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">Hasta</label>
+            <input
+              type="date"
+              value={to}
+              min={from}
+              onChange={e => setTo(e.target.value)}
+              className="border border-gray-300 text-gray-900 bg-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <button
+            onClick={fetchReport}
+            disabled={!selectedUnitId || loading}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium disabled:opacity-50 transition-colors"
+          >
+            <Search size={14} />
+            {loading ? 'Generando…' : 'Generar reporte'}
+          </button>
         </div>
+        {error && <p className="text-red-500 text-xs mt-3">{error}</p>}
+      </div>
 
-        {/* Reporte */}
-        {report && <UnitReportPanel report={report} />}
-
-        {!report && !loading && !error && (
-          <div className="text-center py-16 text-slate-500">
-            <p className="text-lg">Selecciona una unidad y un rango de fechas</p>
-            <p className="text-sm mt-1">El reporte mostrará incidentes atendidos, tiempos de respuesta y actividad GPS</p>
-          </div>
-        )}
-      </main>
+      {/* Resultado */}
+      {report && <UnitReportPanel report={report} />}
+      {!report && !loading && !error && (
+        <div className="text-center py-20 text-gray-400">
+          <BarChart2Icon />
+          <p className="text-sm mt-3 font-medium text-gray-500">Selecciona una unidad y un rango de fechas</p>
+          <p className="text-xs mt-1">El reporte mostrará incidentes atendidos, tiempos de respuesta y actividad GPS</p>
+        </div>
+      )}
     </div>
+  );
+}
+
+function BarChart2Icon() {
+  return (
+    <svg className="mx-auto text-gray-300" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" />
+      <line x1="2" y1="20" x2="22" y2="20" />
+    </svg>
   );
 }

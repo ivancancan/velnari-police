@@ -14,6 +14,7 @@ import { RealtimeModule } from './modules/realtime/realtime.module';
 import { UsersModule } from './modules/users/users.module';
 import { AttachmentsModule } from './modules/attachments/attachments.module';
 import { PatrolsModule } from './modules/patrols/patrols.module';
+import { AuditModule } from './modules/audit/audit.module';
 import { AuditInterceptor } from './shared/interceptors/audit.interceptor';
 import { RedisCacheService } from './shared/services/redis-cache.service';
 
@@ -47,6 +48,7 @@ import { RedisCacheService } from './shared/services/redis-cache.service';
     UsersModule,
     AttachmentsModule,
     PatrolsModule,
+    AuditModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'),
       serveRoot: '/uploads',

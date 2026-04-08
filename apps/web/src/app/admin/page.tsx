@@ -1,33 +1,18 @@
 'use client';
-
 import { useEffect, useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import Link from 'next/link';
 import { useAuthStore } from '@/store/auth.store';
 import { usersApi } from '@/lib/api';
 import UserTable from '@/components/admin/UserTable';
 import UserFormModal from '@/components/admin/UserFormModal';
 import type { User } from '@/lib/types';
+import { UserPlus } from 'lucide-react';
 
-const TABS = [
-  { label: 'Usuarios', href: '/admin' },
-  { label: 'Sectores / Geocercas', href: '/admin/sectors' },
-  { label: 'Reportes por Unidad', href: '/admin/reports' },
-];
-
-export default function AdminPage() {
-  const { isAuthenticated, user } = useAuthStore();
-  const router = useRouter();
-  const pathname = usePathname();
+export default function AdminUsersPage() {
+  const { user } = useAuthStore();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [editUser, setEditUser] = useState<User | null>(null);
-
-  useEffect(() => {
-    if (!isAuthenticated) { router.push('/login'); return; }
-    if (user?.role !== 'admin') { router.push('/command'); return; }
-  }, [isAuthenticated, user, router]);
 
   function loadUsers() {
     setLoading(true);
@@ -78,73 +63,47 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-midnight-command text-signal-white">
-      {/* Header */}
-      <header className="px-6 pt-4 border-b border-slate-800">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-lg font-semibold tracking-wide">Administración</h1>
-            <p className="text-slate-400 text-xs mt-0.5">Gestiona usuarios, sectores y reportes</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link href="/command" className="text-xs text-slate-400 hover:text-white transition-colors">
-              ← Centro de Mando
-            </Link>
-            {pathname === '/admin' && (
-              <button
-                onClick={() => setShowCreate(true)}
-                className="bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-2 rounded-lg font-medium transition-colors"
-              >
-                + Nuevo usuario
-              </button>
-            )}
-          </div>
+    <div className="p-8">
+      {/* Page header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-xl font-semibold text-gray-900">Usuarios</h1>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {users.length} usuario{users.length !== 1 ? 's' : ''} activo{users.length !== 1 ? 's' : ''}
+          </p>
         </div>
+        <button
+          onClick={() => setShowCreate(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+        >
+          <UserPlus size={15} />
+          Nuevo usuario
+        </button>
+      </div>
 
-        {/* Tabs */}
-        <nav className="flex gap-1">
-          {TABS.map(tab => (
-            <Link
-              key={tab.href}
-              href={tab.href}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
-                pathname === tab.href
-                  ? 'border-blue-500 text-white'
-                  : 'border-transparent text-slate-400 hover:text-white hover:border-slate-600'
-              }`}
-            >
-              {tab.label}
-            </Link>
-          ))}
-        </nav>
-      </header>
-
-      {/* Content */}
-      <main className="p-6">
+      {/* Table */}
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
         {loading ? (
-          <p className="text-slate-400 text-sm">Cargando usuarios…</p>
+          <div className="py-16 text-center text-gray-400 text-sm">Cargando usuarios…</div>
         ) : (
-          <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-            <UserTable
-              users={users}
-              onEdit={u => setEditUser(u)}
-              onDeactivate={handleDeactivate}
-            />
-          </div>
+          <UserTable
+            users={users}
+            onEdit={u => setEditUser(u)}
+            onDeactivate={handleDeactivate}
+          />
         )}
-      </main>
+      </div>
 
       {showCreate && (
         <UserFormModal
-          onSubmit={handleCreate}
+          onSubmit={async (data) => { await handleCreate(data); setShowCreate(false); }}
           onClose={() => setShowCreate(false)}
         />
       )}
-
       {editUser && (
         <UserFormModal
           user={editUser}
-          onSubmit={handleEdit}
+          onSubmit={async (data) => { await handleEdit(data); setEditUser(null); }}
           onClose={() => setEditUser(null)}
         />
       )}

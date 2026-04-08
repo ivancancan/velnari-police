@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useUnitsStore } from '@/store/units.store';
 import { unitsApi } from '@/lib/api';
 import type { LocationHistoryPoint, Incident, Unit } from '@/lib/types';
+import { UnitStatus } from '@velnari/shared-types';
 
 const STATUS_LABELS: Record<string, string> = {
   available: 'Disponible',
@@ -44,12 +45,33 @@ interface UnitDetailPanelProps {
   onTrailChange: (points: LocationHistoryPoint[]) => void;
 }
 
+const STATUS_OPTIONS = [
+  { value: UnitStatus.AVAILABLE, label: 'Disponible' },
+  { value: UnitStatus.EN_ROUTE, label: 'En ruta' },
+  { value: UnitStatus.ON_SCENE, label: 'En escena' },
+  { value: UnitStatus.OUT_OF_SERVICE, label: 'Fuera de servicio' },
+];
+
 export default function UnitDetailPanel({ unit, onTrailChange }: UnitDetailPanelProps) {
-  const { selectUnit } = useUnitsStore();
+  const { selectUnit, updateUnit } = useUnitsStore();
   const [date, setDate] = useState<string>(toDateString(new Date()));
   const [history, setHistory] = useState<LocationHistoryPoint[]>([]);
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [loading, setLoading] = useState(false);
+  const [changingStatus, setChangingStatus] = useState(false);
+
+  async function handleStatusChange(newStatus: UnitStatus) {
+    if (newStatus === unit.status || changingStatus) return;
+    setChangingStatus(true);
+    try {
+      const res = await unitsApi.updateStatus(unit.id, newStatus);
+      updateUnit(res.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setChangingStatus(false);
+    }
+  }
 
   useEffect(() => {
     setLoading(true);
@@ -94,6 +116,27 @@ export default function UnitDetailPanel({ unit, onTrailChange }: UnitDetailPanel
           className="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-signal-white text-xs focus:outline-none focus:border-tactical-blue"
           aria-label="Filtrar por fecha"
         />
+      </div>
+
+      {/* Status changer */}
+      <div className="px-4 py-2.5 border-b border-slate-800 shrink-0">
+        <p className="text-xs text-slate-gray mb-1.5">Cambiar estado</p>
+        <div className="flex gap-1.5 flex-wrap">
+          {STATUS_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => handleStatusChange(opt.value)}
+              disabled={changingStatus}
+              className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                unit.status === opt.value
+                  ? 'bg-tactical-blue text-white'
+                  : 'bg-slate-800 text-slate-gray hover:bg-slate-700 hover:text-signal-white'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Stats row */}

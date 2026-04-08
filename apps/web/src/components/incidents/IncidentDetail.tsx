@@ -6,7 +6,7 @@ import Badge from '@/components/ui/Badge';
 import AssignUnitModal from './AssignUnitModal';
 import type { IncidentPriority, IncidentStatus } from '@velnari/shared-types';
 import { IncidentStatus as IS } from '@velnari/shared-types';
-import { attachmentsApi } from '@/lib/api';
+import { attachmentsApi, incidentsApi } from '@/lib/api';
 
 const TYPE_LABELS: Record<string, string> = {
   robbery: 'Robo',
@@ -36,11 +36,29 @@ export default function IncidentDetail({ incident, onBack }: IncidentDetailProps
   const [showAssign, setShowAssign] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [noteText, setNoteText] = useState('');
+  const [addingNote, setAddingNote] = useState(false);
+  const [localEvents, setLocalEvents] = useState<IncidentEvent[]>(incident.events ?? []);
 
   const canAssign = incident.status === IS.OPEN || incident.status === IS.ASSIGNED;
   const isClosed = incident.status === IS.CLOSED;
 
-  const events: IncidentEvent[] = incident.events ?? [];
+  const events: IncidentEvent[] = localEvents;
+
+  async function handleAddNote(e: React.FormEvent) {
+    e.preventDefault();
+    if (!noteText.trim() || addingNote) return;
+    setAddingNote(true);
+    try {
+      const res = await incidentsApi.addNote(incident.id, noteText.trim());
+      setLocalEvents(prev => [...prev, res.data]);
+      setNoteText('');
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setAddingNote(false);
+    }
+  }
 
   useEffect(() => {
     if (!incident?.id) return;
@@ -146,6 +164,25 @@ export default function IncidentDetail({ incident, onBack }: IncidentDetailProps
             </ol>
           )}
         </div>
+
+        {/* Add note */}
+        {!isClosed && (
+          <form onSubmit={handleAddNote} className="flex gap-2">
+            <input
+              value={noteText}
+              onChange={e => setNoteText(e.target.value)}
+              placeholder="Agregar nota al incidente…"
+              className="flex-1 bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm text-signal-white placeholder-slate-500 focus:outline-none focus:border-tactical-blue"
+            />
+            <button
+              type="submit"
+              disabled={!noteText.trim() || addingNote}
+              className="px-3 py-1.5 bg-tactical-blue hover:bg-blue-600 text-white text-xs font-medium rounded disabled:opacity-40 transition-colors"
+            >
+              {addingNote ? '…' : 'Nota'}
+            </button>
+          </form>
+        )}
 
         {/* Attachments section */}
         <div className="mt-4">

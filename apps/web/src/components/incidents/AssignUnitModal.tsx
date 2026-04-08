@@ -9,6 +9,7 @@ import { dispatchApi, unitsApi } from '@/lib/api';
 import { UnitStatus } from '@velnari/shared-types';
 import type { BadgeVariant } from '@/components/ui/Badge';
 import type { UnitWithDistance, Unit } from '@/lib/types';
+import { Check } from 'lucide-react';
 
 interface AssignUnitModalProps {
   incidentId: string;
@@ -16,7 +17,9 @@ interface AssignUnitModalProps {
 }
 
 export default function AssignUnitModal({ incidentId, onClose }: AssignUnitModalProps) {
-  const [assigning, setAssigning] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [dispatching, setDispatching] = useState(false);
+  const [progress, setProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [nearbyUnits, setNearbyUnits] = useState<UnitWithDistance[] | null>(null);
 
@@ -40,22 +43,44 @@ export default function AssignUnitModal({ incidentId, onClose }: AssignUnitModal
 
   const displayUnits: (UnitWithDistance | Unit)[] = nearbyUnits ?? fallbackUnits;
 
-  const handleAssign = async (unitId: string, callSign: string) => {
-    setAssigning(unitId);
+  function toggleUnit(id: string) {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  const handleDispatch = async () => {
+    if (selected.size === 0 || dispatching) return;
+    setDispatching(true);
     setError(null);
-    try {
-      const res = await dispatchApi.assignUnit(incidentId, unitId);
-      updateIncident(res.data);
-      onClose();
-    } catch {
-      setError(`No se pudo asignar la unidad ${callSign}.`);
-    } finally {
-      setAssigning(null);
+
+    const ids = Array.from(selected);
+    let lastResult = null;
+
+    for (let i = 0; i < ids.length; i++) {
+      const unitId = ids[i]!;
+      const unit = displayUnits.find(u => u.id === unitId);
+      setProgress(`Despachando ${unit?.callSign ?? unitId} (${i + 1}/${ids.length})…`);
+      try {
+        const res = await dispatchApi.assignUnit(incidentId, unitId);
+        lastResult = res.data;
+      } catch {
+        setError(`Error al asignar ${unit?.callSign ?? unitId}`);
+        setDispatching(false);
+        setProgress(null);
+        return;
+      }
     }
+
+    if (lastResult) updateIncident(lastResult);
+    onClose();
   };
 
   return (
-    <Modal isOpen title="Asignar unidad" onClose={onClose}>
+    <Modal isOpen title="Asignar unidades" onClose={onClose}>
       <div className="flex flex-col gap-3">
         {nearbyUnits !== null && (
           <p className="text-xs text-slate-gray text-center">
@@ -71,15 +96,25 @@ export default function AssignUnitModal({ incidentId, onClose }: AssignUnitModal
           <ul className="flex flex-col gap-2">
             {displayUnits.map((unit) => {
               const dist = 'distanceKm' in unit ? unit.distanceKm : null;
+              const isSelected = selected.has(unit.id);
               return (
                 <li key={unit.id}>
                   <button
-                    onClick={() => handleAssign(unit.id, unit.callSign)}
-                    disabled={assigning !== null}
-                    className="w-full flex items-center justify-between px-4 py-3 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 rounded border border-slate-700 transition-colors"
-                    aria-label={`Asignar ${unit.callSign}`}
+                    onClick={() => toggleUnit(unit.id)}
+                    disabled={dispatching}
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded border transition-colors ${
+                      isSelected
+                        ? 'bg-tactical-blue/20 border-tactical-blue'
+                        : 'bg-slate-800 hover:bg-slate-700 border-slate-700'
+                    } disabled:opacity-50`}
+                    aria-label={`Seleccionar ${unit.callSign}`}
                   >
                     <div className="flex items-center gap-3">
+                      <div className={`w-4 h-4 rounded flex items-center justify-center border ${
+                        isSelected ? 'bg-tactical-blue border-tactical-blue' : 'border-slate-600'
+                      }`}>
+                        {isSelected && <Check size={10} className="text-white" />}
+                      </div>
                       <span className="font-mono font-bold text-signal-white">
                         {unit.callSign}
                       </span>
@@ -102,14 +137,24 @@ export default function AssignUnitModal({ incidentId, onClose }: AssignUnitModal
           </ul>
         )}
 
+        {progress && <p className="text-tactical-blue text-xs text-center animate-pulse">{progress}</p>}
         {error && <p className="text-red-400 text-sm">{error}</p>}
 
-        <button
-          onClick={onClose}
-          className="mt-2 text-slate-gray hover:text-signal-white text-sm transition-colors"
-        >
-          Cancelar
-        </button>
+        <div className="flex gap-2 mt-1">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2 text-slate-gray hover:text-signal-white text-sm transition-colors border border-slate-700 rounded hover:bg-slate-800"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleDispatch}
+            disabled={selected.size === 0 || dispatching}
+            className="flex-1 py-2 bg-tactical-blue hover:bg-blue-600 text-white text-sm font-semibold rounded disabled:opacity-40 transition-colors"
+          >
+            {dispatching ? 'Despachando…' : `Despachar ${selected.size > 0 ? `(${selected.size})` : ''}`}
+          </button>
+        </div>
       </div>
     </Modal>
   );

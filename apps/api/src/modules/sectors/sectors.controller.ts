@@ -14,7 +14,7 @@ import { SectorsService } from './sectors.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { RolesGuard } from '../../shared/guards/roles.guard';
 import { Roles } from '../../shared/decorators/roles.decorator';
-import { UserRole, type CreateSectorDto, type UpdateSectorDto, type SetBoundaryDto } from '@velnari/shared-types';
+import { UserRole, CreateSectorDto, UpdateSectorDto, SetBoundaryDto } from '@velnari/shared-types';
 import type { SectorEntity } from '../../entities/sector.entity';
 
 @Controller('sectors')

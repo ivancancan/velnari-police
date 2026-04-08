@@ -61,11 +61,11 @@ export default function CommandPage() {
   }, [setUnits]);
 
   useEffect(() => {
-    sectorsApi.getAll().then((res) => setSectors(res.data)).catch(console.error);
+    sectorsApi.getAll().then((data) => setSectors(data)).catch(console.error);
   }, []);
 
   useEffect(() => {
-    sectorsApi.getWithBoundary().then((res) => setSectorsWithBoundary(res.data)).catch(console.error);
+    sectorsApi.getWithBoundary().then((data) => setSectorsWithBoundary(data)).catch(console.error);
   }, []);
 
   useEffect(() => {
@@ -155,7 +155,7 @@ export default function CommandPage() {
               drawSectorId={drawSectorId}
               onBoundarySet={() => {
                 setDrawSectorId(null);
-                sectorsApi.getWithBoundary().then((res) => setSectorsWithBoundary(res.data)).catch(console.error);
+                sectorsApi.getWithBoundary().then((data) => setSectorsWithBoundary(data)).catch(console.error);
               }}
               heatmapPoints={showHeatmap ? heatmapPoints : []}
             />

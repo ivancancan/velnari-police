@@ -5,7 +5,7 @@ import { Between, Repository } from 'typeorm';
 import { UnitEntity } from '../../entities/unit.entity';
 import { UnitLocationHistoryEntity } from '../../entities/unit-location-history.entity';
 import { IncidentEntity } from '../../entities/incident.entity';
-import { UnitStatus, CreateUnitDto } from '@velnari/shared-types';
+import { UnitStatus, CreateUnitDto, UpdateUnitDto } from '@velnari/shared-types';
 import { SectorsService } from '../sectors/sectors.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 
@@ -62,6 +62,17 @@ export class UnitsService {
       shift: dto.shift,
       assignedUserId: dto.assignedUserId,
     });
+    return this.repo.save(unit);
+  }
+
+  async update(id: string, dto: UpdateUnitDto): Promise<UnitEntity> {
+    const unit = await this.findOne(id);
+    if (dto.callSign !== undefined) unit.callSign = dto.callSign;
+    if (dto.status !== undefined) unit.status = dto.status;
+    if (dto.sectorId !== undefined) unit.sectorId = dto.sectorId;
+    if (dto.shift !== undefined) unit.shift = dto.shift;
+    if (dto.assignedUserId !== undefined) unit.assignedUserId = dto.assignedUserId;
+    if (dto.isActive !== undefined) unit.isActive = dto.isActive;
     return this.repo.save(unit);
   }
 
