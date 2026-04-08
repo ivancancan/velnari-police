@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type { UserRole, UnitStatus } from '@velnari/shared-types';
 import type { CreateIncidentDto } from '@velnari/shared-types';
-import type { Unit, Incident, Sector, SectorWithBoundary, IncidentEvent, LocationHistoryPoint, IncidentStats, UnitStats, UnitWithDistance, User, Attachment, HeatmapPoint } from './types';
+import type { Unit, Incident, Sector, SectorWithBoundary, IncidentEvent, LocationHistoryPoint, IncidentStats, UnitStats, UnitWithDistance, User, Attachment, HeatmapPoint, Patrol, PatrolCoverage } from './types';
 
 const API_URL = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001/api';
 
@@ -158,4 +158,17 @@ export const attachmentsApi = {
 
   delete: (incidentId: string, id: string) =>
     api.delete(`/incidents/${incidentId}/attachments/${id}`),
+};
+
+// ─── Patrols ──────────────────────────────────────────────────────────────────
+
+export const patrolsApi = {
+  getActive: () => api.get<Patrol[]>('/patrols'),
+
+  create: (dto: { unitId: string; sectorId: string; startAt: string; endAt: string }) =>
+    api.post<Patrol>('/patrols', dto),
+
+  cancel: (id: string) => api.delete(`/patrols/${id}`),
+
+  getCoverage: (id: string) => api.get<PatrolCoverage>(`/patrols/${id}/coverage`),
 };

@@ -11,6 +11,7 @@ import dynamic from 'next/dynamic';
 import IncidentList from '@/components/incidents/IncidentList';
 import RealtimeProvider from '@/components/incidents/RealtimeProvider';
 import UnitDetailPanel from '@/components/units/UnitDetailPanel';
+import PatrolPanel from '@/components/patrols/PatrolPanel';
 import type { LocationHistoryPoint, Sector, SectorWithBoundary, HeatmapPoint } from '@/lib/types';
 import ToastContainer from '@/components/ui/ToastContainer';
 import Link from 'next/link';
@@ -34,6 +35,7 @@ export default function CommandPage() {
   const [drawSectorId, setDrawSectorId] = useState<string | null>(null);
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [heatmapPoints, setHeatmapPoints] = useState<HeatmapPoint[]>([]);
+  const [sidebarTab, setSidebarTab] = useState<'incidents' | 'patrols'>('incidents');
   const router = useRouter();
 
   useEffect(() => {
@@ -166,7 +168,31 @@ export default function CommandPage() {
                 onTrailChange={setTrailPoints}
               />
             ) : (
-              <IncidentList sectors={sectors} />
+              <>
+                <div className="flex border-b border-slate-800">
+                  <button
+                    onClick={() => setSidebarTab('incidents')}
+                    className={`flex-1 py-2 text-xs font-medium ${
+                      sidebarTab === 'incidents' ? 'text-signal-white border-b-2 border-tactical-blue' : 'text-slate-gray'
+                    }`}
+                  >
+                    Incidentes
+                  </button>
+                  <button
+                    onClick={() => setSidebarTab('patrols')}
+                    className={`flex-1 py-2 text-xs font-medium ${
+                      sidebarTab === 'patrols' ? 'text-signal-white border-b-2 border-tactical-blue' : 'text-slate-gray'
+                    }`}
+                  >
+                    Patrullajes
+                  </button>
+                </div>
+                {sidebarTab === 'incidents' ? (
+                  <IncidentList sectors={sectors} />
+                ) : (
+                  <PatrolPanel units={units} sectors={sectors} />
+                )}
+              </>
             )}
           </aside>
         </div>

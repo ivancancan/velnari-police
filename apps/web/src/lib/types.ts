@@ -125,3 +125,23 @@ export interface HeatmapPoint {
   lng: number;
   weight: number;
 }
+
+export interface Patrol {
+  id: string;
+  unitId: string;
+  sectorId: string;
+  status: 'scheduled' | 'active' | 'completed' | 'cancelled';
+  startAt: string;
+  endAt: string;
+  createdBy: string;
+  createdAt: string;
+  unit?: { id: string; callSign: string };
+  sector?: { id: string; name: string; color: string };
+}
+
+export interface PatrolCoverage {
+  patrolId: string;
+  pings: number;
+  startAt: string;
+  endAt: string;
+}
