@@ -8,7 +8,10 @@ export class InitialSchema1704067200000 implements MigrationInterface {
     await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`);
 
     await queryRunner.query(`
-      CREATE TYPE IF NOT EXISTS user_role AS ENUM ('admin', 'operator', 'supervisor', 'commander', 'field_unit')
+      DO $$ BEGIN
+        CREATE TYPE user_role AS ENUM ('admin', 'operator', 'supervisor', 'commander', 'field_unit');
+      EXCEPTION WHEN duplicate_object THEN NULL;
+      END $$;
     `);
 
     await queryRunner.query(`

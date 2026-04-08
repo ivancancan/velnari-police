@@ -19,7 +19,7 @@
     "@velnari/config": "workspace:*",
     "typescript": "^5.3.3"
   },
-  "dependencies": {
+  "peerDependencies": {
     "class-validator": "^0.14.1",
     "class-transformer": "^0.5.1"
   }

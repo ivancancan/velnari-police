@@ -7,27 +7,31 @@ export class CoreSchema1704153600000 implements MigrationInterface {
     // ─── Enums ──────────────────────────────────────────────────────────────
 
     await queryRunner.query(`
-      CREATE TYPE IF NOT EXISTS unit_status AS ENUM (
-        'available', 'en_route', 'on_scene', 'out_of_service'
-      )
+      DO $$ BEGIN
+        CREATE TYPE unit_status AS ENUM ('available', 'en_route', 'on_scene', 'out_of_service');
+      EXCEPTION WHEN duplicate_object THEN NULL;
+      END $$;
     `);
 
     await queryRunner.query(`
-      CREATE TYPE IF NOT EXISTS incident_priority AS ENUM (
-        'critical', 'high', 'medium', 'low'
-      )
+      DO $$ BEGIN
+        CREATE TYPE incident_priority AS ENUM ('critical', 'high', 'medium', 'low');
+      EXCEPTION WHEN duplicate_object THEN NULL;
+      END $$;
     `);
 
     await queryRunner.query(`
-      CREATE TYPE IF NOT EXISTS incident_status AS ENUM (
-        'open', 'assigned', 'en_route', 'on_scene', 'closed'
-      )
+      DO $$ BEGIN
+        CREATE TYPE incident_status AS ENUM ('open', 'assigned', 'en_route', 'on_scene', 'closed');
+      EXCEPTION WHEN duplicate_object THEN NULL;
+      END $$;
     `);
 
     await queryRunner.query(`
-      CREATE TYPE IF NOT EXISTS incident_type AS ENUM (
-        'robbery', 'assault', 'traffic', 'noise', 'domestic', 'missing_person', 'other'
-      )
+      DO $$ BEGIN
+        CREATE TYPE incident_type AS ENUM ('robbery', 'assault', 'traffic', 'noise', 'domestic', 'missing_person', 'other');
+      EXCEPTION WHEN duplicate_object THEN NULL;
+      END $$;
     `);
 
     // ─── Tabla: sectors ──────────────────────────────────────────────────────

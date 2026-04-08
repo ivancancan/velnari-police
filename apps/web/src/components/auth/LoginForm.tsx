@@ -30,6 +30,9 @@ export default function LoginForm() {
       const loginRes = await authApi.login(data.email, data.password);
       const { accessToken, refreshToken } = loginRes.data;
 
+      // Store token before /me so the interceptor can attach it
+      sessionStorage.setItem('accessToken', accessToken);
+
       const meRes = await authApi.me();
       setAuth(meRes.data, accessToken, refreshToken);
 

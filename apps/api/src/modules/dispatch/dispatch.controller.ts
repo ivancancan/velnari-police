@@ -5,7 +5,7 @@ import { RolesGuard } from '../../shared/guards/roles.guard';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
 import type { JwtPayload } from '../../shared/decorators/current-user.decorator';
-import { UserRole, type AssignUnitDto } from '@velnari/shared-types';
+import { UserRole, AssignUnitDto } from '@velnari/shared-types';
 import type { IncidentEntity } from '../../entities/incident.entity';
 
 @Controller('incidents')
