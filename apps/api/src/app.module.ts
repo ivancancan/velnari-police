@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { APP_INTERCEPTOR } from '@nestjs/core';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 import configuration from './config/configuration';
 import { AuthModule } from './modules/auth/auth.module';
 import { SectorsModule } from './modules/sectors/sectors.module';
@@ -10,6 +12,7 @@ import { IncidentsModule } from './modules/incidents/incidents.module';
 import { DispatchModule } from './modules/dispatch/dispatch.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
 import { UsersModule } from './modules/users/users.module';
+import { AttachmentsModule } from './modules/attachments/attachments.module';
 import { AuditInterceptor } from './shared/interceptors/audit.interceptor';
 import { RedisCacheService } from './shared/services/redis-cache.service';
 
@@ -41,6 +44,11 @@ import { RedisCacheService } from './shared/services/redis-cache.service';
     DispatchModule,
     RealtimeModule,
     UsersModule,
+    AttachmentsModule,
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'uploads'),
+      serveRoot: '/uploads',
+    }),
   ],
   providers: [
     {
