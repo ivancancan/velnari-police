@@ -9,6 +9,7 @@ import { UnitsModule } from './modules/units/units.module';
 import { IncidentsModule } from './modules/incidents/incidents.module';
 import { DispatchModule } from './modules/dispatch/dispatch.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
+import { UsersModule } from './modules/users/users.module';
 import { AuditInterceptor } from './shared/interceptors/audit.interceptor';
 import { RedisCacheService } from './shared/services/redis-cache.service';
 
@@ -39,6 +40,7 @@ import { RedisCacheService } from './shared/services/redis-cache.service';
     IncidentsModule,
     DispatchModule,
     RealtimeModule,
+    UsersModule,
   ],
   providers: [
     {
