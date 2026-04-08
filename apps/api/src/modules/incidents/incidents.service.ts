@@ -123,6 +123,29 @@ export class IncidentsService {
     return this.repo.save(incident);
   }
 
+  async getHeatmapPoints(
+    from: Date,
+    to: Date,
+  ): Promise<{ lat: number; lng: number; weight: number }[]> {
+    const rows = await this.repo.find({
+      where: { createdAt: Between(from, to) },
+      select: ['lat', 'lng', 'priority'],
+    });
+
+    const PRIORITY_WEIGHT: Record<string, number> = {
+      critical: 4,
+      high: 3,
+      medium: 2,
+      low: 1,
+    };
+
+    return rows.map((r) => ({
+      lat: Number(r.lat),
+      lng: Number(r.lng),
+      weight: PRIORITY_WEIGHT[r.priority] ?? 1,
+    }));
+  }
+
   async getStats(date: Date): Promise<{
     total: number;
     open: number;

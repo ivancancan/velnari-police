@@ -8,6 +8,13 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+
+function startOfDay(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+}
+function endOfDay(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+}
 import { IncidentsService } from './incidents.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { RolesGuard } from '../../shared/guards/roles.guard';
@@ -50,6 +57,17 @@ export class IncidentsController {
   }> {
     const d = date && !isNaN(Date.parse(date)) ? new Date(date) : new Date();
     return this.service.getStats(d);
+  }
+
+  @Get('heatmap')
+  getHeatmap(
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ): Promise<{ lat: number; lng: number; weight: number }[]> {
+    const now = new Date();
+    const fromDate = from && !isNaN(Date.parse(from)) ? new Date(from) : startOfDay(now);
+    const toDate = to && !isNaN(Date.parse(to)) ? new Date(to) : endOfDay(now);
+    return this.service.getHeatmapPoints(fromDate, toDate);
   }
 
   @Get(':id')
