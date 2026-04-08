@@ -11,7 +11,8 @@ import { sectorsApi } from '@/lib/api';
 import UnitMarker from './UnitMarker';
 import UnitTrail from './UnitTrail';
 import SectorLayer from './SectorLayer';
-import type { LocationHistoryPoint, SectorWithBoundary } from '@/lib/types';
+import HeatmapLayer from './HeatmapLayer';
+import type { LocationHistoryPoint, SectorWithBoundary, HeatmapPoint } from '@/lib/types';
 
 const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
 const DEFAULT_VIEW = { latitude: 19.4326, longitude: -99.1332, zoom: 12 };
@@ -28,6 +29,7 @@ export interface CommandMapProps {
   sectors?: SectorWithBoundary[];
   drawSectorId?: string | null;
   onBoundarySet?: () => void;
+  heatmapPoints?: HeatmapPoint[];
 }
 
 export default function CommandMap({
@@ -35,6 +37,7 @@ export default function CommandMap({
   sectors = [],
   drawSectorId,
   onBoundarySet,
+  heatmapPoints,
 }: CommandMapProps) {
   const { units, positions, selectedUnitId, selectUnit } = useUnitsStore();
   const { incidents, selectedId, selectIncident } = useIncidentsStore();
@@ -123,6 +126,11 @@ export default function CommandMap({
       >
         {/* Sector boundaries */}
         <SectorLayer sectors={sectors} />
+
+        {/* Incident density heatmap */}
+        {heatmapPoints && heatmapPoints.length > 0 && (
+          <HeatmapLayer points={heatmapPoints} />
+        )}
 
         {/* Unit trail polyline */}
         {selectedUnitId && trailPoints.length > 0 && (

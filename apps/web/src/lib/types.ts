@@ -119,3 +119,9 @@ export interface Attachment {
   uploadedBy: string;
   createdAt: string;
 }
+
+export interface HeatmapPoint {
+  lat: number;
+  lng: number;
+  weight: number;
+}

@@ -11,7 +11,7 @@ import dynamic from 'next/dynamic';
 import IncidentList from '@/components/incidents/IncidentList';
 import RealtimeProvider from '@/components/incidents/RealtimeProvider';
 import UnitDetailPanel from '@/components/units/UnitDetailPanel';
-import type { LocationHistoryPoint, Sector, SectorWithBoundary } from '@/lib/types';
+import type { LocationHistoryPoint, Sector, SectorWithBoundary, HeatmapPoint } from '@/lib/types';
 import ToastContainer from '@/components/ui/ToastContainer';
 import Link from 'next/link';
 
@@ -32,6 +32,8 @@ export default function CommandPage() {
   const [sectors, setSectors] = useState<Sector[]>([]);
   const [sectorsWithBoundary, setSectorsWithBoundary] = useState<SectorWithBoundary[]>([]);
   const [drawSectorId, setDrawSectorId] = useState<string | null>(null);
+  const [showHeatmap, setShowHeatmap] = useState(false);
+  const [heatmapPoints, setHeatmapPoints] = useState<HeatmapPoint[]>([]);
   const router = useRouter();
 
   useEffect(() => {
@@ -63,6 +65,15 @@ export default function CommandPage() {
   useEffect(() => {
     sectorsApi.getWithBoundary().then((res) => setSectorsWithBoundary(res.data)).catch(console.error);
   }, []);
+
+  useEffect(() => {
+    if (!showHeatmap) return;
+    const today = new Date().toISOString().split('T')[0];
+    incidentsApi
+      .getHeatmap(today + 'T00:00:00Z', today + 'T23:59:59Z')
+      .then((res) => setHeatmapPoints(res.data))
+      .catch(console.error);
+  }, [showHeatmap]);
 
   if (!isAuthenticated) return null;
 
@@ -111,6 +122,16 @@ export default function CommandPage() {
                 ))}
               </select>
             )}
+            <button
+              onClick={() => setShowHeatmap((v) => !v)}
+              className={`text-xs px-3 py-1 rounded border ${
+                showHeatmap
+                  ? 'bg-alert-amber text-midnight-command border-alert-amber'
+                  : 'bg-slate-800 text-slate-gray border-slate-700 hover:text-signal-white'
+              }`}
+            >
+              Mapa de calor
+            </button>
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-slate-gray">{user?.name}</span>
@@ -134,6 +155,7 @@ export default function CommandPage() {
                 setDrawSectorId(null);
                 sectorsApi.getWithBoundary().then((res) => setSectorsWithBoundary(res.data)).catch(console.error);
               }}
+              heatmapPoints={showHeatmap ? heatmapPoints : []}
             />
           </div>
 
