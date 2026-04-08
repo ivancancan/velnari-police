@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "Velnari Field",
+    "slug": "velnari-field",
+    "version": "1.0.0",
+    "scheme": "velnari",
+    "orientation": "portrait",
+    "splash": {
+      "backgroundColor": "#0F172A"
+    },
+    "ios": {
+      "bundleIdentifier": "mx.velnari.field",
+      "infoPlist": {
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Velnari necesita tu ubicación para el despacho.",
+        "NSLocationWhenInUseUsageDescription": "Velnari necesita tu ubicación para el despacho."
+      }
+    },
+    "android": {
+      "package": "mx.velnari.field",
+      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_BACKGROUND_LOCATION"]
+    },
+    "plugins": [
+      ["expo-location", { "locationAlwaysAndWhenInUsePermission": "Velnari necesita tu ubicación." }]
+    ]
+  }
+}
