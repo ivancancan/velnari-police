@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type { UserRole, UnitStatus } from '@velnari/shared-types';
 import type { CreateIncidentDto } from '@velnari/shared-types';
-import type { Unit, Incident, Sector, SectorWithBoundary, IncidentEvent, LocationHistoryPoint, IncidentStats, UnitStats, UnitWithDistance } from './types';
+import type { Unit, Incident, Sector, SectorWithBoundary, IncidentEvent, LocationHistoryPoint, IncidentStats, UnitStats, UnitWithDistance, User } from './types';
 
 const API_URL = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001/api';
 
@@ -108,4 +108,31 @@ export const sectorsApi = {
 
   setBoundary: (id: string, coordinates: [number, number][]) =>
     api.patch<Sector>(`/sectors/${id}/boundary`, { coordinates }),
+};
+
+// ─── Users ───────────────────────────────────────────────────────────────────
+
+export const usersApi = {
+  getAll: () => api.get<User[]>('/users'),
+
+  create: (dto: {
+    name: string;
+    email: string;
+    password: string;
+    role: string;
+    badgeNumber?: string;
+    sectorId?: string;
+  }) => api.post<User>('/users', dto),
+
+  update: (
+    id: string,
+    dto: {
+      name?: string;
+      role?: string;
+      badgeNumber?: string;
+      sectorId?: string;
+      isActive?: boolean;
+      password?: string;
+    },
+  ) => api.patch<User>(`/users/${id}`, dto),
 };

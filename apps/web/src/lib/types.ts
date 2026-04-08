@@ -95,3 +95,15 @@ export interface GeoJsonPolygon {
 export interface SectorWithBoundary extends Sector {
   boundaryGeoJson: GeoJsonPolygon | null;
 }
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  badgeNumber?: string;
+  sectorId?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}

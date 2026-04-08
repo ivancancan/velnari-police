@@ -89,6 +89,11 @@ export default function CommandPage() {
             <Link href="/dashboard" className="text-xs text-slate-gray hover:text-signal-white transition-colors ml-2">
               Dashboard →
             </Link>
+            {user?.role === 'admin' && (
+              <Link href="/admin" className="text-xs text-slate-gray hover:text-signal-white">
+                Usuarios
+              </Link>
+            )}
             {sectors.length > 0 && (
               <select
                 onChange={(e) => {
