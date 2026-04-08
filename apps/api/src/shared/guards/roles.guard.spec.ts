@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import { RolesGuard } from './roles.guard';
 import { Reflector } from '@nestjs/core';
 import type { ExecutionContext } from '@nestjs/common';
@@ -10,6 +11,8 @@ describe('RolesGuard', () => {
   beforeEach(() => {
     reflector = new Reflector();
     guard = new RolesGuard(reflector);
+    // Mock reflector.get para que no requiera metadata registrada
+    jest.spyOn(reflector, 'get').mockReturnValue(undefined);
   });
 
   const mockContext = (userRole: UserRole, requiredRoles?: UserRole[]) => {

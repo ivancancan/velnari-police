@@ -103,9 +103,25 @@ export interface User {
   role: string;
   badgeNumber?: string;
   sectorId?: string;
+  shift?: string;
+  customPermissions: string[];
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface UnitReportStats {
+  totalIncidents: number;
+  closedIncidents: number;
+  avgResponseMinutes: number | null;
+  gpsPointsRecorded: number;
+}
+
+export interface UnitReport {
+  unit: { id: string; callSign: string; status: string };
+  period: { from: string; to: string };
+  stats: UnitReportStats;
+  incidents: Incident[];
 }
 
 export interface Attachment {

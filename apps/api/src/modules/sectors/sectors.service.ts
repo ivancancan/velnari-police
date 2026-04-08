@@ -65,6 +65,12 @@ export class SectorsService {
     return this.repo.save(sector);
   }
 
+  async delete(id: string): Promise<void> {
+    const sector = await this.repo.findOne({ where: { id } });
+    if (!sector) throw new NotFoundException(`Sector ${id} no encontrado`);
+    await this.repo.update(id, { isActive: false });
+  }
+
   async setBoundary(
     id: string,
     coordinates: [number, number][],

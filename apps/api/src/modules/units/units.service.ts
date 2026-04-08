@@ -184,6 +184,63 @@ export class UnitsService {
     }));
   }
 
+  async getUnitReport(
+    unitId: string,
+    from: Date,
+    to: Date,
+  ): Promise<{
+    unit: { id: string; callSign: string; status: UnitStatus };
+    period: { from: Date; to: Date };
+    stats: {
+      totalIncidents: number;
+      closedIncidents: number;
+      avgResponseMinutes: number | null;
+      gpsPointsRecorded: number;
+    };
+    incidents: IncidentEntity[];
+  }> {
+    const unit = await this.repo.findOne({ where: { id: unitId } });
+    if (!unit) throw new NotFoundException(`Unidad ${unitId} no encontrada`);
+
+    const [incidents, historyPoints] = await Promise.all([
+      this.incidentRepo.find({
+        where: { assignedUnitId: unitId, assignedAt: Between(from, to) },
+        order: { assignedAt: 'ASC' },
+      }),
+      this.historyRepo.find({
+        where: { unitId, recordedAt: Between(from, to) },
+        select: ['id'],
+      }),
+    ]);
+
+    const closed = incidents.filter((i) => i.closedAt);
+    const responseTimes = closed
+      .filter((i) => i.assignedAt && i.arrivedAt)
+      .map(
+        (i) =>
+          (i.arrivedAt!.getTime() - i.assignedAt!.getTime()) / 60000,
+      );
+
+    const avgResponseMinutes =
+      responseTimes.length > 0
+        ? Math.round(
+            responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length,
+          )
+        : null;
+
+    return {
+      unit: { id: unit.id, callSign: unit.callSign, status: unit.status },
+      period: { from, to },
+      stats: {
+        totalIncidents: incidents.length,
+        closedIncidents: closed.length,
+        avgResponseMinutes,
+        gpsPointsRecorded: historyPoints.length,
+      },
+      incidents,
+    };
+  }
+
   async getStats(): Promise<{
     total: number;
     available: number;

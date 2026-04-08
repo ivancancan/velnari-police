@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type { UserRole, UnitStatus } from '@velnari/shared-types';
 import type { CreateIncidentDto } from '@velnari/shared-types';
-import type { Unit, Incident, Sector, SectorWithBoundary, IncidentEvent, LocationHistoryPoint, IncidentStats, UnitStats, UnitWithDistance, User, Attachment, HeatmapPoint, Patrol, PatrolCoverage } from './types';
+import type { Unit, Incident, Sector, SectorWithBoundary, IncidentEvent, LocationHistoryPoint, IncidentStats, UnitStats, UnitWithDistance, UnitReport, User, Attachment, HeatmapPoint, Patrol, PatrolCoverage } from './types';
 
 const API_URL = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001/api';
 
@@ -67,6 +67,9 @@ export const unitsApi = {
     api.get<UnitWithDistance[]>('/units/nearby', {
       params: { lat, lng, ...(radiusKm ? { radiusKm } : {}) },
     }),
+
+  getReport: (id: string, from: string, to: string) =>
+    api.get<UnitReport>(`/units/${id}/report`, { params: { from, to } }),
 };
 
 // ─── Incidents ────────────────────────────────────────────────────────────────
@@ -107,12 +110,20 @@ export const dispatchApi = {
 // ─── Sectors ─────────────────────────────────────────────────────────────────
 
 export const sectorsApi = {
-  getAll: () => api.get<Sector[]>('/sectors'),
+  getAll: () => api.get<Sector[]>('/sectors').then(r => r.data),
 
-  getWithBoundary: () => api.get<SectorWithBoundary[]>('/sectors/with-boundary'),
+  getWithBoundary: () => api.get<SectorWithBoundary[]>('/sectors/with-boundary').then(r => r.data),
+
+  create: (data: { name: string; color?: string }) =>
+    api.post<Sector>('/sectors', data).then(r => r.data),
+
+  update: (id: string, data: { name?: string; color?: string; isActive?: boolean }) =>
+    api.patch<Sector>(`/sectors/${id}`, data).then(r => r.data),
 
   setBoundary: (id: string, coordinates: [number, number][]) =>
-    api.patch<Sector>(`/sectors/${id}/boundary`, { coordinates }),
+    api.patch<Sector>(`/sectors/${id}/boundary`, { coordinates }).then(r => r.data),
+
+  delete: (id: string) => api.delete(`/sectors/${id}`),
 };
 
 // ─── Users ───────────────────────────────────────────────────────────────────
@@ -136,8 +147,10 @@ export const usersApi = {
       role?: string;
       badgeNumber?: string;
       sectorId?: string;
+      shift?: string;
       isActive?: boolean;
       password?: string;
+      customPermissions?: string[];
     },
   ) => api.patch<User>(`/users/${id}`, dto),
 };

@@ -17,6 +17,7 @@ describe('UsersService', () => {
     passwordHash: '$2b$10$hashedpassword',
     role: UserRole.OPERATOR,
     isActive: true,
+    customPermissions: [],
     createdAt: new Date(),
     updatedAt: new Date(),
   };

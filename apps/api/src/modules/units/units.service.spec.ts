@@ -8,6 +8,8 @@ import { UnitLocationHistoryEntity } from '../../entities/unit-location-history.
 import { IncidentEntity } from '../../entities/incident.entity';
 import { NotFoundException } from '@nestjs/common';
 import { UnitStatus } from '@velnari/shared-types';
+import { SectorsService } from '../sectors/sectors.service';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 
 describe('UnitsService', () => {
   let service: UnitsService;
@@ -38,6 +40,16 @@ describe('UnitsService', () => {
     find: jest.fn(),
   };
 
+  const mockSectorsService = {
+    findAllWithBoundary: jest.fn().mockResolvedValue([]),
+    checkGeofences: jest.fn().mockResolvedValue({ entered: [], exited: [] }),
+  };
+
+  const mockRealtimeGateway = {
+    emitUnitUpdate: jest.fn(),
+    emitGeofenceAlert: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -45,6 +57,8 @@ describe('UnitsService', () => {
         { provide: getRepositoryToken(UnitEntity), useValue: mockRepo },
         { provide: getRepositoryToken(UnitLocationHistoryEntity), useValue: mockHistoryRepo },
         { provide: getRepositoryToken(IncidentEntity), useValue: mockIncidentRepo },
+        { provide: SectorsService, useValue: mockSectorsService },
+        { provide: RealtimeGateway, useValue: mockRealtimeGateway },
       ],
     }).compile();
 

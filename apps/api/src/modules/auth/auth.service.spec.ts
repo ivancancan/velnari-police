@@ -18,6 +18,7 @@ describe('AuthService', () => {
     role: UserRole.OPERATOR,
     name: 'Juan Operador',
     isActive: true,
+    customPermissions: [],
     createdAt: new Date(),
     updatedAt: new Date(),
   };

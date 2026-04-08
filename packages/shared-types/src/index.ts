@@ -34,3 +34,6 @@ export * from './dto/users/update-user.dto';
 
 // DTOs — Patrols
 export * from './dto/patrols/create-patrol.dto';
+
+// Permissions
+export * from './constants/permissions';

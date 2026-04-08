@@ -113,6 +113,18 @@ export class UnitsController {
     });
   }
 
+  @Get(':id/report')
+  @Roles(UserRole.ADMIN, UserRole.COMMANDER, UserRole.SUPERVISOR)
+  getReport(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    const fromDate = from && !isNaN(Date.parse(from)) ? new Date(from) : startOfDay(new Date());
+    const toDate = to && !isNaN(Date.parse(to)) ? new Date(to) : endOfDay(new Date());
+    return this.service.getUnitReport(id, fromDate, toDate);
+  }
+
   @Get(':id/history')
   getHistory(
     @Param('id', ParseUUIDPipe) id: string,

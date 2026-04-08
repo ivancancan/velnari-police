@@ -1,7 +1,9 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -48,6 +50,13 @@ export class SectorsController {
     @Body() dto: UpdateSectorDto,
   ): Promise<SectorEntity> {
     return this.service.update(id, dto);
+  }
+
+  @Delete(':id')
+  @Roles(UserRole.ADMIN, UserRole.COMMANDER)
+  @HttpCode(204)
+  delete(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    return this.service.delete(id);
   }
 
   @Patch(':id/boundary')

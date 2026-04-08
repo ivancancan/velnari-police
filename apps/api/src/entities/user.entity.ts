@@ -32,6 +32,12 @@ export class UserEntity {
   @Column({ name: 'sector_id', nullable: true, type: 'uuid' })
   sectorId?: string;
 
+  @Column({ name: 'custom_permissions', type: 'jsonb', default: [] })
+  customPermissions!: string[];
+
+  @Column({ nullable: true })
+  shift?: string;
+
   @Column({ name: 'is_active', default: true })
   isActive!: boolean;
 

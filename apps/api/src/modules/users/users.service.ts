@@ -50,6 +50,8 @@ export class UsersService {
     if (dto.badgeNumber !== undefined) user.badgeNumber = dto.badgeNumber;
     if (dto.sectorId !== undefined) user.sectorId = dto.sectorId;
     if (dto.isActive !== undefined) user.isActive = dto.isActive;
+    if (dto.customPermissions !== undefined) user.customPermissions = dto.customPermissions;
+    if (dto.shift !== undefined) user.shift = dto.shift;
     if (dto.password) user.passwordHash = await bcrypt.hash(dto.password, 10);
     return this.repo.save(user);
   }

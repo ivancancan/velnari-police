@@ -1,5 +1,6 @@
 // packages/shared-types/src/dto/users/update-user.dto.ts
 import {
+  IsArray,
   IsBoolean,
   IsEnum,
   IsOptional,
@@ -34,4 +35,13 @@ export class UpdateUserDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  customPermissions?: string[];
+
+  @IsOptional()
+  @IsString()
+  shift?: string;
 }
