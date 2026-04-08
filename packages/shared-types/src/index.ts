@@ -27,3 +27,7 @@ export * from './dto/incidents/add-incident-note.dto';
 
 // DTOs — Dispatch
 export * from './dto/dispatch/assign-unit.dto';
+
+// DTOs — Users
+export * from './dto/users/create-user.dto';
+export * from './dto/users/update-user.dto';
