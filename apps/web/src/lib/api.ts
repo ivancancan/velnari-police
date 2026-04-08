@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type { UserRole, UnitStatus } from '@velnari/shared-types';
 import type { CreateIncidentDto } from '@velnari/shared-types';
-import type { Unit, Incident, Sector, SectorWithBoundary, IncidentEvent, LocationHistoryPoint, IncidentStats, UnitStats, UnitWithDistance, User } from './types';
+import type { Unit, Incident, Sector, SectorWithBoundary, IncidentEvent, LocationHistoryPoint, IncidentStats, UnitStats, UnitWithDistance, User, Attachment } from './types';
 
 const API_URL = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001/api';
 
@@ -135,4 +135,22 @@ export const usersApi = {
       password?: string;
     },
   ) => api.patch<User>(`/users/${id}`, dto),
+};
+
+// ─── Attachments ─────────────────────────────────────────────────────────────
+
+export const attachmentsApi = {
+  getByIncident: (incidentId: string) =>
+    api.get<Attachment[]>(`/incidents/${incidentId}/attachments`),
+
+  upload: (incidentId: string, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return api.post<Attachment>(`/incidents/${incidentId}/attachments`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+
+  delete: (incidentId: string, id: string) =>
+    api.delete(`/incidents/${incidentId}/attachments/${id}`),
 };

@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
-import type { Incident, IncidentEvent } from '@/lib/types';
+import { useState, useEffect } from 'react';
+import type { Incident, IncidentEvent, Attachment } from '@/lib/types';
 import Badge from '@/components/ui/Badge';
 import AssignUnitModal from './AssignUnitModal';
 import type { IncidentPriority, IncidentStatus } from '@velnari/shared-types';
 import { IncidentStatus as IS } from '@velnari/shared-types';
+import { attachmentsApi } from '@/lib/api';
 
 const TYPE_LABELS: Record<string, string> = {
   robbery: 'Robo',
@@ -33,11 +34,35 @@ interface IncidentDetailProps {
 
 export default function IncidentDetail({ incident, onBack }: IncidentDetailProps) {
   const [showAssign, setShowAssign] = useState(false);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   const canAssign = incident.status === IS.OPEN || incident.status === IS.ASSIGNED;
   const isClosed = incident.status === IS.CLOSED;
 
   const events: IncidentEvent[] = incident.events ?? [];
+
+  useEffect(() => {
+    if (!incident?.id) return;
+    attachmentsApi.getByIncident(incident.id)
+      .then((res) => setAttachments(res.data))
+      .catch(console.error);
+  }, [incident?.id]);
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !incident?.id) return;
+    setUploading(true);
+    try {
+      const res = await attachmentsApi.upload(incident.id, file);
+      setAttachments((prev) => [...prev, res.data]);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -119,6 +144,49 @@ export default function IncidentDetail({ incident, onBack }: IncidentDetailProps
                 </li>
               ))}
             </ol>
+          )}
+        </div>
+
+        {/* Attachments section */}
+        <div className="mt-4">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-xs font-semibold text-slate-gray uppercase tracking-wide">
+              Archivos adjuntos
+            </h4>
+            <label className="cursor-pointer text-xs text-tactical-blue hover:underline">
+              {uploading ? 'Subiendo...' : '+ Adjuntar'}
+              <input
+                type="file"
+                accept="image/*,application/pdf,.doc,.docx"
+                className="hidden"
+                onChange={handleFileUpload}
+                disabled={uploading}
+              />
+            </label>
+          </div>
+
+          {attachments.length === 0 ? (
+            <p className="text-xs text-slate-gray">Sin archivos adjuntos.</p>
+          ) : (
+            <div className="space-y-1">
+              {attachments.map((att) => (
+                <a
+                  key={att.id}
+                  href={att.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-xs text-signal-white hover:text-tactical-blue"
+                >
+                  <span className="text-slate-gray">
+                    {att.mimetype.startsWith('image/') ? '🖼' : '📄'}
+                  </span>
+                  <span className="truncate">{att.originalName}</span>
+                  <span className="text-slate-gray ml-auto">
+                    {(att.size / 1024).toFixed(0)} KB
+                  </span>
+                </a>
+              ))}
+            </div>
           )}
         </div>
       </div>

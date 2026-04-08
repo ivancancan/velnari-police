@@ -107,3 +107,15 @@ export interface User {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface Attachment {
+  id: string;
+  incidentId: string;
+  filename: string;
+  originalName: string;
+  mimetype: string;
+  size: number;
+  url: string;
+  uploadedBy: string;
+  createdAt: string;
+}
