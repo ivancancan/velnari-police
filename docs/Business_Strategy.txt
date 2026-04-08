@@ -1,0 +1,587 @@
+Documento fundador de Velnari
+1. Resumen ejecutivo
+
+Velnari es una startup de Public Safety Tech / GovTech que construye el sistema operativo de operaciones en campo para policías municipales y centros de mando. Su propuesta es unificar en una sola plataforma el monitoreo en tiempo real de unidades, la gestión de incidentes, el despacho, la supervisión táctica y la analítica operativa.
+
+La tesis de Velnari es simple: las corporaciones municipales ya tienen personal, patrullas, radios, cámaras y procesos, pero operan con herramientas fragmentadas. Esa fragmentación provoca tiempos de respuesta más lentos, menor cobertura, poca trazabilidad y decisiones reactivas. Velnari convierte esa operación dispersa en una operación visible, coordinada y medible.
+
+La oportunidad es grande y estructural. México tiene 2,478 municipios y alcaldías, una población altamente urbana —79.75% en 2024 según el Banco Mundial— y una presión pública constante sobre seguridad. Además, INEGI reportó que en diciembre de 2025 63.8% de la población adulta en áreas urbanas consideró inseguro vivir en su ciudad. El SESNSP publica incidencia delictiva con desagregación municipal, lo que confirma que el problema se mide, se compara y se gestiona localmente.
+
+Apuesta central: entrar con un wedge muy concreto —despacho y supervisión operativa en tiempo real—, ganar un primer piloto pagado, demostrar reducción en tiempos de respuesta y luego expandir a módulos, integraciones y analítica avanzada.
+
+2. La oportunidad
+El problema que existe hoy
+
+La mayoría de las corporaciones municipales operan con una combinación de:
+
+radio
+llamadas
+WhatsApp
+bitácoras manuales
+GPS aislado
+dashboards parciales
+sistemas heredados difíciles de usar
+
+Eso genera cinco fallas estructurales:
+
+1. Baja visibilidad operativa
+No hay una vista única y confiable de dónde están las unidades, qué están atendiendo y qué zonas quedaron descubiertas.
+
+2. Despacho subóptimo
+La asignación depende demasiado del criterio del operador y no de contexto completo: cercanía, disponibilidad, carga de trabajo, tipo de incidente o cobertura territorial.
+
+3. Mala trazabilidad
+Después del incidente, reconstruir tiempos, decisiones y responsables es lento o incompleto.
+
+4. Poca inteligencia accionable
+Hay datos, pero no una capa de producto que los convierta en decisiones operativas diarias.
+
+5. Dependencia de proyectos pesados
+Muchos sistemas tipo C4/C5 o CAD son costosos, lentos de implementar y poco iterables para el nivel municipal.
+
+Por qué ahora
+
+Hay tres vientos de cola:
+
+Presión urbana y política. La seguridad pública es una de las agendas más visibles en ciudades mexicanas, y la percepción de inseguridad sigue siendo alta.
+
+Disponibilidad de datos. Ya existe base pública municipal de incidencia, lo que favorece cultura de medición y rendición de cuentas.
+
+Madurez tecnológica. Mapas, movilidad, GPS, WebSockets, móviles robustos y analítica cloud permiten construir una solución moderna sin depender de infraestructura propietaria masiva.
+
+Insight fundador
+
+El mercado no necesita primero “más IA”.
+Necesita primero una capa operativa confiable.
+
+3. Visión, misión y tesis
+Visión
+
+Convertirse en la plataforma líder en LATAM para coordinación y decisión operativa en seguridad pública urbana.
+
+Misión
+
+Ayudar a ciudades a responder mejor en campo, reduciendo fricción operativa y transformando incidentes, unidades y cobertura en decisiones de alta calidad en tiempo real.
+
+Tesis
+
+Si Velnari logra resolver muy bien:
+
+visibilidad de unidades
+gestión de incidentes
+despacho
+supervisión táctica
+KPIs operativos
+
+entonces se convierte en el sistema donde naturalmente se conectan después:
+
+cámaras
+sensores
+CAD/C5
+bodycams
+analítica histórica
+IA operativa
+multiagencia
+4. Qué es Velnari
+Definición del producto
+
+Velnari es una plataforma modular de command-and-response para gobiernos locales.
+
+Arquitectura inicial de producto
+
+Velnari Command
+Mapa en vivo, supervisión, centro de mando, estado de unidades.
+
+Velnari Dispatch
+Creación, priorización, asignación y seguimiento de incidentes.
+
+Velnari Field
+App móvil para policías y supervisores en campo.
+
+Velnari Insights
+Dashboards, métricas, reportes y análisis operativo.
+
+Velnari Signals
+Capa futura de alertas, integraciones, sensores y eventos externos.
+
+Qué no es
+no es un ERP gubernamental
+no es solo un GIS
+no es un sistema de cámaras
+no es una consultoría
+no es un reemplazo total del C5 en el día 1
+
+Es una capa operativa moderna, modular e integrable.
+
+5. Cliente ideal y mercado objetivo
+ICP inicial
+
+Municipios medianos y grandes con:
+
+policía municipal o esquema equivalente
+presión política por mejorar tiempos de respuesta
+apertura tecnológica moderada
+operación con radio + herramientas fragmentadas
+capacidad de correr piloto de 20 a 150 unidades
+Compradores y champions
+
+Buyer económico
+
+secretario de seguridad
+comisario
+director de tecnología / innovación
+alcalde o jefe de gabinete en algunos casos
+
+Champion operativo
+
+comandante operativo
+jefe de cabina / C2 / monitoreo
+supervisor regional
+
+Usuarios diarios
+
+operador de cabina
+policía en campo
+supervisor de turno
+mando operativo
+Segmentación de entrada
+
+Segmento 1: municipios de 200 mil a 1.5 millones de habitantes
+Segmento 2: zonas metropolitanas y organismos coordinados
+Segmento 3: expansión a tránsito, protección civil y otras operaciones urbanas
+
+TAM / SAM / SOM
+
+Estos números son tesis de trabajo, no cifras oficiales.
+
+TAM
+LATAM, 3,000 gobiernos locales y agencias comparables
+Ticket anual estimado: USD 100k–500k
+TAM aproximado: USD 300M–1.5B ARR
+
+SAM
+México y expansión selectiva a Colombia, Chile, Perú
+400 entidades objetivo
+Ticket anual: USD 100k–300k
+SAM: USD 40M–120M ARR
+
+SOM a 5 años
+15–30 clientes relevantes
+ARR esperado: USD 4M–12M
+
+6. Propuesta de valor
+Propuesta de valor central
+
+Velnari ayuda a las corporaciones municipales a ver, coordinar y medir su operación en tiempo real.
+
+Resultado que vendemos
+menor tiempo de despacho
+mejor asignación de unidades
+más cobertura visible
+menos incidentes sin seguimiento
+trazabilidad completa
+reportes ejecutivos defendibles
+Diferenciadores
+
+1. Field-first
+No solo sala de monitoreo; también patrulla y supervisor.
+
+2. Modular SaaS
+Implementación más ligera que proyectos tradicionales cerrados.
+
+3. UX moderna
+Diseñado para decisiones rápidas, no para burocracia digital.
+
+4. Geoespacial nativo
+Mapa como interfaz principal, no como accesorio.
+
+5. Data exhaust y analítica
+Toda interacción genera evidencia y mejora continua.
+
+6. Land-and-expand
+Primero resuelve despacho y supervisión; luego integra todo lo demás.
+
+7. Wedge comercial inicial
+Qué vendemos primero
+
+“Centro operativo de despacho y supervisión en tiempo real para policía municipal.”
+
+Por qué este wedge
+
+Porque permite demostrar valor con rapidez:
+
+menos complejidad que vender una suite completa
+implementación más rápida
+KPI claro
+caso de éxito defendible
+expansión natural posterior
+Oferta de piloto
+
+Un piloto de 8 a 12 semanas para:
+
+1 centro de mando
+1–3 sectores
+20–100 unidades
+flujos básicos de incidente y despacho
+dashboard en vivo
+métricas comparativas pre y post
+KPI comprometibles del piloto
+tiempo de asignación
+tiempo de arribo
+porcentaje de incidentes trazados
+unidades activas conectadas
+incidentes gestionados dentro de plataforma
+adopción por turno
+8. Personas clave
+Operador de cabina
+
+Meta: asignar y dar seguimiento rápido.
+Dolor: demasiadas fuentes, poco contexto, saturación de radio.
+
+Policía en campo
+
+Meta: recibir instrucciones claras y actualizar estados fácil.
+Dolor: ambigüedad, duplicidad, carga administrativa.
+
+Supervisor de turno
+
+Meta: mantener cobertura, balancear carga y escalar incidentes.
+Dolor: visión parcial, decisiones por intuición.
+
+Comandante / director operativo
+
+Meta: medir desempeño y tomar decisiones tácticas.
+Dolor: reportes manuales y poca trazabilidad.
+
+Decisor político / ejecutivo
+
+Meta: demostrar mejoras, justificar inversión y responder a escrutinio público.
+Dolor: poca evidencia operativa visible.
+
+9. Alcance del MVP
+Objetivo del MVP
+
+Probar que Velnari puede convertirse en la fuente de verdad operativa de una corporación municipal.
+
+Lo que sí entra
+
+P0
+
+autenticación y roles
+mapa en tiempo real de unidades
+alta y seguimiento de incidentes
+estados de unidad
+asignación manual de unidad
+vista de incidente con timeline
+app móvil para unidades
+dashboard operativo básico
+bitácora y auditoría mínima
+reportes básicos
+
+P1
+
+sugerencia de unidad más cercana
+filtros por sector, turno y prioridad
+alertas de incidentes críticos
+geocercas simples
+exportación de reportes
+Lo que no entra
+reconocimiento facial
+video analytics avanzado
+predicción delictiva compleja
+integración profunda con todos los sistemas legados
+workflow judicial
+drones
+multiagencia completa
+IA generativa avanzada en la operación
+Principio rector
+
+El MVP debe ser operativamente usable, no técnicamente impresionante.
+
+10. Estrategia de producto
+Principios
+
+1. Map-first
+La interfaz principal es geoespacial.
+
+2. Decision speed > feature count
+Menos clics, más claridad.
+
+3. Auditability by default
+Todo evento importante deja rastro.
+
+4. Offline tolerance / degraded mode
+El producto debe contemplar conectividad imperfecta.
+
+5. Role-based simplicity
+Cada rol ve solo lo necesario.
+
+Riesgos de producto
+intentar construir demasiado
+sobreintegrar demasiado pronto
+copiar flujos del gobierno sin rediseñarlos
+olvidar adopción de usuario final
+Apuesta UX
+
+Mezcla de:
+
+Google Maps para claridad
+Uber Fleet para estados y despacho
+Datadog para observabilidad
+Figma/Linear para limpieza visual
+11. Estrategia tecnológica
+Stack recomendado
+
+Web: Next.js + React
+Mobile: React Native
+Backend: NestJS + TypeScript
+DB: PostgreSQL + PostGIS
+Realtime: WebSockets / Socket.IO
+Jobs: Redis + BullMQ
+Cloud: AWS
+Storage: S3
+Observability: CloudWatch + OpenTelemetry + Sentry
+
+Principios de arquitectura
+modular monolith al inicio
+event-driven en flujos críticos
+geoespacial nativo
+audit log desde día 1
+multitenancy ligera planeada, no necesariamente activada desde el arranque
+seguridad y RBAC fuertes
+Requisitos no funcionales
+disponibilidad alta en horas operativas
+cifrado en tránsito y reposo
+registro de acciones por usuario
+observabilidad y alertas
+despliegue repetible
+respaldo y recuperación
+Decisión importante
+
+No sobrediseñar microservicios demasiado pronto.
+Para los primeros 12 meses, un modular monolith bien diseñado es más rápido y suficiente.
+
+12. Modelo de negocio
+Modelo base
+
+SaaS anual B2G + setup + servicios limitados
+
+Componentes de ingresos
+implementación
+suscripción anual
+módulos premium
+integraciones
+soporte premium
+servicios profesionales
+Pricing inicial orientativo
+
+Piloto
+
+USD 15k–50k
+
+Starter municipal
+
+USD 40k–80k ARR
+
+Professional
+
+USD 120k–250k ARR
+
+Enterprise
+
+USD 300k–900k+ ARR
+Cómo cobrar al inicio
+
+Para acelerar venta:
+
+piloto pagado con alcance claro
+fee de implementación separado
+pricing por número de unidades / sectores / módulos
+13. Go-to-market
+Estrategia de entrada
+
+Founder-led sales al inicio.
+
+Motion comercial
+identificar municipio con dolor claro
+hacer discovery operativo
+demo basada en escenarios reales
+proponer piloto acotado
+medir baseline y resultados
+convertir a contrato anual
+expandir a más sectores y módulos
+Mensaje comercial
+
+No vender “smart city”.
+Vender:
+
+visibilidad en tiempo real
+mejor coordinación
+reducción de tiempos
+trazabilidad
+KPIs ejecutivos
+Objeciones previsibles
+
+“Ya tenemos cámaras / C2 / GPS.”
+Respuesta: Velnari no reemplaza eso de entrada; lo convierte en una operación coordinada.
+
+“No tenemos presupuesto para un gran proyecto.”
+Respuesta: empezar con piloto de alcance concreto y ROI medible.
+
+“La adopción del personal será difícil.”
+Respuesta: diseño mobile-first, flujos simples, capacitación por rol.
+
+Canal
+
+Venta directa.
+Más adelante:
+
+partners de integración
+consultoras govtech
+distribuidores regionales
+14. Ventaja competitiva
+Contra sistemas tradicionales
+más rápido de implementar
+UX muy superior
+modular
+cloud-native
+iteración continua
+menor dependencia de megaproyectos
+Contra software horizontal
+verticalización real para seguridad pública
+geoespacial y tiempos de respuesta como núcleo
+trazabilidad y supervisión operativa
+narrativa ejecutiva para gobierno
+Moat potencial
+
+No será solo tecnología. Será la combinación de:
+
+workflows operativos propios
+datos históricos
+integraciones
+confianza institucional
+switching costs
+distribución en sector público
+15. Roadmap de 12 meses
+0–3 meses
+entrevistas y discovery
+prototipo de alto valor
+demo vendible
+PRD MVP
+arquitectura inicial
+narrativa comercial
+4–6 meses
+construcción MVP
+web command
+mobile field
+incidentes y despacho
+dashboard y reportes básicos
+7–9 meses
+piloto
+medición de impacto
+mejoras UX
+reglas de recomendación básicas
+endurecimiento de seguridad y observabilidad
+10–12 meses
+contrato anual
+expansión de módulos
+integración inicial externa
+caso de éxito
+proceso comercial repetible
+16. Riesgos y mitigación
+Riesgo 1: ciclos de venta largos
+
+Mitigación: piloto corto, alcance pequeño, champion interno, narrativa de quick wins.
+
+Riesgo 2: cambio político
+
+Mitigación: vender valor operativo transversal, no solo discurso político.
+
+Riesgo 3: sobrepersonalización
+
+Mitigación: mantener producto core, limitar customizaciones.
+
+Riesgo 4: integraciones complejas
+
+Mitigación: producto standalone primero; conectores después.
+
+Riesgo 5: baja adopción
+
+Mitigación: UX por rol, entrenamiento corto, incorporar feedback rápido.
+
+Riesgo 6: seguridad y compliance
+
+Mitigación: RBAC, cifrado, auditoría, hardening y buenas prácticas cloud.
+
+17. Qué debe ser verdad para que Velnari gane
+El producto debe demostrar valor en semanas, no en años.
+El primer caso de uso debe ser extremadamente claro.
+El dashboard ejecutivo debe traducir operación en narrativa política y presupuestal.
+La app de campo debe ser simple de usar bajo presión.
+El producto debe integrarse con el ecosistema municipal sin depender totalmente de él.
+La empresa debe construir confianza institucional, no solo tecnología.
+La expansión debe venir por módulos y territorios, no por promesas de plataforma total.
+18. Norte estratégico
+Qué construir primero
+
+La mejor experiencia de command + dispatch para una policía municipal.
+
+Qué demostrar primero
+
+Que una ciudad puede responder mejor cuando ve su operación completa en tiempo real.
+
+Qué vender primero
+
+Un piloto pagado y medible.
+
+En qué no distraerse
+IA por moda
+exceso de features
+integraciones no críticas
+branding vacío sin operación real
+proyectos demasiado grandes demasiado pronto
+19. Decisiones fundacionales recomendadas
+Decisión 1
+
+Velnari se posiciona como software operativo de misión crítica, no como consultoría.
+
+Decisión 2
+
+El producto inicial será Velnari Command + Velnari Dispatch + Velnari Field.
+
+Decisión 3
+
+El primer mercado es policía municipal, no “toda la ciudad”.
+
+Decisión 4
+
+La primera venta es un piloto de despacho y supervisión, no una transformación integral.
+
+Decisión 5
+
+La estrategia es land-and-expand:
+
+sector
+corporación
+municipio
+región
+módulos
+20. Plan accionable inmediato
+Próximas 2 semanas
+definir ICP inicial exacto
+preparar one-pager comercial
+diseñar demo storyline
+mapear workflow real de incidente a cierre
+definir KPIs del piloto
+bajar PRD del MVP
+Próximo mes
+entrevistas de descubrimiento con operadores, mandos y supervisores
+prototipo navegable
+deck corto para venta
+arquitectura técnica base
+backlog inicial
+Próximo trimestre
+desarrollar MVP
+conseguir piloto
+instrumentar métricas
+documentar caso de éxito
