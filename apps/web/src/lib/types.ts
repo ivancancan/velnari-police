@@ -86,3 +86,12 @@ export interface UnitStats {
 export interface UnitWithDistance extends Unit {
   distanceKm: number;
 }
+
+export interface GeoJsonPolygon {
+  type: 'Polygon';
+  coordinates: [number, number][][];
+}
+
+export interface SectorWithBoundary extends Sector {
+  boundaryGeoJson: GeoJsonPolygon | null;
+}
