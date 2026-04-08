@@ -5,6 +5,12 @@ import { Repository } from 'typeorm';
 import { SectorEntity } from '../../entities/sector.entity';
 import type { CreateSectorDto, UpdateSectorDto } from '@velnari/shared-types';
 
+interface SectorGeofenceRow {
+  id: string;
+  name: string;
+  color: string;
+}
+
 @Injectable()
 export class SectorsService {
   constructor(
@@ -82,8 +88,8 @@ export class SectorsService {
     lat: number,
     lng: number,
     previousInsideSectorIds: string[],
-  ): Promise<{ entered: SectorEntity[]; exited: SectorEntity[] }> {
-    const rows = await this.repo.query(
+  ): Promise<{ entered: SectorGeofenceRow[]; exited: SectorGeofenceRow[] }> {
+    const rows: SectorGeofenceRow[] = await this.repo.query(
       `
       SELECT id, name, color
       FROM sectors
@@ -94,18 +100,17 @@ export class SectorsService {
       [lng, lat],
     );
 
-    const nowInside: string[] = rows.map((r: { id: string }) => r.id);
+    const nowInside: string[] = rows.map((r: SectorGeofenceRow) => r.id);
     const entered = rows.filter(
-      (r: { id: string }) => !previousInsideSectorIds.includes(r.id),
-    ) as SectorEntity[];
+      (r: SectorGeofenceRow) => !previousInsideSectorIds.includes(r.id),
+    );
     const exitedIds = previousInsideSectorIds.filter((id) => !nowInside.includes(id));
-    const exited: SectorEntity[] =
+    const exited: SectorGeofenceRow[] =
       exitedIds.length > 0
-        ? await this.repo
-            .createQueryBuilder('s')
-            .select(['s.id', 's.name', 's.color'])
-            .where('s.id IN (:...ids)', { ids: exitedIds })
-            .getMany()
+        ? await this.repo.query(
+            `SELECT id, name, color FROM sectors WHERE id = ANY($1)`,
+            [exitedIds],
+          )
         : [];
 
     return { entered, exited };
@@ -113,6 +118,13 @@ export class SectorsService {
 }
 
 function coordinatesToWkt(coords: [number, number][]): string {
-  const points = coords.map(([lng, lat]) => `${lng} ${lat}`).join(', ');
+  const points = coords
+    .map(([lng, lat]) => {
+      const x = Number(lng);
+      const y = Number(lat);
+      if (!isFinite(x) || !isFinite(y)) throw new Error('Invalid coordinate');
+      return `${x} ${y}`;
+    })
+    .join(', ');
   return `POLYGON((${points}))`;
 }
