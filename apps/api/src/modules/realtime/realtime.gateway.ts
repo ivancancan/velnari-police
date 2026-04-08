@@ -92,4 +92,22 @@ export class RealtimeGateway {
       .to('command')
       .emit('incident:closed', { incidentId, resolution });
   }
+
+  emitGeofenceEntered(payload: {
+    unitId: string;
+    callSign: string;
+    sectorId: string;
+    sectorName: string;
+  }): void {
+    this.server.to('command').emit('geofence:entered', payload);
+  }
+
+  emitGeofenceExited(payload: {
+    unitId: string;
+    callSign: string;
+    sectorId: string;
+    sectorName: string;
+  }): void {
+    this.server.to('command').emit('geofence:exited', payload);
+  }
 }
