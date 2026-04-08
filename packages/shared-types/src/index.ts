@@ -31,3 +31,6 @@ export * from './dto/dispatch/assign-unit.dto';
 // DTOs — Users
 export * from './dto/users/create-user.dto';
 export * from './dto/users/update-user.dto';
+
+// DTOs — Patrols
+export * from './dto/patrols/create-patrol.dto';
