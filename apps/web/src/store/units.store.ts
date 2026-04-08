@@ -11,6 +11,8 @@ interface UnitsState {
   updatePosition: (position: UnitPosition) => void;
   setLoading: (loading: boolean) => void;
   selectUnit: (id: string | null) => void;
+  insideSectors: Record<string, string[]>;
+  setUnitInsideSectors: (unitId: string, sectorIds: string[]) => void;
 }
 
 export const useUnitsStore = create<UnitsState>()((set) => ({
@@ -18,6 +20,7 @@ export const useUnitsStore = create<UnitsState>()((set) => ({
   positions: {},
   isLoading: false,
   selectedUnitId: null,
+  insideSectors: {},
 
   setUnits: (units) => set({ units }),
 
@@ -34,4 +37,9 @@ export const useUnitsStore = create<UnitsState>()((set) => ({
   setLoading: (isLoading) => set({ isLoading }),
 
   selectUnit: (id) => set({ selectedUnitId: id }),
+
+  setUnitInsideSectors: (unitId, sectorIds) =>
+    set((state) => ({
+      insideSectors: { ...state.insideSectors, [unitId]: sectorIds },
+    })),
 }));
