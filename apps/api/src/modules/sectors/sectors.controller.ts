@@ -12,7 +12,7 @@ import { SectorsService } from './sectors.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { RolesGuard } from '../../shared/guards/roles.guard';
 import { Roles } from '../../shared/decorators/roles.decorator';
-import { UserRole, type CreateSectorDto, type UpdateSectorDto } from '@velnari/shared-types';
+import { UserRole, type CreateSectorDto, type UpdateSectorDto, type SetBoundaryDto } from '@velnari/shared-types';
 import type { SectorEntity } from '../../entities/sector.entity';
 
 @Controller('sectors')
@@ -23,6 +23,11 @@ export class SectorsController {
   @Get()
   findAll(): Promise<SectorEntity[]> {
     return this.service.findAll();
+  }
+
+  @Get('with-boundary')
+  findAllWithBoundary() {
+    return this.service.findAllWithBoundary();
   }
 
   @Get(':id')
@@ -43,5 +48,14 @@ export class SectorsController {
     @Body() dto: UpdateSectorDto,
   ): Promise<SectorEntity> {
     return this.service.update(id, dto);
+  }
+
+  @Patch(':id/boundary')
+  @Roles(UserRole.ADMIN, UserRole.COMMANDER)
+  setBoundary(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SetBoundaryDto,
+  ): Promise<SectorEntity> {
+    return this.service.setBoundary(id, dto.coordinates);
   }
 }

@@ -6,6 +6,8 @@ import { UnitEntity } from '../../entities/unit.entity';
 import { UnitLocationHistoryEntity } from '../../entities/unit-location-history.entity';
 import { IncidentEntity } from '../../entities/incident.entity';
 import { UnitStatus, CreateUnitDto } from '@velnari/shared-types';
+import { SectorsService } from '../sectors/sectors.service';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 
 interface FindAllFilters {
   status?: UnitStatus;
@@ -21,6 +23,8 @@ interface NearbyPoint {
 
 @Injectable()
 export class UnitsService {
+  private readonly unitSectorCache = new Map<string, string[]>();
+
   constructor(
     @InjectRepository(UnitEntity)
     private readonly repo: Repository<UnitEntity>,
@@ -28,6 +32,8 @@ export class UnitsService {
     private readonly historyRepo: Repository<UnitLocationHistoryEntity>,
     @InjectRepository(IncidentEntity)
     private readonly incidentRepo: Repository<IncidentEntity>,
+    private readonly sectorsService: SectorsService,
+    private readonly realtime: RealtimeGateway,
   ) {}
 
   findAll(filters: FindAllFilters): Promise<UnitEntity[]> {
@@ -87,6 +93,45 @@ export class UnitsService {
         location: () => `ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)`,
       })
       .execute();
+
+    // Geofence check
+    const unit = await this.repo.findOne({
+      where: { id },
+      select: ['id', 'callSign', 'sectorId'],
+    });
+    if (!unit) return;
+
+    const previous = this.unitSectorCache.get(id) ?? [];
+    const { entered, exited } = await this.sectorsService.checkGeofences(
+      id,
+      unit.callSign,
+      lat,
+      lng,
+      previous,
+    );
+
+    const nowInside = [
+      ...previous.filter((sid) => !exited.map((s) => s.id).includes(sid)),
+      ...entered.map((s) => s.id),
+    ];
+    this.unitSectorCache.set(id, nowInside);
+
+    for (const sector of entered) {
+      this.realtime.emitGeofenceEntered({
+        unitId: id,
+        callSign: unit.callSign,
+        sectorId: sector.id,
+        sectorName: sector.name,
+      });
+    }
+    for (const sector of exited) {
+      this.realtime.emitGeofenceExited({
+        unitId: id,
+        callSign: unit.callSign,
+        sectorId: sector.id,
+        sectorName: sector.name,
+      });
+    }
   }
 
   getHistory(id: string, from: Date, to: Date): Promise<UnitLocationHistoryEntity[]> {
