@@ -2,8 +2,11 @@
 
 import { useState } from 'react';
 import { useIncidentsStore } from '@/store/incidents.store';
+import { useAuthStore } from '@/store/auth.store';
+import { permissions } from '@/lib/permissions';
 import IncidentCard from './IncidentCard';
 import CreateIncidentModal from './CreateIncidentModal';
+import Spinner from '@/components/ui/Spinner';
 import type { Sector } from '@/lib/types';
 
 const STATUS_OPTIONS = [
@@ -16,15 +19,27 @@ const STATUS_OPTIONS = [
 
 interface IncidentListProps {
   sectors?: Sector[];
+  crisisMode?: boolean;
 }
 
-export default function IncidentList({ sectors = [] }: IncidentListProps) {
-  const { incidents, selectedId, selectIncident, filters, setFilters } = useIncidentsStore();
+export default function IncidentList({ sectors = [], crisisMode = false }: IncidentListProps) {
+  const { incidents, selectedId, selectIncident, filters, setFilters, isLoading } = useIncidentsStore();
+  const user = useAuthStore((s) => s.user);
+  const canCreate = permissions.createIncident(user?.role as never);
   const [showCreate, setShowCreate] = useState(false);
+  const [search, setSearch] = useState('');
 
   const filtered = incidents.filter((inc) => {
     if (filters.status && inc.status !== filters.status) return false;
     if (filters.sectorId && inc.sectorId !== filters.sectorId) return false;
+    if (crisisMode && inc.priority !== 'critical' && inc.priority !== 'high') return false;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      const matchesFolio = inc.folio?.toLowerCase().includes(q);
+      const matchesAddress = inc.address?.toLowerCase().includes(q);
+      const matchesType = inc.type?.toLowerCase().includes(q);
+      if (!matchesFolio && !matchesAddress && !matchesType) return false;
+    }
     return true;
   });
 
@@ -33,12 +48,25 @@ export default function IncidentList({ sectors = [] }: IncidentListProps) {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800 shrink-0">
         <h2 className="text-sm font-semibold text-signal-white">Incidentes</h2>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="text-xs bg-tactical-blue hover:bg-blue-600 text-white px-3 py-1 rounded transition-colors"
-        >
-          + Nuevo
-        </button>
+        {canCreate && (
+          <button
+            onClick={() => setShowCreate(true)}
+            className="text-xs bg-tactical-blue hover:bg-blue-600 text-white px-3 py-1 rounded transition-colors"
+          >
+            + Nuevo
+          </button>
+        )}
+      </div>
+
+      {/* Search */}
+      <div className="px-3 py-2 border-b border-slate-800 shrink-0">
+        <input
+          type="text"
+          placeholder="Buscar folio, dirección..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full bg-slate-800 border border-slate-700 text-signal-white text-xs rounded px-3 py-1.5 focus:outline-none focus:border-tactical-blue placeholder-slate-500"
+        />
       </div>
 
       {/* Status filter chips */}
@@ -77,7 +105,11 @@ export default function IncidentList({ sectors = [] }: IncidentListProps) {
 
       {/* List */}
       <div className="flex-1 overflow-y-auto">
-        {filtered.length === 0 ? (
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Spinner />
+          </div>
+        ) : filtered.length === 0 ? (
           <p className="text-center text-slate-gray text-sm py-12">
             Sin incidentes
           </p>

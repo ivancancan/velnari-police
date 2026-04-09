@@ -59,8 +59,12 @@ export class RealtimeGateway {
     sectorId: string | undefined,
     payload: { unitId: string; lat: number; lng: number; timestamp: string },
   ): void {
-    const room = sectorId ? `sector:${sectorId}` : 'command';
-    this.server.to(room).emit('unit:location:changed', payload);
+    // Always emit to command room (all operators/supervisors watching the map)
+    this.server.to('command').emit('unit:location:changed', payload);
+    // Also emit to the sector room if applicable
+    if (sectorId) {
+      this.server.to(`sector:${sectorId}`).emit('unit:location:changed', payload);
+    }
   }
 
   emitUnitStatusChanged(payload: {
@@ -75,10 +79,10 @@ export class RealtimeGateway {
     this.server.to('command').emit('incident:created', incident);
   }
 
-  emitIncidentAssigned(incidentId: string, unitId: string): void {
-    this.server
-      .to(`incident:${incidentId}`)
-      .emit('incident:assigned', { incidentId, unitId });
+  emitIncidentAssigned(incidentId: string, unitId: string, etaMinutes: number | null = null): void {
+    const payload = { incidentId, unitId, etaMinutes };
+    this.server.to('command').emit('incident:assigned', payload);
+    this.server.to(`incident:${incidentId}`).emit('incident:assigned', payload);
   }
 
   emitIncidentStatusChanged(incidentId: string, status: string): void {
@@ -109,5 +113,13 @@ export class RealtimeGateway {
     sectorName: string;
   }): void {
     this.server.to('command').emit('geofence:exited', payload);
+  }
+
+  emitChatMessage(roomId: string, message: Record<string, unknown>): void {
+    this.server.to(roomId).emit('chat:message', message);
+    // Also emit to command room so operators always see chat
+    if (roomId !== 'command') {
+      this.server.to('command').emit('chat:message', message);
+    }
   }
 }

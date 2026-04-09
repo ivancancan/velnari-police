@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import configuration from './config/configuration';
@@ -14,7 +16,10 @@ import { RealtimeModule } from './modules/realtime/realtime.module';
 import { UsersModule } from './modules/users/users.module';
 import { AttachmentsModule } from './modules/attachments/attachments.module';
 import { PatrolsModule } from './modules/patrols/patrols.module';
+import { ChatModule } from './modules/chat/chat.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { ReportsModule } from './modules/reports/reports.module';
+import { HealthController } from './modules/health/health.controller';
 import { AuditInterceptor } from './shared/interceptors/audit.interceptor';
 import { RedisCacheService } from './shared/services/redis-cache.service';
 
@@ -39,6 +44,8 @@ import { RedisCacheService } from './shared/services/redis-cache.service';
         logging: config.get('nodeEnv') === 'development',
       }),
     }),
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
+    ScheduleModule.forRoot(),
     AuthModule,
     SectorsModule,
     UnitsModule,
@@ -48,13 +55,20 @@ import { RedisCacheService } from './shared/services/redis-cache.service';
     UsersModule,
     AttachmentsModule,
     PatrolsModule,
+    ChatModule,
     AuditModule,
+    ReportsModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'),
       serveRoot: '/uploads',
     }),
   ],
+  controllers: [HealthController],
   providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
     {
       provide: APP_INTERCEPTOR,
       useClass: AuditInterceptor,

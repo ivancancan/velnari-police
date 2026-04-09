@@ -16,8 +16,6 @@ interface HeatmapLayerProps {
 }
 
 export default function HeatmapLayer({ points }: HeatmapLayerProps) {
-  if (points.length === 0) return null;
-
   const geojson: GeoJsonFeatureCollection = {
     type: 'FeatureCollection',
     features: points.map((p) => ({

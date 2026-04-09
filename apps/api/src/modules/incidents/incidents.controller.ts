@@ -15,7 +15,7 @@ function startOfDay(d: Date): Date {
 function endOfDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
 }
-import { IncidentsService } from './incidents.service';
+import { IncidentsService, DailySummary, ShiftHandoff } from './incidents.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { RolesGuard } from '../../shared/guards/roles.guard';
 import { Roles } from '../../shared/decorators/roles.decorator';
@@ -30,6 +30,7 @@ import {
 } from '@velnari/shared-types';
 import type { IncidentEntity } from '../../entities/incident.entity';
 import type { IncidentEventEntity } from '../../entities/incident-event.entity';
+import type { IncidentUnitAssignmentEntity } from '../../entities/incident-unit-assignment.entity';
 
 @Controller('incidents')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -59,6 +60,17 @@ export class IncidentsController {
     return this.service.getStats(d);
   }
 
+  @Get('daily-summary')
+  getDailySummary(@Query('date') date?: string): Promise<DailySummary> {
+    const d = date && !isNaN(Date.parse(date)) ? new Date(date) : new Date();
+    return this.service.getDailySummary(d);
+  }
+
+  @Get('shift-handoff')
+  getShiftHandoff(): Promise<ShiftHandoff> {
+    return this.service.getShiftHandoff();
+  }
+
   @Get('heatmap')
   getHeatmap(
     @Query('from') from?: string,
@@ -78,6 +90,11 @@ export class IncidentsController {
   @Get(':id/events')
   getEvents(@Param('id', ParseUUIDPipe) id: string): Promise<IncidentEventEntity[]> {
     return this.service.getEvents(id);
+  }
+
+  @Get(':id/assignments')
+  getAssignments(@Param('id', ParseUUIDPipe) id: string): Promise<IncidentUnitAssignmentEntity[]> {
+    return this.service.getAssignments(id);
   }
 
   @Post()

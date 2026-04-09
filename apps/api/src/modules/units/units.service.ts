@@ -1,7 +1,7 @@
 // apps/api/src/modules/units/units.service.ts
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, Repository } from 'typeorm';
+import { Between, MoreThanOrEqual, Repository } from 'typeorm';
 import { UnitEntity } from '../../entities/unit.entity';
 import { UnitLocationHistoryEntity } from '../../entities/unit-location-history.entity';
 import { IncidentEntity } from '../../entities/incident.entity';
@@ -36,12 +36,23 @@ export class UnitsService {
     private readonly realtime: RealtimeGateway,
   ) {}
 
-  findAll(filters: FindAllFilters): Promise<UnitEntity[]> {
-    const where: Record<string, unknown> = { isActive: true };
-    if (filters.status) where['status'] = filters.status;
-    if (filters.sectorId) where['sectorId'] = filters.sectorId;
-    if (filters.shift) where['shift'] = filters.shift;
-    return this.repo.find({ where });
+  async findAll(filters: FindAllFilters): Promise<(UnitEntity & { lat: number | null; lng: number | null })[]> {
+    const qb = this.repo
+      .createQueryBuilder('u')
+      .addSelect('ST_Y(u.current_location)', 'lat')
+      .addSelect('ST_X(u.current_location)', 'lng')
+      .where('u.is_active = true');
+
+    if (filters.status) qb.andWhere('u.status = :status', { status: filters.status });
+    if (filters.sectorId) qb.andWhere('u.sector_id = :sectorId', { sectorId: filters.sectorId });
+    if (filters.shift) qb.andWhere('u.shift = :shift', { shift: filters.shift });
+
+    const raws = await qb.getRawAndEntities();
+    return raws.entities.map((entity, i) => ({
+      ...entity,
+      lat: raws.raw[i]?.lat ? Number(raws.raw[i].lat) : null,
+      lng: raws.raw[i]?.lng ? Number(raws.raw[i].lng) : null,
+    }));
   }
 
   async findOne(id: string): Promise<UnitEntity> {
@@ -250,6 +261,69 @@ export class UnitsService {
       },
       incidents,
     };
+  }
+
+  async getScoreboard(): Promise<{
+    unitId: string;
+    callSign: string;
+    totalIncidents: number;
+    avgResponseMinutes: number | null;
+    totalGpsPoints: number;
+    hoursOnDuty: number;
+    score: number;
+  }[]> {
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const units = await this.repo.find({ where: { isActive: true } });
+    const results: {
+      unitId: string;
+      callSign: string;
+      totalIncidents: number;
+      avgResponseMinutes: number | null;
+      totalGpsPoints: number;
+      hoursOnDuty: number;
+      score: number;
+    }[] = [];
+
+    for (const unit of units) {
+      const incidents = await this.incidentRepo.count({
+        where: { assignedUnitId: unit.id, createdAt: MoreThanOrEqual(startOfMonth) },
+      });
+
+      const gpsPoints = await this.historyRepo.count({
+        where: { unitId: unit.id, recordedAt: MoreThanOrEqual(startOfMonth) },
+      });
+
+      const avgRes = await this.incidentRepo
+        .createQueryBuilder('i')
+        .select('AVG(EXTRACT(EPOCH FROM (i.assigned_at - i.created_at)) / 60)', 'avg')
+        .where('i.assigned_unit_id = :id', { id: unit.id })
+        .andWhere('i.assigned_at IS NOT NULL')
+        .andWhere('i.created_at >= :start', { start: startOfMonth })
+        .getRawOne();
+
+      const avgMinutes = avgRes?.avg ? Number(avgRes.avg) : null;
+
+      // Simple score: incidents handled (40%) + GPS coverage (30%) + response speed (30%)
+      const incidentScore = Math.min(incidents * 5, 40);
+      const gpsScore = Math.min(gpsPoints / 100, 30);
+      const responseScore = avgMinutes ? Math.max(30 - avgMinutes * 3, 0) : 0;
+      const score = Math.round(incidentScore + gpsScore + responseScore);
+
+      results.push({
+        unitId: unit.id,
+        callSign: unit.callSign,
+        totalIncidents: incidents,
+        avgResponseMinutes: avgMinutes ? Math.round(avgMinutes * 10) / 10 : null,
+        totalGpsPoints: gpsPoints,
+        hoursOnDuty: Math.round((gpsPoints * 10) / 3600),
+        score,
+      });
+    }
+
+    return results.sort((a, b) => b.score - a.score);
   }
 
   async getStats(): Promise<{

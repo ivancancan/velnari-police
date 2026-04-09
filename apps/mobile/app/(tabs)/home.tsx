@@ -1,23 +1,33 @@
 // apps/mobile/app/(tabs)/home.tsx
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView,
-  StyleSheet, Alert, RefreshControl,
+  StyleSheet, Alert, RefreshControl, Vibration,
+  TextInput, Animated, Easing,
 } from 'react-native';
+import * as Location from 'expo-location';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '@/store/auth.store';
 import { useUnitStore } from '@/store/unit.store';
 import { unitsApi, incidentsApi } from '@/lib/api';
 import { startLocationTracking, stopLocationTracking } from '@/lib/location';
+import { flushQueue } from '@/lib/offline-queue';
 
 const STATUS_OPTIONS = [
-  { value: 'available', label: 'Disponible', color: '#22C55E' },
-  { value: 'en_route', label: 'En camino', color: '#3B82F6' },
-  { value: 'on_scene', label: 'En escena', color: '#F59E0B' },
-  { value: 'out_of_service', label: 'Fuera de servicio', color: '#EF4444' },
+  { value: 'available', label: 'Disponible', color: '#22C55E', icon: '✓', iconLabel: 'Listo' },
+  { value: 'en_route', label: 'En camino', color: '#3B82F6', icon: '→', iconLabel: 'Ruta' },
+  { value: 'on_scene', label: 'En escena', color: '#F59E0B', icon: '◉', iconLabel: 'Escena' },
+  { value: 'out_of_service', label: 'Fuera de servicio', color: '#EF4444', icon: '✕', iconLabel: 'Fuera' },
 ];
 
 const PRIORITY_COLORS: Record<string, string> = {
   critical: '#EF4444', high: '#F97316', medium: '#F59E0B', low: '#22C55E',
+};
+
+const TYPE_LABELS: Record<string, string> = {
+  robbery: 'Robo', assault: 'Agresión', traffic: 'Accidente vial',
+  noise: 'Ruido', domestic: 'Violencia doméstica',
+  missing_person: 'Persona desaparecida', other: 'Otro',
 };
 
 export default function HomeScreen() {
@@ -26,12 +36,37 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [trackingActive, setTrackingActive] = useState(false);
 
-  async function loadUnitAndIncident() {
+  // Pulsing glow animation for SOS button
+  const pulseAnim = useRef(new Animated.Value(0.5)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1, duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+        Animated.timing(pulseAnim, { toValue: 0.3, duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulseAnim]);
+  const [currentCoords, setCurrentCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [gpsCount, setGpsCount] = useState(0);
+  const [noteText, setNoteText] = useState('');
+  const [sendingNote, setSendingNote] = useState(false);
+
+  const loadUnitAndIncident = useCallback(async () => {
     try {
+      const flushed = await flushQueue();
+      if (flushed.success > 0) {
+        Alert.alert('Sincronizado', `${flushed.success} acciones pendientes enviadas.`);
+      }
+
       const unitsRes = await unitsApi.getAll();
       const myUnit = unitsRes.data.find((u) => u.assignedUserId === user?.id);
       if (!myUnit) return;
       setUnit(myUnit.id, myUnit.callSign, myUnit.status);
+      if (myUnit.lat && myUnit.lng) {
+        setCurrentCoords({ lat: myUnit.lat, lng: myUnit.lng });
+      }
 
       const incidentsRes = await incidentsApi.getAll();
       const myIncident = incidentsRes.data.find(
@@ -39,20 +74,34 @@ export default function HomeScreen() {
       );
       setAssignedIncident(myIncident ?? null);
     } catch {
-      // silent — user sees stale data
+      // silent
     }
-  }
+  }, [user?.id]);
 
-  useEffect(() => { loadUnitAndIncident(); }, []);
+  useEffect(() => { loadUnitAndIncident(); }, [loadUnitAndIncident]);
+
+  // Poll current position when tracking
+  useEffect(() => {
+    if (!trackingActive || !unitId) return;
+    const interval = setInterval(async () => {
+      try {
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+        setCurrentCoords({ lat: loc.coords.latitude, lng: loc.coords.longitude });
+        setGpsCount((c) => c + 1);
+      } catch { /* ignore */ }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [trackingActive, unitId]);
 
   async function handleStatusChange(newStatus: string) {
     if (!unitId) {
-      Alert.alert('Sin unidad asignada', 'Tu usuario no tiene una unidad asignada.');
+      Alert.alert('Sin unidad', 'No tienes una unidad asignada.');
       return;
     }
     try {
       await unitsApi.updateStatus(unitId, newStatus);
       setStatus(newStatus);
+      Vibration.vibrate(50);
     } catch {
       Alert.alert('Error', 'No se pudo actualizar el estado.');
     }
@@ -63,23 +112,94 @@ export default function HomeScreen() {
     if (trackingActive) {
       await stopLocationTracking();
       setTrackingActive(false);
+      setGpsCount(0);
     } else {
       const started = await startLocationTracking(unitId);
-      setTrackingActive(started);
-      if (!started) {
+      if (started) {
+        setTrackingActive(true);
+        Vibration.vibrate(100);
+        // Get initial position
+        try {
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+          setCurrentCoords({ lat: loc.coords.latitude, lng: loc.coords.longitude });
+          await unitsApi.updateLocation(unitId, loc.coords.latitude, loc.coords.longitude);
+          setGpsCount(1);
+        } catch { /* ignore */ }
+      } else {
         Alert.alert('Permiso denegado', 'Activa los permisos de ubicación en configuración.');
       }
     }
   }
 
+  async function handleSendNote() {
+    if (!assignedIncident || !noteText.trim()) return;
+    setSendingNote(true);
+    try {
+      await incidentsApi.addNote(assignedIncident.id, noteText.trim());
+      setNoteText('');
+      Alert.alert('Nota enviada', 'Tu nota fue registrada en el incidente.');
+    } catch {
+      Alert.alert('Error', 'No se pudo enviar la nota.');
+    } finally {
+      setSendingNote(false);
+    }
+  }
+
   const currentStatusOption = STATUS_OPTIONS.find((s) => s.value === status);
 
+  async function handleTakePhoto() {
+    if (!assignedIncident) return;
+    const { status: camStatus } = await ImagePicker.requestCameraPermissionsAsync();
+    if (camStatus !== 'granted') {
+      Alert.alert('Permiso denegado', 'Se necesita acceso a la cámara.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      quality: 0.7,
+      allowsEditing: false,
+    });
+    if (result.canceled || !result.assets[0]) return;
+    try {
+      await incidentsApi.uploadPhoto(assignedIncident.id, result.assets[0].uri);
+      Vibration.vibrate(100);
+      Alert.alert('Foto enviada', 'La foto fue adjuntada al incidente.');
+    } catch {
+      Alert.alert('Error', 'No se pudo enviar la foto.');
+    }
+  }
+
+  async function handlePanic() {
+    Vibration.vibrate([0, 500, 200, 500]);
+    try {
+      const { status: locStatus } = await Location.requestForegroundPermissionsAsync();
+      if (locStatus !== 'granted') {
+        Alert.alert('Error', 'Se necesitan permisos de ubicación para el botón de pánico.');
+        return;
+      }
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      await incidentsApi.create({
+        type: 'other',
+        priority: 'critical',
+        lat: loc.coords.latitude,
+        lng: loc.coords.longitude,
+        description: `🚨 ALERTA DE PÁNICO — ${callSign ?? 'Unidad'} en peligro. Requiere apoyo inmediato.`,
+        address: `GPS: ${loc.coords.latitude.toFixed(5)}, ${loc.coords.longitude.toFixed(5)}`,
+      });
+      Alert.alert('🚨 Alerta enviada', 'Tu ubicación y alerta fueron enviadas al centro de mando.');
+    } catch {
+      Alert.alert('Error', 'No se pudo enviar la alerta. Intenta de nuevo.');
+    }
+  }
+
   return (
+    <View style={styles.rootContainer}>
     <ScrollView
       style={styles.container}
+      contentContainerStyle={styles.scrollContent}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
+          tintColor="#3B82F6"
           onRefresh={async () => {
             setRefreshing(true);
             await loadUnitAndIncident();
@@ -90,47 +210,81 @@ export default function HomeScreen() {
     >
       {/* Unit header */}
       <View style={styles.unitCard}>
-        <Text style={styles.callSign}>{callSign ?? 'Sin unidad'}</Text>
+        <View>
+          <Text style={styles.callSign}>{callSign ?? 'Sin unidad'}</Text>
+          <Text style={styles.userName}>{user?.name}</Text>
+        </View>
         <View style={[styles.statusBadge, { backgroundColor: (currentStatusOption?.color ?? '#64748B') + '22' }]}>
           <Text style={[styles.statusText, { color: currentStatusOption?.color ?? '#64748B' }]}>
-            {currentStatusOption?.label ?? status}
+            {currentStatusOption?.icon} {currentStatusOption?.label ?? status}
           </Text>
         </View>
       </View>
 
-      {/* GPS tracking toggle */}
+      {/* GPS tracking — big prominent button */}
       <TouchableOpacity
         style={[styles.gpsButton, trackingActive && styles.gpsButtonActive]}
         onPress={toggleTracking}
+        activeOpacity={0.7}
       >
-        <Text style={styles.gpsButtonText}>
-          {trackingActive ? '📍 GPS activo — toca para detener' : '📍 Activar GPS'}
-        </Text>
+        <Text style={styles.gpsIcon}>{trackingActive ? '📡' : '📍'}</Text>
+        <View>
+          <Text style={[styles.gpsTitle, trackingActive && styles.gpsTitleActive]}>
+            {trackingActive ? 'GPS ACTIVO' : 'INICIAR RASTREO'}
+          </Text>
+          {trackingActive ? (
+            <Text style={styles.gpsSubtitle}>
+              {gpsCount} puntos enviados · Toca para detener
+            </Text>
+          ) : (
+            <Text style={styles.gpsSubtitle}>
+              Tu ubicación se enviará al centro de mando
+            </Text>
+          )}
+        </View>
+        {trackingActive && <View style={styles.gpsPulse} />}
       </TouchableOpacity>
 
+      {/* Coordinates readout */}
+      {trackingActive && currentCoords && (
+        <View style={styles.coordsBar}>
+          <Text style={styles.coordsText}>
+            {currentCoords.lat.toFixed(5)}, {currentCoords.lng.toFixed(5)}
+          </Text>
+        </View>
+      )}
+
       {/* Status selector */}
-      <Text style={styles.sectionLabel}>Cambiar estado</Text>
+      <Text style={styles.sectionLabel}>Estado de la unidad</Text>
       <View style={styles.statusGrid}>
-        {STATUS_OPTIONS.map((opt) => (
-          <TouchableOpacity
-            key={opt.value}
-            style={[
-              styles.statusOption,
-              status === opt.value && { borderColor: opt.color, backgroundColor: opt.color + '22' },
-            ]}
-            onPress={() => handleStatusChange(opt.value)}
-          >
-            <Text style={[styles.statusOptionText, status === opt.value && { color: opt.color }]}>
-              {opt.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        {STATUS_OPTIONS.map((opt) => {
+          const isActive = status === opt.value;
+          return (
+            <TouchableOpacity
+              key={opt.value}
+              style={[
+                styles.statusOption,
+                isActive && { borderColor: opt.color, backgroundColor: opt.color + '22' },
+              ]}
+              onPress={() => handleStatusChange(opt.value)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.statusIconCircle, { backgroundColor: opt.color + '33', borderColor: opt.color }]}>
+                <Text style={[styles.statusOptionIcon, { color: opt.color }]}>{opt.icon}</Text>
+              </View>
+              <Text style={[styles.statusOptionText, isActive && { color: opt.color, fontWeight: '700' }]}>
+                {opt.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {/* Assigned incident */}
       <Text style={styles.sectionLabel}>Incidente asignado</Text>
       {assignedIncident ? (
-        <View style={styles.incidentCard}>
+        <>
+        <View style={[styles.incidentCard, { borderLeftColor: PRIORITY_COLORS[assignedIncident.priority] ?? '#F59E0B' }]}>
           <View style={styles.incidentHeader}>
             <Text style={styles.incidentFolio}>{assignedIncident.folio}</Text>
             <View style={[styles.priorityBadge, { backgroundColor: (PRIORITY_COLORS[assignedIncident.priority] ?? '#F59E0B') + '22' }]}>
@@ -139,44 +293,165 @@ export default function HomeScreen() {
               </Text>
             </View>
           </View>
-          <Text style={styles.incidentType}>{assignedIncident.type}</Text>
+          <Text style={styles.incidentType}>
+            {TYPE_LABELS[assignedIncident.type] ?? assignedIncident.type}
+          </Text>
           {assignedIncident.address ? (
-            <Text style={styles.incidentAddress}>{assignedIncident.address}</Text>
+            <Text style={styles.incidentAddress}>📍 {assignedIncident.address}</Text>
           ) : null}
           {assignedIncident.description ? (
             <Text style={styles.incidentDesc}>{assignedIncident.description}</Text>
           ) : null}
         </View>
+
+        {/* Note input */}
+        <View style={styles.noteContainer}>
+          <View style={styles.noteInputRow}>
+            <TextInput
+              style={styles.noteInput}
+              placeholder="Agregar nota... (usa 🎤 del teclado para dictar)"
+              placeholderTextColor="#64748B"
+              value={noteText}
+              onChangeText={setNoteText}
+              multiline
+              editable={!sendingNote}
+            />
+          </View>
+          <View style={styles.noteActions}>
+            <TouchableOpacity
+              style={styles.cameraButton}
+              onPress={handleTakePhoto}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.cameraButtonText}>📷</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.noteButton, styles.noteButtonFlex, (!noteText.trim() || sendingNote) && styles.noteButtonDisabled]}
+              onPress={handleSendNote}
+              disabled={!noteText.trim() || sendingNote}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.noteButtonText}>{sendingNote ? 'Enviando...' : 'Enviar'}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+        </>
       ) : (
         <View style={styles.emptyCard}>
+          <Text style={styles.emptyIcon}>✓</Text>
           <Text style={styles.emptyText}>Sin incidente asignado</Text>
+          <Text style={styles.emptySubtext}>Estás disponible para despacho</Text>
         </View>
       )}
+
+      <View style={{ height: 140 }} />
     </ScrollView>
+
+    {/* Panic button — fixed overlay with pulsing red glow */}
+    {unitId && (
+      <View style={styles.panicContainer}>
+        <Animated.View
+          style={[
+            styles.panicGlow,
+            {
+              opacity: pulseAnim,
+              transform: [{ scale: pulseAnim.interpolate({ inputRange: [0.3, 1], outputRange: [1, 1.35] }) }],
+            },
+          ]}
+        />
+        <TouchableOpacity
+          style={styles.panicButton}
+          onLongPress={handlePanic}
+          delayLongPress={1000}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.panicText}>SOS</Text>
+          <Text style={styles.panicHint}>Mantener presionado</Text>
+        </TouchableOpacity>
+      </View>
+    )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0F172A', padding: 16 },
-  unitCard: { backgroundColor: '#1E293B', borderRadius: 12, padding: 16, marginBottom: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  callSign: { color: '#F8FAFC', fontSize: 22, fontWeight: '700' },
-  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-  statusText: { fontSize: 12, fontWeight: '600' },
-  gpsButton: { backgroundColor: '#1E293B', borderWidth: 1, borderColor: '#334155', borderRadius: 8, padding: 12, marginBottom: 16, alignItems: 'center' },
+  rootContainer: { flex: 1, backgroundColor: '#0F172A' },
+  container: { flex: 1, backgroundColor: '#0F172A' },
+  scrollContent: { padding: 16 },
+
+  // Unit card — card elevation for depth
+  unitCard: { backgroundColor: '#1E293B', borderRadius: 14, padding: 18, marginBottom: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.25, shadowRadius: 6, elevation: 5 },
+  callSign: { color: '#F8FAFC', fontSize: 26, fontWeight: '800', letterSpacing: 1 },
+  userName: { color: '#94A3B8', fontSize: 14, marginTop: 2 },
+  statusBadge: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20 },
+  statusText: { fontSize: 14, fontWeight: '600' },
+
+  // GPS button — enlarged for glove-friendliness (min 56px height)
+  gpsButton: { backgroundColor: '#1E293B', borderWidth: 2, borderColor: '#334155', borderRadius: 14, paddingVertical: 18, paddingHorizontal: 18, marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 72 },
   gpsButtonActive: { borderColor: '#22C55E', backgroundColor: '#052e16' },
-  gpsButtonText: { color: '#F8FAFC', fontSize: 13 },
-  sectionLabel: { color: '#64748B', fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 },
-  statusGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 },
-  statusOption: { borderWidth: 1, borderColor: '#334155', borderRadius: 8, paddingVertical: 10, paddingHorizontal: 14 },
-  statusOptionText: { color: '#94A3B8', fontSize: 13 },
-  incidentCard: { backgroundColor: '#1E293B', borderRadius: 12, padding: 16, marginBottom: 24 },
-  incidentHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  incidentFolio: { color: '#F8FAFC', fontWeight: '700', fontSize: 16 },
-  priorityBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 },
-  priorityText: { fontSize: 11, fontWeight: '600' },
-  incidentType: { color: '#94A3B8', fontSize: 13, textTransform: 'capitalize', marginBottom: 4 },
-  incidentAddress: { color: '#F8FAFC', fontSize: 14, marginBottom: 4 },
-  incidentDesc: { color: '#64748B', fontSize: 13 },
-  emptyCard: { backgroundColor: '#1E293B', borderRadius: 12, padding: 32, alignItems: 'center' },
-  emptyText: { color: '#64748B', fontSize: 14 },
+  gpsIcon: { fontSize: 32 },
+  gpsTitle: { color: '#94A3B8', fontSize: 16, fontWeight: '700', letterSpacing: 1 },
+  gpsTitleActive: { color: '#22C55E' },
+  gpsSubtitle: { color: '#64748B', fontSize: 13, marginTop: 2 },
+  gpsPulse: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#22C55E', marginLeft: 'auto' },
+
+  // Coords bar
+  coordsBar: { backgroundColor: '#1E293B', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 14, marginBottom: 16, alignItems: 'center' },
+  coordsText: { color: '#3B82F6', fontSize: 13, fontFamily: 'monospace', fontWeight: '600' },
+
+  // Section
+  sectionLabel: { color: '#64748B', fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 10, marginTop: 10 },
+
+  // Status grid — 48px min height touch targets for gloves
+  statusGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 },
+  statusOption: { borderWidth: 1.5, borderColor: '#334155', borderRadius: 12, paddingVertical: 14, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 10, width: '47%' as unknown as number, minHeight: 52 },
+  statusIconCircle: { width: 28, height: 28, borderRadius: 14, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  statusOptionIcon: { fontSize: 16, fontWeight: '800' },
+  statusOptionText: { color: '#94A3B8', fontSize: 14, fontWeight: '500' },
+
+  // Incident card — more padding, larger text, card elevation
+  incidentCard: { backgroundColor: '#1E293B', borderRadius: 14, padding: 20, marginBottom: 24, borderLeftWidth: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6 },
+  incidentHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  incidentFolio: { color: '#F8FAFC', fontWeight: '800', fontSize: 20, fontFamily: 'monospace' },
+  priorityBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+  priorityText: { fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
+  incidentType: { color: '#F8FAFC', fontSize: 17, fontWeight: '600', marginBottom: 8 },
+  incidentAddress: { color: '#94A3B8', fontSize: 15, marginBottom: 6 },
+  incidentDesc: { color: '#64748B', fontSize: 14, marginTop: 6, lineHeight: 20 },
+
+  // Note input — larger touch targets for gloves
+  noteContainer: { backgroundColor: '#1E293B', borderRadius: 14, padding: 16, marginTop: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 6, elevation: 4 },
+  noteInputRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  noteInput: { flex: 1, backgroundColor: '#0F172A', borderRadius: 12, padding: 14, color: '#F8FAFC', fontSize: 16, minHeight: 72, textAlignVertical: 'top', marginBottom: 10 },
+  noteActions: { flexDirection: 'row', gap: 10, alignItems: 'center' },
+  cameraButton: { backgroundColor: '#334155', borderRadius: 12, minWidth: 52, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
+  cameraButtonText: { fontSize: 24 },
+  noteButton: { backgroundColor: '#3B82F6', borderRadius: 12, paddingVertical: 14, alignItems: 'center', minHeight: 48 },
+  noteButtonFlex: { flex: 1 },
+  noteButtonDisabled: { opacity: 0.4 },
+  noteButtonText: { color: '#F8FAFC', fontWeight: '700', fontSize: 16 },
+
+  // Empty
+  emptyCard: { backgroundColor: '#1E293B', borderRadius: 14, padding: 32, alignItems: 'center' },
+  emptyIcon: { fontSize: 24, color: '#22C55E', marginBottom: 8 },
+  emptyText: { color: '#94A3B8', fontSize: 14, fontWeight: '600' },
+  emptySubtext: { color: '#475569', fontSize: 12, marginTop: 4 },
+
+  // Panic button — larger with animated pulsing glow
+  panicContainer: {
+    position: 'absolute', bottom: 30, alignSelf: 'center',
+    width: 96, height: 96, alignItems: 'center', justifyContent: 'center',
+  },
+  panicGlow: {
+    position: 'absolute', width: 96, height: 96, borderRadius: 48,
+    backgroundColor: '#EF4444',
+  },
+  panicButton: {
+    width: 88, height: 88, borderRadius: 44,
+    backgroundColor: '#EF4444', alignItems: 'center', justifyContent: 'center',
+    borderWidth: 3, borderColor: '#FCA5A5',
+    zIndex: 1,
+  },
+  panicText: { color: '#fff', fontSize: 24, fontWeight: '900', letterSpacing: 2 },
+  panicHint: { color: '#FCA5A5', fontSize: 10, fontWeight: '600', marginTop: 2 },
 });

@@ -15,7 +15,7 @@ const VALUE_COLORS = {
 
 export default function StatsCard({ label, value, color = 'blue', sub }: StatsCardProps) {
   return (
-    <div className="bg-slate-800 rounded-lg p-4 flex flex-col gap-1">
+    <div className="bg-slate-800 rounded-lg p-4 flex flex-col gap-1 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
       <p className="text-xs text-slate-gray uppercase tracking-widest">{label}</p>
       <p className={`text-3xl font-bold font-mono ${VALUE_COLORS[color]}`}>{value}</p>
       {sub && <p className="text-xs text-slate-500">{sub}</p>}

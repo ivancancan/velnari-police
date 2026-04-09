@@ -21,9 +21,9 @@ export default function MiniBarChart({ title, data, colorMap = {}, labelMap = {}
             <span className="text-xs text-slate-400 w-24 shrink-0 truncate">
               {labelMap[key] ?? key}
             </span>
-            <div className="flex-1 bg-slate-700 rounded-full h-2">
+            <div className="flex-1 bg-slate-700 rounded-full h-2 overflow-hidden">
               <div
-                className="h-2 rounded-full"
+                className="h-2 rounded-full transition-all duration-700 ease-out"
                 style={{
                   width: `${Math.round((value / max) * 100)}%`,
                   backgroundColor: colorMap[key] ?? '#3B82F6',

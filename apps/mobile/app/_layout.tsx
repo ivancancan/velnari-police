@@ -3,10 +3,17 @@ import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useAuthStore } from '@/store/auth.store';
+import { registerForPushNotifications } from '@/lib/notifications';
 
 export default function RootLayout() {
   const { loadStoredAuth } = useAuthStore();
   useEffect(() => { loadStoredAuth(); }, [loadStoredAuth]);
+
+  useEffect(() => {
+    loadStoredAuth().then(() => {
+      registerForPushNotifications();
+    });
+  }, []);
 
   return (
     <>

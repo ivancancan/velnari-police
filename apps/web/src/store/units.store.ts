@@ -4,6 +4,8 @@ import type { Unit, UnitPosition } from '@/lib/types';
 interface UnitsState {
   units: Unit[];
   positions: Record<string, UnitPosition>;
+  trails: Record<string, [number, number][]>; // unitId → [[lng, lat], ...]
+  trailStarts: Record<string, [number, number]>; // unitId → [lng, lat] first point
   isLoading: boolean;
   selectedUnitId: string | null;
   setUnits: (units: Unit[]) => void;
@@ -15,14 +17,31 @@ interface UnitsState {
   setUnitInsideSectors: (unitId: string, sectorIds: string[]) => void;
 }
 
+const MAX_TRAIL_POINTS = 200;
+
 export const useUnitsStore = create<UnitsState>()((set) => ({
   units: [],
   positions: {},
+  trails: {},
+  trailStarts: {},
   isLoading: false,
   selectedUnitId: null,
   insideSectors: {},
 
-  setUnits: (units) => set({ units }),
+  setUnits: (units) => {
+    const positions: Record<string, UnitPosition> = {};
+    for (const u of units) {
+      if (u.lat != null && u.lng != null) {
+        positions[u.id] = {
+          unitId: u.id,
+          lat: u.lat,
+          lng: u.lng,
+          timestamp: u.lastLocationAt ?? new Date().toISOString(),
+        };
+      }
+    }
+    set((state) => ({ units, positions: { ...positions, ...state.positions } }));
+  },
 
   updateUnit: (updated) =>
     set((state) => ({
@@ -30,9 +49,21 @@ export const useUnitsStore = create<UnitsState>()((set) => ({
     })),
 
   updatePosition: (position) =>
-    set((state) => ({
-      positions: { ...state.positions, [position.unitId]: position },
-    })),
+    set((state) => {
+      const trail = state.trails[position.unitId] ?? [];
+      const newPoint: [number, number] = [position.lng, position.lat];
+      const updatedTrail = [...trail, newPoint].slice(-MAX_TRAIL_POINTS);
+      // Record start point (first GPS ping of this session)
+      const trailStarts = { ...state.trailStarts };
+      if (!trailStarts[position.unitId]) {
+        trailStarts[position.unitId] = newPoint;
+      }
+      return {
+        positions: { ...state.positions, [position.unitId]: position },
+        trails: { ...state.trails, [position.unitId]: updatedTrail },
+        trailStarts,
+      };
+    }),
 
   setLoading: (isLoading) => set({ isLoading }),
 

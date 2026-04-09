@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import type { User, Sector } from '@/lib/types';
 import { sectorsApi } from '@/lib/api';
+import { X } from 'lucide-react';
 import PermissionsEditor from './PermissionsEditor';
 
 const ROLES = [
@@ -54,15 +55,6 @@ export default function UserFormModal({ user, onSubmit, onClose }: UserFormModal
     sectorsApi.getAll().then(setSectors).catch(() => {});
   }, []);
 
-  // Reset custom permissions when role changes
-  useEffect(() => {
-    if (!isEdit) return;
-    setCustomPermissions(prev => {
-      // Keep only extras that still make sense (not already in new role defaults)
-      return prev;
-    });
-  }, [role, isEdit]);
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!isEdit && password.length < 8) {
@@ -82,50 +74,56 @@ export default function UserFormModal({ user, onSubmit, onClose }: UserFormModal
     }
   }
 
+  const inputClass = 'w-full border border-gray-300 rounded-lg px-3 py-2.5 text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
+  const labelClass = 'block text-xs font-medium text-gray-600 mb-1';
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-lg shadow-2xl max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-white border border-gray-200 rounded-xl w-full max-w-lg shadow-2xl max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-700 flex-shrink-0">
-          <h2 className="text-white font-semibold text-lg">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+          <h2 className="text-gray-900 font-semibold text-lg">
             {isEdit ? 'Editar usuario' : 'Nuevo usuario'}
           </h2>
+          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-700 rounded transition-colors">
+            <X size={16} />
+          </button>
         </div>
 
         {/* Body — scrollable */}
         <div className="overflow-y-auto flex-1 px-6 py-4">
           {error && (
-            <p className="text-red-400 text-xs mb-4 bg-red-950 border border-red-800 rounded px-3 py-2">
+            <p className="text-red-600 text-xs mb-4 bg-red-50 border border-red-200 rounded px-3 py-2">
               {error}
             </p>
           )}
 
           <form id="user-form" onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="text-slate-400 text-xs block mb-1">Nombre completo</label>
+              <label className={labelClass}>Nombre completo</label>
               <input
                 value={name}
                 onChange={e => setName(e.target.value)}
                 required
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500"
+                className={inputClass}
               />
             </div>
 
             {!isEdit && (
               <div>
-                <label className="text-slate-400 text-xs block mb-1">Email</label>
+                <label className={labelClass}>Email</label>
                 <input
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   required
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500"
+                  className={inputClass}
                 />
               </div>
             )}
 
             <div>
-              <label className="text-slate-400 text-xs block mb-1">
+              <label className={labelClass}>
                 {isEdit ? 'Nueva contraseña (dejar vacío para no cambiar)' : 'Contraseña'}
               </label>
               <input
@@ -134,17 +132,17 @@ export default function UserFormModal({ user, onSubmit, onClose }: UserFormModal
                 onChange={e => setPassword(e.target.value)}
                 required={!isEdit}
                 minLength={8}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500"
+                className={inputClass}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-slate-400 text-xs block mb-1">Rol</label>
+                <label className={labelClass}>Rol</label>
                 <select
                   value={role}
                   onChange={e => setRole(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500"
+                  className={inputClass}
                 >
                   {ROLES.map(r => (
                     <option key={r.value} value={r.value}>{r.label}</option>
@@ -152,11 +150,11 @@ export default function UserFormModal({ user, onSubmit, onClose }: UserFormModal
                 </select>
               </div>
               <div>
-                <label className="text-slate-400 text-xs block mb-1">Turno</label>
+                <label className={labelClass}>Turno</label>
                 <select
                   value={shift}
                   onChange={e => setShift(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500"
+                  className={inputClass}
                 >
                   {SHIFTS.map(s => (
                     <option key={s.value} value={s.value}>{s.label}</option>
@@ -167,20 +165,20 @@ export default function UserFormModal({ user, onSubmit, onClose }: UserFormModal
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-slate-400 text-xs block mb-1">Número de placa</label>
+                <label className={labelClass}>Número de placa</label>
                 <input
                   value={badgeNumber}
                   onChange={e => setBadgeNumber(e.target.value)}
                   placeholder="Opcional"
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500"
+                  className={inputClass}
                 />
               </div>
               <div>
-                <label className="text-slate-400 text-xs block mb-1">Sector asignado</label>
+                <label className={labelClass}>Sector asignado</label>
                 <select
                   value={sectorId}
                   onChange={e => setSectorId(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500"
+                  className={inputClass}
                 >
                   <option value="">Sin sector</option>
                   {sectors.map(s => (
@@ -192,17 +190,17 @@ export default function UserFormModal({ user, onSubmit, onClose }: UserFormModal
 
             {/* Permisos adicionales — solo al editar */}
             {isEdit && (
-              <div className="border border-slate-700 rounded-lg overflow-hidden">
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
                 <button
                   type="button"
                   onClick={() => setShowPermissions(p => !p)}
-                  className="w-full flex items-center justify-between px-4 py-3 text-sm text-slate-300 hover:bg-slate-800 transition-colors"
+                  className="w-full flex items-center justify-between px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                 >
                   <span className="font-medium">Permisos adicionales</span>
-                  <span className="text-slate-500 text-xs">{showPermissions ? '▲ Ocultar' : '▼ Mostrar'}</span>
+                  <span className="text-gray-400 text-xs">{showPermissions ? '▲ Ocultar' : '▼ Mostrar'}</span>
                 </button>
                 {showPermissions && (
-                  <div className="px-4 pb-4 pt-2 bg-slate-800/50">
+                  <div className="px-4 pb-4 pt-2 bg-gray-800">
                     <PermissionsEditor
                       role={role}
                       customPermissions={customPermissions}
@@ -216,19 +214,19 @@ export default function UserFormModal({ user, onSubmit, onClose }: UserFormModal
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-700 flex gap-3 flex-shrink-0">
+        <div className="px-6 py-4 border-t border-gray-100 flex gap-3 flex-shrink-0">
           <button
             type="submit"
             form="user-form"
             disabled={loading}
-            className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg py-2.5 text-sm font-medium transition-colors"
+            className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg py-2.5 text-sm font-medium transition-colors"
           >
             {loading ? 'Guardando…' : isEdit ? 'Guardar cambios' : 'Crear usuario'}
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 bg-slate-800 hover:bg-slate-700 text-white rounded-lg py-2.5 text-sm transition-colors border border-slate-700"
+            className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg py-2.5 text-sm transition-colors border border-gray-200"
           >
             Cancelar
           </button>

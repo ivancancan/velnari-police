@@ -4,7 +4,7 @@ const WS_URL = process.env['NEXT_PUBLIC_WS_URL'] ?? 'http://localhost:3001';
 
 let socket: Socket | null = null;
 
-function getSocket(): Socket {
+export function getSocket(): Socket {
   if (!socket) {
     socket = io(WS_URL, {
       autoConnect: false,

@@ -7,6 +7,8 @@ export interface Unit {
   sectorId?: string;
   shift?: string;
   isActive: boolean;
+  lat?: number | null;
+  lng?: number | null;
   lastLocationAt?: string;
   createdAt: string;
   updatedAt: string;
@@ -17,6 +19,7 @@ export interface UnitPosition {
   lat: number;
   lng: number;
   timestamp: string;
+  batteryLevel?: number;
 }
 
 export interface IncidentEvent {
@@ -27,6 +30,14 @@ export interface IncidentEvent {
   actorId: string;
   metadata?: Record<string, unknown>;
   createdAt: string;
+}
+
+export interface IncidentAssignment {
+  id: string;
+  unitId: string;
+  unit?: { callSign: string; status: string };
+  assignedAt: string;
+  unassignedAt?: string;
 }
 
 export interface Incident {
@@ -47,6 +58,7 @@ export interface Incident {
   closedAt?: string;
   resolution?: string;
   events?: IncidentEvent[];
+  assignments?: IncidentAssignment[];
   createdAt: string;
   updatedAt: string;
 }
@@ -155,9 +167,39 @@ export interface Patrol {
   sector?: { id: string; name: string; color: string };
 }
 
+export interface DailySummary {
+  date: string;
+  totalIncidents: number;
+  closedIncidents: number;
+  openIncidents: number;
+  avgResponseMinutes: number | null;
+  busiestSector: { name: string; count: number } | null;
+  bestUnit: { callSign: string; avgResponseMin: number } | null;
+  worstHour: { hour: number; count: number } | null;
+  comparedToYesterday: { incidents: number; responseTime: number | null };
+}
+
 export interface PatrolCoverage {
   patrolId: string;
   pings: number;
   startAt: string;
   endAt: string;
+}
+
+export interface UnitScore {
+  unitId: string;
+  callSign: string;
+  totalIncidents: number;
+  avgResponseMinutes: number | null;
+  totalGpsPoints: number;
+  hoursOnDuty: number;
+  score: number;
+}
+
+export interface SuggestedUnit {
+  unitId: string;
+  callSign: string;
+  distanceKm: number;
+  incidentsToday: number;
+  score: number;
 }

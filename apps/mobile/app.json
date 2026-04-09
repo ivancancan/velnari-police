@@ -12,7 +12,8 @@
       "bundleIdentifier": "mx.velnari.field",
       "infoPlist": {
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Velnari necesita tu ubicación para el despacho.",
-        "NSLocationWhenInUseUsageDescription": "Velnari necesita tu ubicación para el despacho."
+        "NSLocationWhenInUseUsageDescription": "Velnari necesita tu ubicación para el despacho.",
+        "NSCameraUsageDescription": "Velnari necesita la cámara para adjuntar fotos a incidentes."
       }
     },
     "android": {
@@ -20,7 +21,9 @@
       "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_BACKGROUND_LOCATION"]
     },
     "plugins": [
-      ["expo-location", { "locationAlwaysAndWhenInUsePermission": "Velnari necesita tu ubicación." }]
+      ["expo-location", { "locationAlwaysAndWhenInUsePermission": "Velnari necesita tu ubicación." }],
+      "expo-notifications",
+      "expo-image-picker"
     ]
   }
 }

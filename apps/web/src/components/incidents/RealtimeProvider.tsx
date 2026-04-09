@@ -1,12 +1,32 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { connectSocket, disconnectSocket } from '@/lib/socket';
 import { useAuthStore } from '@/store/auth.store';
 import { useUnitsStore } from '@/store/units.store';
 import { useIncidentsStore } from '@/store/incidents.store';
 import type { UnitPosition, Incident, Unit } from '@/lib/types';
 import { useAlertsStore } from '@/store/alerts.store';
+
+// How long a unit can go without moving before we alert (ms)
+const STALE_THRESHOLD_MS = 5 * 60_000; // 5 minutes
+const STALE_CHECK_INTERVAL_MS = 60_000; // check every minute
+
+function playAlertSound() {
+  try {
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 880;
+    osc.type = 'square';
+    gain.gain.value = 0.15;
+    osc.start();
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+    osc.stop(ctx.currentTime + 0.5);
+  } catch { /* no audio context available */ }
+}
 
 export default function RealtimeProvider({ children }: { children: React.ReactNode }) {
   const accessToken = useAuthStore((s) => s.accessToken);
@@ -16,20 +36,48 @@ export default function RealtimeProvider({ children }: { children: React.ReactNo
   const updateIncident = useIncidentsStore((s) => s.updateIncident);
   const addAlert = useAlertsStore((s) => s.addAlert);
 
+  // Track last movement time per unit
+  const lastMoveRef = useRef<Record<string, number>>({});
+  // Track which units already have stale alerts (prevent spam)
+  const staleAlertedRef = useRef<Set<string>>(new Set());
+  // Track which units already have battery alerts
+  const batteryAlertedRef = useRef<Set<string>>(new Set());
+
+  const handleAlert = useCallback((priority: string, folio: string, message: string) => {
+    addAlert({ folio, message, priority });
+    if (priority === 'critical' || priority === 'high' || priority === 'geofence') {
+      playAlertSound();
+    }
+  }, [addAlert]);
+
   useEffect(() => {
     if (!accessToken) return;
 
     const socket = connectSocket(accessToken);
-
-    // Join the command room to receive all events
     socket.emit('join:command');
 
     // Unit location changed
     socket.on('unit:location:changed', (payload: UnitPosition) => {
       updatePosition(payload);
+      // Track movement
+      lastMoveRef.current[payload.unitId] = Date.now();
+      staleAlertedRef.current.delete(payload.unitId);
+
+      // Battery low alert
+      if (payload.batteryLevel != null && payload.batteryLevel < 0.15) {
+        if (!batteryAlertedRef.current.has(payload.unitId)) {
+          batteryAlertedRef.current.add(payload.unitId);
+          const units = useUnitsStore.getState().units;
+          const unit = units.find((u) => u.id === payload.unitId);
+          handleAlert('critical', unit?.callSign ?? payload.unitId,
+            `🔋 Batería baja: ${Math.round(payload.batteryLevel * 100)}%`);
+        }
+      } else if (payload.batteryLevel != null && payload.batteryLevel >= 0.2) {
+        batteryAlertedRef.current.delete(payload.unitId);
+      }
     });
 
-    // Unit status changed — we receive partial data and merge with existing
+    // Unit status changed
     socket.on(
       'unit:status:changed',
       (payload: { unitId: string; status: string; previousStatus: string }) => {
@@ -45,11 +93,8 @@ export default function RealtimeProvider({ children }: { children: React.ReactNo
     socket.on('incident:created', (incident: Incident) => {
       addIncident(incident);
       if (incident.priority === 'critical' || incident.priority === 'high') {
-        addAlert({
-          folio: incident.folio,
-          message: incident.description ?? incident.address ?? 'Nuevo incidente',
-          priority: incident.priority,
-        });
+        handleAlert(incident.priority, incident.folio,
+          incident.description ?? incident.address ?? 'Nuevo incidente');
       }
     });
 
@@ -69,23 +114,28 @@ export default function RealtimeProvider({ children }: { children: React.ReactNo
     socket.on(
       'geofence:entered',
       (payload: { unitId: string; callSign: string; sectorId: string; sectorName: string }) => {
-        addAlert({
-          folio: payload.callSign,
-          message: `Entró a sector: ${payload.sectorName}`,
-          priority: 'geofence',
-        });
+        handleAlert('geofence', payload.callSign,
+          `Entró a sector: ${payload.sectorName}`);
       },
     );
 
-    // Geofence exited
+    // Geofence exited — this is the critical one
     socket.on(
       'geofence:exited',
       (payload: { unitId: string; callSign: string; sectorId: string; sectorName: string }) => {
-        addAlert({
-          folio: payload.callSign,
-          message: `Salió de sector: ${payload.sectorName}`,
-          priority: 'geofence',
-        });
+        // Check if unit left its assigned sector
+        const units = useUnitsStore.getState().units;
+        const unit = units.find((u) => u.id === payload.unitId);
+        const isAssignedSector = unit?.sectorId === payload.sectorId;
+
+        handleAlert('geofence', payload.callSign,
+          isAssignedSector
+            ? `⚠ SALIÓ DE SU ZONA ASIGNADA: ${payload.sectorName}`
+            : `Salió de sector: ${payload.sectorName}`);
+
+        if (isAssignedSector) {
+          playAlertSound(); // double sound for leaving assigned zone
+        }
       },
     );
 
@@ -98,7 +148,44 @@ export default function RealtimeProvider({ children }: { children: React.ReactNo
       socket.off('geofence:exited');
       disconnectSocket();
     };
-  }, [accessToken, updatePosition, updateUnit, addIncident, updateIncident, addAlert]);
+  }, [accessToken, updatePosition, updateUnit, addIncident, updateIncident, handleAlert]);
+
+  // Stale unit detection — check every minute
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const units = useUnitsStore.getState().units;
+      const positions = useUnitsStore.getState().positions;
+
+      for (const unit of units) {
+        // Only check units that are actively tracking (have a position)
+        if (!positions[unit.id]) continue;
+        // Only check available/en_route/on_scene (not out_of_service)
+        if (unit.status === 'out_of_service') continue;
+
+        const lastMove = lastMoveRef.current[unit.id];
+        if (!lastMove) {
+          // First time seeing this unit — set baseline
+          lastMoveRef.current[unit.id] = now;
+          continue;
+        }
+
+        const elapsed = now - lastMove;
+        if (elapsed >= STALE_THRESHOLD_MS && !staleAlertedRef.current.has(unit.id)) {
+          staleAlertedRef.current.add(unit.id);
+          const mins = Math.round(elapsed / 60_000);
+          addAlert({
+            folio: unit.callSign,
+            message: `Sin movimiento hace ${mins} minutos`,
+            priority: 'stale',
+          });
+          playAlertSound();
+        }
+      }
+    }, STALE_CHECK_INTERVAL_MS);
+
+    return () => clearInterval(interval);
+  }, [addAlert]);
 
   return <>{children}</>;
 }

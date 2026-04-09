@@ -8,8 +8,8 @@ import { useIncidentsStore } from '@/store/incidents.store';
 import { dispatchApi, unitsApi } from '@/lib/api';
 import { UnitStatus } from '@velnari/shared-types';
 import type { BadgeVariant } from '@/components/ui/Badge';
-import type { UnitWithDistance, Unit } from '@/lib/types';
-import { Check } from 'lucide-react';
+import type { UnitWithDistance, Unit, SuggestedUnit } from '@/lib/types';
+import { Check, Zap } from 'lucide-react';
 
 interface AssignUnitModalProps {
   incidentId: string;
@@ -22,6 +22,7 @@ export default function AssignUnitModal({ incidentId, onClose }: AssignUnitModal
   const [progress, setProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [nearbyUnits, setNearbyUnits] = useState<UnitWithDistance[] | null>(null);
+  const [suggestions, setSuggestions] = useState<SuggestedUnit[]>([]);
 
   const units = useUnitsStore((s) => s.units);
   const updateIncident = useIncidentsStore((s) => s.updateIncident);
@@ -32,10 +33,19 @@ export default function AssignUnitModal({ incidentId, onClose }: AssignUnitModal
   useEffect(() => {
     if (!incident?.lat || !incident?.lng) return;
     unitsApi
-      .getNearby(incident.lat, incident.lng)
+      .getNearby(Number(incident.lat), Number(incident.lng))
       .then((res) => setNearbyUnits(res.data))
       .catch(() => setNearbyUnits(null));
   }, [incident?.lat, incident?.lng]);
+
+  useEffect(() => {
+    dispatchApi
+      .getSuggestions(incidentId)
+      .then((res) => setSuggestions(res.data))
+      .catch(() => setSuggestions([]));
+  }, [incidentId]);
+
+  const suggestedIds = new Set(suggestions.map((s) => s.unitId));
 
   const fallbackUnits: Unit[] = units.filter(
     (u) => u.status === UnitStatus.AVAILABLE && u.isActive,
@@ -67,8 +77,11 @@ export default function AssignUnitModal({ incidentId, onClose }: AssignUnitModal
       try {
         const res = await dispatchApi.assignUnit(incidentId, unitId);
         lastResult = res.data;
-      } catch {
-        setError(`Error al asignar ${unit?.callSign ?? unitId}`);
+      } catch (err: unknown) {
+        const msg =
+          (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+          ?? `Error al asignar ${unit?.callSign ?? unitId}`;
+        setError(typeof msg === 'string' ? msg : JSON.stringify(msg));
         setDispatching(false);
         setProgress(null);
         return;
@@ -88,13 +101,64 @@ export default function AssignUnitModal({ incidentId, onClose }: AssignUnitModal
           </p>
         )}
 
-        {displayUnits.length === 0 ? (
+        {suggestions.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-semibold text-tactical-blue flex items-center gap-1">
+              <Zap size={12} /> Sugeridas
+            </p>
+            <ul className="flex flex-col gap-2">
+              {suggestions.map((sug, idx) => {
+                const isSelected = selected.has(sug.unitId);
+                return (
+                  <li key={sug.unitId}>
+                    <button
+                      onClick={() => toggleUnit(sug.unitId)}
+                      disabled={dispatching}
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded border transition-colors ${
+                        isSelected
+                          ? 'bg-tactical-blue/20 border-tactical-blue'
+                          : 'bg-slate-800/80 hover:bg-slate-700 border-tactical-blue/30'
+                      } disabled:opacity-50`}
+                      aria-label={`Seleccionar ${sug.callSign}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-4 h-4 rounded flex items-center justify-center border ${
+                          isSelected ? 'bg-tactical-blue border-tactical-blue' : 'border-slate-600'
+                        }`}>
+                          {isSelected && <Check size={10} className="text-white" />}
+                        </div>
+                        <span className="font-mono font-bold text-signal-white">
+                          {sug.callSign}
+                        </span>
+                        {idx === 0 && (
+                          <span className="text-[10px] font-semibold bg-tactical-blue text-white px-1.5 py-0.5 rounded flex items-center gap-1">
+                            <Zap size={8} /> Recomendada
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono text-tactical-blue bg-slate-700 px-2 py-0.5 rounded">
+                          {sug.distanceKm < 1 ? `${Math.round(sug.distanceKm * 1000)} m` : `${sug.distanceKm.toFixed(1)} km`}
+                        </span>
+                        <span className="text-xs font-mono text-alert-amber bg-slate-700 px-2 py-0.5 rounded">
+                          {sug.incidentsToday} hoy
+                        </span>
+                      </div>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+
+        {displayUnits.length === 0 && suggestions.length === 0 ? (
           <p className="text-slate-gray text-sm text-center py-4">
             Sin unidades disponibles
           </p>
-        ) : (
+        ) : displayUnits.length > 0 ? (
           <ul className="flex flex-col gap-2">
-            {displayUnits.map((unit) => {
+            {displayUnits.filter((u) => !suggestedIds.has(u.id)).map((unit) => {
               const dist = 'distanceKm' in unit ? unit.distanceKm : null;
               const isSelected = selected.has(unit.id);
               return (
@@ -135,7 +199,7 @@ export default function AssignUnitModal({ incidentId, onClose }: AssignUnitModal
               );
             })}
           </ul>
-        )}
+        ) : null}
 
         {progress && <p className="text-tactical-blue text-xs text-center animate-pulse">{progress}</p>}
         {error && <p className="text-red-400 text-sm">{error}</p>}

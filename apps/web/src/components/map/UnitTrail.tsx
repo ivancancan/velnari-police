@@ -16,21 +16,20 @@ type LineStringFeature = {
 };
 
 export default function UnitTrail({ unitId, points }: UnitTrailProps) {
-  if (points.length < 2) return null;
+  const coords = points.length >= 2
+    ? points.map((p) => [Number(p.lng), Number(p.lat)])
+    : [[0, 0], [0, 0]]; // empty fallback — invisible but keeps source mounted
 
   const geojson: LineStringFeature = {
     type: 'Feature',
-    geometry: {
-      type: 'LineString',
-      coordinates: points.map((p) => [Number(p.lng), Number(p.lat)]),
-    },
+    geometry: { type: 'LineString', coordinates: coords },
     properties: {},
   };
 
   return (
-    <Source id={`trail-${unitId}`} type="geojson" data={geojson}>
+    <Source id="trail" type="geojson" data={geojson}>
       <Layer
-        id={`trail-line-${unitId}`}
+        id="trail-line"
         type="line"
         paint={{
           'line-color': '#3B82F6',

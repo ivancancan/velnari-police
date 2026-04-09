@@ -2,6 +2,12 @@
 import { useState } from 'react';
 import { Pencil, Check, X, AlertTriangle, GripVertical } from 'lucide-react';
 
+const PRESET_COLORS = [
+  '#EF4444', '#F97316', '#F59E0B', '#EAB308',
+  '#84CC16', '#10B981', '#06B6D4', '#3B82F6',
+  '#8B5CF6', '#EC4899', '#6B7280', '#0F172A',
+];
+
 interface IncidentTypeConfig {
   key: string;
   label: string;
@@ -95,7 +101,7 @@ export default function IncidentTypesPage() {
       </div>
 
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-        <div className="bg-gray-50 border-b border-gray-200 px-5 py-3 grid grid-cols-[32px_180px_1fr_100px_80px_80px] gap-4 text-xs text-gray-500 font-medium uppercase tracking-wide">
+        <div className="bg-gray-50 border-b border-gray-200 px-5 py-3 grid grid-cols-[32px_180px_1fr_160px_80px_80px] gap-4 text-xs text-gray-500 font-medium uppercase tracking-wide">
           <div></div>
           <div>Categoría</div>
           <div>Descripción</div>
@@ -106,7 +112,7 @@ export default function IncidentTypesPage() {
 
         <div className="divide-y divide-gray-100">
           {types.map(type => (
-            <div key={type.key} className={`px-5 py-3.5 grid grid-cols-[32px_180px_1fr_100px_80px_80px] gap-4 items-center ${!type.isActive ? 'opacity-50' : ''}`}>
+            <div key={type.key} className={`px-5 py-3.5 grid grid-cols-[32px_180px_1fr_160px_80px_80px] gap-4 items-center ${!type.isActive ? 'opacity-50' : ''}`}>
               {/* Drag handle (visual only) */}
               <GripVertical size={14} className="text-gray-300" />
 
@@ -145,14 +151,21 @@ export default function IncidentTypesPage() {
               </div>
 
               {/* Color */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 {editingKey === type.key ? (
-                  <input
-                    type="color"
-                    value={editDraft.color ?? type.color}
-                    onChange={e => setEditDraft(d => ({ ...d, color: e.target.value }))}
-                    className="w-8 h-7 rounded border border-gray-200 cursor-pointer"
-                  />
+                  PRESET_COLORS.map(c => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setEditDraft(d => ({ ...d, color: c }))}
+                      className={`w-5 h-5 rounded-full border-2 transition-transform ${
+                        (editDraft.color ?? type.color) === c
+                          ? 'border-gray-900 scale-125'
+                          : 'border-transparent hover:scale-110'
+                      }`}
+                      style={{ backgroundColor: c }}
+                    />
+                  ))
                 ) : (
                   <div
                     className="w-6 h-6 rounded-md border border-gray-200"

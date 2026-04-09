@@ -41,7 +41,7 @@ export class PatrolsController {
   }
 
   @Post()
-  @Roles(UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.COMMANDER)
+  @Roles(UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.COMMANDER, UserRole.OPERATOR)
   create(
     @Body() dto: CreatePatrolDto,
     @Req() req: Request & { user: { sub: string } },
@@ -51,7 +51,7 @@ export class PatrolsController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @Roles(UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.COMMANDER)
+  @Roles(UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.COMMANDER, UserRole.OPERATOR)
   async cancel(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     await this.service.cancel(id);
   }

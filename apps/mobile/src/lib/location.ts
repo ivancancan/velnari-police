@@ -1,6 +1,7 @@
 // apps/mobile/src/lib/location.ts
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
+import * as Battery from 'expo-battery';
 import { unitsApi } from './api';
 
 const LOCATION_TASK = 'velnari-location-task';
@@ -13,8 +14,13 @@ TaskManager.defineTask(LOCATION_TASK, async ({ data, error }: TaskManager.TaskMa
   if (!location || !_unitId) return;
 
   const { latitude, longitude } = location.coords;
+  let batteryLevel: number | undefined;
   try {
-    await unitsApi.updateLocation(_unitId, latitude, longitude);
+    batteryLevel = await Battery.getBatteryLevelAsync();
+  } catch { /* unavailable on some devices */ }
+
+  try {
+    await unitsApi.updateLocation(_unitId, latitude, longitude, batteryLevel);
   } catch {
     // silently fail — will retry on next ping
   }
@@ -28,8 +34,8 @@ export async function startLocationTracking(unitId: string): Promise<boolean> {
 
   await Location.startLocationUpdatesAsync(LOCATION_TASK, {
     accuracy: Location.Accuracy.High,
-    timeInterval: 30000,
-    distanceInterval: 50,
+    timeInterval: 10000,
+    distanceInterval: 10,
     foregroundService: {
       notificationTitle: 'Velnari Field activo',
       notificationBody: 'Enviando ubicación al centro de mando.',

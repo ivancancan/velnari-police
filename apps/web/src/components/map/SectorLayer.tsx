@@ -17,7 +17,6 @@ interface SectorLayerProps {
 
 export default function SectorLayer({ sectors }: SectorLayerProps) {
   const validSectors = sectors.filter((s) => s.boundaryGeoJson !== null);
-  if (validSectors.length === 0) return null;
 
   const geojson: FeatureCollection = {
     type: 'FeatureCollection',

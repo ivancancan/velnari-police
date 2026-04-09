@@ -4,7 +4,13 @@ import { useEffect } from 'react';
 import { useAlertsStore } from '@/store/alerts.store';
 import Toast from './Toast';
 
-const AUTO_DISMISS_MS = 8000;
+const AUTO_DISMISS_MS: Record<string, number> = {
+  critical: 15000,
+  high: 10000,
+  geofence: 12000,
+  stale: 12000,
+};
+const DEFAULT_DISMISS_MS = 8000;
 
 export default function ToastContainer() {
   const { alerts, dismissAlert } = useAlertsStore();
@@ -12,8 +18,9 @@ export default function ToastContainer() {
   useEffect(() => {
     if (alerts.length === 0) return;
     const oldest = alerts[0]!;
+    const dismissMs = AUTO_DISMISS_MS[oldest.priority] ?? DEFAULT_DISMISS_MS;
     const age = Date.now() - oldest.createdAt;
-    const remaining = Math.max(0, AUTO_DISMISS_MS - age);
+    const remaining = Math.max(0, dismissMs - age);
     const timer = setTimeout(() => dismissAlert(oldest.id), remaining);
     return () => clearTimeout(timer);
   }, [alerts, dismissAlert]);

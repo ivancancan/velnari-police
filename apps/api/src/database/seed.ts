@@ -6,8 +6,11 @@
  *   - 1 admin user:    admin@velnari.mx    / Velnari2024!
  *   - 1 operator user: operador@velnari.mx / Velnari2024!
  *   - 1 supervisor:    supervisor@velnari.mx / Velnari2024!
- *   - 1 sector: "Centro Histórico"
- *   - 6 field units: P-01 … P-06
+ *   - 1 commander:     comandante@velnari.mx / Velnari2024!
+ *   - 2 field units:   campo1/campo2@velnari.mx / Velnari2024!
+ *   - 4 sectors: Centro Histórico, Norte, Sur, Oriente
+ *   - 6 patrol units: P-01 … P-06
+ *   - 5 demo incidents
  */
 
 import 'reflect-metadata';
@@ -90,6 +93,68 @@ async function seed(): Promise<void> {
     }
   }
 
+  // ── More users for demo ──
+  const extraUsers = [
+    { email: 'comandante@velnari.mx', role: 'commander', name: 'Roberto Comandante', badge: 'CMD-001' },
+    { email: 'campo1@velnari.mx', role: 'field_unit', name: 'Miguel Patrullero', badge: 'FLD-001' },
+    { email: 'campo2@velnari.mx', role: 'field_unit', name: 'Laura Patrullera', badge: 'FLD-002' },
+  ];
+
+  for (const u of extraUsers) {
+    const existing = await query.query(`SELECT id FROM users WHERE email = $1 LIMIT 1`, [u.email]);
+    if (existing.length === 0) {
+      await query.query(
+        `INSERT INTO users (email, password_hash, role, name, badge_number, sector_id, is_active)
+         VALUES ($1, $2, $3::user_role, $4, $5, $6, true)`,
+        [u.email, hash, u.role, u.name, u.badge, sectorId],
+      );
+      console.log(`  ✓ user created: ${u.email}`);
+    }
+  }
+
+  // ── Demo incidents ──
+  const demoIncidents = [
+    { type: 'robbery', priority: 'high', desc: 'Asalto a mano armada en tienda de conveniencia', address: 'Av. Juárez 120, Centro Histórico', lat: 19.4352, lng: -99.1412 },
+    { type: 'traffic', priority: 'medium', desc: 'Colisión entre dos vehículos, sin lesionados', address: 'Eje Central y Av. Hidalgo', lat: 19.4380, lng: -99.1398 },
+    { type: 'assault', priority: 'critical', desc: 'Persona agredida con arma blanca, requiere ambulancia', address: 'Calle Regina 45, Centro', lat: 19.4268, lng: -99.1335 },
+    { type: 'noise', priority: 'low', desc: 'Fiesta con música a alto volumen después de medianoche', address: 'Calle Donceles 78', lat: 19.4345, lng: -99.1380 },
+    { type: 'domestic', priority: 'high', desc: 'Vecinos reportan gritos y golpes en departamento', address: 'Republica de Cuba 32, Depto 4', lat: 19.4310, lng: -99.1355 },
+  ];
+
+  for (const inc of demoIncidents) {
+    const existing = await query.query(`SELECT id FROM incidents WHERE description = $1 LIMIT 1`, [inc.desc]);
+    if (existing.length === 0) {
+      const [adminUser] = await query.query(`SELECT id FROM users WHERE email = 'admin@velnari.mx' LIMIT 1`);
+      if (adminUser) {
+        const folio = `IC-${String(Math.floor(Math.random() * 900) + 100).padStart(3, '0')}`;
+        await query.query(
+          `INSERT INTO incidents (folio, type, priority, status, description, address, lat, lng, location, sector_id, created_by)
+           VALUES ($1, $2::incident_type, $3::incident_priority, 'open'::incident_status, $4, $5, $6, $7, ST_SetSRID(ST_MakePoint($8, $9), 4326), $10, $11)`,
+          [folio, inc.type, inc.priority, inc.desc, inc.address, inc.lat, inc.lng, inc.lng, inc.lat, sectorId, adminUser.id],
+        );
+        console.log(`  ✓ incident created: ${folio} — ${inc.type}`);
+      }
+    }
+  }
+
+  // ── Additional sectors ──
+  const extraSectors = [
+    { name: 'Sector Norte', color: '#10B981' },
+    { name: 'Sector Sur', color: '#F59E0B' },
+    { name: 'Sector Oriente', color: '#8B5CF6' },
+  ];
+
+  for (const s of extraSectors) {
+    const existing = await query.query(`SELECT id FROM sectors WHERE name = $1 LIMIT 1`, [s.name]);
+    if (existing.length === 0) {
+      await query.query(
+        `INSERT INTO sectors (name, color, is_active) VALUES ($1, $2, true)`,
+        [s.name, s.color],
+      );
+      console.log(`  ✓ sector created: ${s.name}`);
+    }
+  }
+
   await query.release();
   await AppDataSource.destroy();
 
@@ -97,8 +162,12 @@ async function seed(): Promise<void> {
   console.log('✅ Seed complete!');
   console.log('');
   console.log('  Login credentials:');
-  console.log('  📧 admin@velnari.mx    / Velnari2024!');
-  console.log('  📧 operador@velnari.mx / Velnari2024!');
+  console.log('  📧 admin@velnari.mx       / Velnari2024!  (Admin)');
+  console.log('  📧 operador@velnari.mx    / Velnari2024!  (Operador)');
+  console.log('  📧 supervisor@velnari.mx  / Velnari2024!  (Supervisor)');
+  console.log('  📧 comandante@velnari.mx  / Velnari2024!  (Comandante)');
+  console.log('  📧 campo1@velnari.mx      / Velnari2024!  (Unidad de Campo)');
+  console.log('  📧 campo2@velnari.mx      / Velnari2024!  (Unidad de Campo)');
   console.log('');
 }
 

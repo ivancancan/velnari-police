@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import Map, { Marker } from 'react-map-gl/maplibre';
+import Map, { Marker, Source, Layer } from 'react-map-gl/maplibre';
 import type { MapLayerMouseEvent } from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useUnitsStore } from '@/store/units.store';
@@ -12,9 +12,23 @@ import UnitMarker from './UnitMarker';
 import UnitTrail from './UnitTrail';
 import SectorLayer from './SectorLayer';
 import HeatmapLayer from './HeatmapLayer';
+import CoverageLayer from './CoverageLayer';
 import type { LocationHistoryPoint, SectorWithBoundary, HeatmapPoint } from '@/lib/types';
 
-const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
+const MAP_STYLES: Record<string, { label: string; url: string }> = {
+  dark: {
+    label: 'Oscuro',
+    url: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+  },
+  street: {
+    label: 'Calles',
+    url: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
+  },
+  positron: {
+    label: 'Claro',
+    url: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+  },
+};
 const DEFAULT_VIEW = { latitude: 19.4326, longitude: -99.1332, zoom: 12 };
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -30,6 +44,7 @@ export interface CommandMapProps {
   drawSectorId?: string | null;
   onBoundarySet?: () => void;
   heatmapPoints?: HeatmapPoint[];
+  showCoverage?: boolean;
 }
 
 export default function CommandMap({
@@ -38,9 +53,12 @@ export default function CommandMap({
   drawSectorId,
   onBoundarySet,
   heatmapPoints,
+  showCoverage,
 }: CommandMapProps) {
-  const { units, positions, selectedUnitId, selectUnit } = useUnitsStore();
+  const { units, positions, trails, trailStarts, selectedUnitId, selectUnit } = useUnitsStore();
   const { incidents, selectedId, selectIncident } = useIncidentsStore();
+
+  const [mapStyle, setMapStyle] = useState('dark');
 
   const [drawMode, setDrawMode] = useState<{
     sectorId: string;
@@ -58,6 +76,7 @@ export default function CommandMap({
   }, [drawSectorId, sectors]);
 
   const activeIncidents = incidents.filter((i) => i.status !== 'closed');
+  const focusedIncident = selectedId ? incidents.find((i) => i.id === selectedId) : null;
 
   const handleMapClick = useCallback(
     async (e: MapLayerMouseEvent) => {
@@ -120,7 +139,7 @@ export default function CommandMap({
       <Map
         initialViewState={DEFAULT_VIEW}
         style={{ width: '100%', height: '100%' }}
-        mapStyle={MAP_STYLE}
+        mapStyle={MAP_STYLES[mapStyle]?.url ?? MAP_STYLES['dark']!.url}
         cursor={drawMode ? 'crosshair' : 'auto'}
         onClick={handleMapClick}
       >
@@ -128,34 +147,86 @@ export default function CommandMap({
         <SectorLayer sectors={sectors} />
 
         {/* Incident density heatmap */}
-        {heatmapPoints && heatmapPoints.length > 0 && (
-          <HeatmapLayer points={heatmapPoints} />
-        )}
+        <HeatmapLayer points={heatmapPoints ?? []} />
 
-        {/* Unit trail polyline */}
-        {selectedUnitId && trailPoints.length > 0 && (
-          <UnitTrail unitId={selectedUnitId} points={trailPoints} />
-        )}
+        {/* Coverage gap layer */}
+        {showCoverage && <CoverageLayer positions={positions} />}
 
-        {/* Unit markers */}
-        {units.map((unit) => {
-          const pos = positions[unit.id];
-          if (!pos) return null;
+        {/* Unit trail polyline — historical, from API */}
+        <UnitTrail unitId={selectedUnitId ?? ''} points={selectedUnitId ? trailPoints : []} />
+
+        {/* Live trails — realtime breadcrumbs for all units */}
+        <Source
+          id="live-trails"
+          type="geojson"
+          data={{
+            type: 'FeatureCollection',
+            features: Object.entries(trails)
+              .filter(([, pts]) => pts.length >= 2)
+              .map(([unitId, pts]) => ({
+                type: 'Feature' as const,
+                geometry: { type: 'LineString' as const, coordinates: pts },
+                properties: { unitId },
+              })),
+          }}
+        >
+          <Layer
+            id="live-trails-line"
+            type="line"
+            paint={{
+              'line-color': '#3B82F6',
+              'line-width': 2.5,
+              'line-opacity': 0.6,
+            }}
+            layout={{ 'line-join': 'round', 'line-cap': 'round' }}
+          />
+        </Source>
+
+        {/* Trail start pins — where each unit began tracking */}
+        {Object.entries(trailStarts).map(([unitId, [lng, lat]]) => {
+          const unit = units.find((u) => u.id === unitId);
+          if (!unit) return null;
           return (
-            <Marker key={unit.id} latitude={pos.lat} longitude={pos.lng}>
-              <UnitMarker
-                callSign={unit.callSign}
-                status={unit.status}
-                onClick={() => selectUnit(unit.id === selectedUnitId ? null : unit.id)}
-              />
+            <Marker key={`start-${unitId}`} latitude={lat} longitude={lng} anchor="bottom">
+              <div
+                className="flex flex-col items-center pointer-events-none"
+                title={`Inicio: ${unit.callSign}`}
+              >
+                <div className="bg-green-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full shadow-md border border-white/80">
+                  INICIO
+                </div>
+                <div className="w-0.5 h-2 bg-green-500/60" />
+                <div className="w-2 h-2 rounded-full bg-green-500 border border-white shadow" />
+              </div>
             </Marker>
           );
         })}
 
-        {/* Incident markers */}
+        {/* Unit markers — dim non-related units when incident is focused */}
+        {units.map((unit) => {
+          const pos = positions[unit.id];
+          if (!pos) return null;
+          const dimUnit = focusedIncident != null && unit.id !== focusedIncident.assignedUnitId;
+          return (
+            <Marker key={unit.id} latitude={pos.lat} longitude={pos.lng}>
+              <div style={{ opacity: dimUnit ? 0.25 : 1, transition: 'opacity 200ms' }}>
+                <UnitMarker
+                  callSign={unit.callSign}
+                  status={unit.status}
+                  batteryLevel={pos.batteryLevel}
+                  onClick={() => selectUnit(unit.id === selectedUnitId ? null : unit.id)}
+                />
+              </div>
+            </Marker>
+          );
+        })}
+
+        {/* Incident markers — when one is selected, dim others */}
         {activeIncidents.map((incident) => {
           const color = PRIORITY_COLORS[incident.priority] ?? '#F59E0B';
           const isSelected = incident.id === selectedId;
+          const dimmed = selectedId != null && !isSelected;
+          if (dimmed) return null; // hide non-selected incidents when one is focused
           return (
             <Marker
               key={incident.id}
@@ -178,6 +249,23 @@ export default function CommandMap({
           );
         })}
       </Map>
+
+      {/* Map style selector */}
+      <div className="absolute bottom-4 left-4 z-10 flex gap-1 bg-slate-900/90 rounded-lg p-1 backdrop-blur">
+        {Object.entries(MAP_STYLES).map(([key, { label }]) => (
+          <button
+            key={key}
+            onClick={() => setMapStyle(key)}
+            className={`px-2.5 py-1 text-xs rounded transition-colors ${
+              mapStyle === key
+                ? 'bg-tactical-blue text-white'
+                : 'text-slate-gray hover:text-signal-white'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

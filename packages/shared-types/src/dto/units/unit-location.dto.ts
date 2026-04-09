@@ -21,4 +21,10 @@ export class UnitLocationDto {
   @Min(0)
   @Max(360)
   heading?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(1)
+  batteryLevel?: number;
 }

@@ -1,17 +1,18 @@
 {
   "moduleFileExtensions": ["js", "json", "ts"],
-  "rootDir": ".",
+  "rootDir": "..",
+  "roots": ["<rootDir>/test", "<rootDir>/src/test"],
   "testEnvironment": "node",
-  "testRegex": ".e2e-spec.ts$",
+  "testRegex": "(\\.e2e-spec|\\.spec)\\.ts$",
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   },
   "moduleNameMapper": {
-    "^@velnari/shared-types$": "<rootDir>/../../../packages/shared-types/src"
+    "^@velnari/shared-types$": "<rootDir>/../../packages/shared-types/src"
   },
   "globals": {
     "ts-jest": {
-      "tsconfig": "<rootDir>/../tsconfig.jest.json"
+      "tsconfig": "<rootDir>/tsconfig.jest.json"
     }
   }
 }

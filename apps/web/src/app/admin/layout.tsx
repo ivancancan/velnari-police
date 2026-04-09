@@ -4,7 +4,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/auth.store';
 import {
-  Users, Truck, AlertTriangle, Map, BarChart2, FileText, LogOut, ArrowLeft, Shield, Clock,
+  Users, Truck, AlertTriangle, Map, BarChart2, FileText, LogOut, ArrowLeft, Shield, Clock, ClipboardList,
 } from 'lucide-react';
 
 const NAV = [
@@ -14,6 +14,7 @@ const NAV = [
       { label: 'Usuarios', href: '/admin', icon: Users },
       { label: 'Unidades', href: '/admin/units', icon: Truck },
       { label: 'Turnos', href: '/admin/shifts', icon: Clock },
+      { label: 'Entrega de Turno', href: '/admin/handoff', icon: ClipboardList },
     ],
   },
   {
@@ -27,7 +28,9 @@ const NAV = [
     section: 'Reportes',
     items: [
       { label: 'Reportes', href: '/admin/reports', icon: BarChart2 },
+      { label: 'Desempe\u00f1o', href: '/admin/scoreboard', icon: BarChart2 },
       { label: 'Audit Log', href: '/admin/audit', icon: FileText },
+      { label: 'Constructor de Reportes', href: '/admin/report-builder', icon: FileText },
     ],
   },
 ];
@@ -49,19 +52,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Sidebar */}
       <aside className="w-56 bg-white border-r border-gray-200 flex-shrink-0 flex flex-col">
         {/* Brand */}
-        <div className="px-5 py-4 border-b border-gray-100">
+        <div className="px-5 py-4 border-b-2 border-blue-600 bg-gradient-to-b from-blue-50/60 to-white">
           <div className="flex items-center gap-2">
             <Shield size={16} className="text-blue-600" />
             <span className="font-semibold text-gray-900 text-sm tracking-tight">Velnari Admin</span>
           </div>
-          <p className="text-xs text-gray-400 mt-1 pl-6 truncate">{user?.name}</p>
+          <p className="text-xs text-gray-400 mt-1.5 pl-6 truncate">{user?.name}</p>
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 py-4 px-3 space-y-5 overflow-y-auto">
-          {NAV.map(({ section, items }) => (
+        <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+          {NAV.map(({ section, items }, sectionIdx) => (
             <div key={section}>
-              <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-widest mb-1 px-2">
+              {sectionIdx > 0 && <div className="mx-2 my-3 border-t border-gray-100" />}
+              <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-widest mb-1.5 px-2">
                 {section}
               </p>
               {items.map(({ label, href, icon: Icon }) => {
@@ -70,10 +74,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   <Link
                     key={href}
                     href={href}
-                    className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm transition-colors ${
+                    className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm transition-all duration-150 ${
                       active
-                        ? 'bg-blue-50 text-blue-700 font-medium'
-                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                        ? 'bg-blue-50 text-blue-700 font-medium border-l-[3px] border-blue-600 pl-2'
+                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border-l-[3px] border-transparent'
                     }`}
                   >
                     <Icon size={14} className={active ? 'text-blue-600' : 'text-gray-400'} />
@@ -86,7 +90,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </nav>
 
         {/* Footer */}
-        <div className="p-3 border-t border-gray-100 space-y-0.5">
+        <div className="p-3 border-t border-gray-200 space-y-1 mt-auto">
           <Link
             href="/command"
             className="flex items-center gap-2 px-2.5 py-1.5 text-sm text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"

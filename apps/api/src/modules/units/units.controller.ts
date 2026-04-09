@@ -77,6 +77,12 @@ export class UnitsController {
     return this.service.getStats();
   }
 
+  @Get('scoreboard')
+  @Roles(UserRole.ADMIN, UserRole.COMMANDER, UserRole.SUPERVISOR)
+  getScoreboard() {
+    return this.service.getScoreboard();
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseUUIDPipe) id: string): Promise<UnitEntity> {
     return this.service.findOne(id);
@@ -120,6 +126,7 @@ export class UnitsController {
       lat: dto.lat,
       lng: dto.lng,
       timestamp: new Date().toISOString(),
+      ...(dto.batteryLevel != null ? { batteryLevel: dto.batteryLevel } : {}),
     });
   }
 
