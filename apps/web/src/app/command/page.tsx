@@ -105,6 +105,10 @@ export default function CommandPage() {
         case '3':
           setSidebarTab('chat');
           break;
+        case 'h':
+        case 'H':
+          window.open('/ayuda', '_blank');
+          break;
       }
     }
     document.addEventListener('keydown', handleKeyDown);
@@ -216,6 +220,14 @@ export default function CommandPage() {
             <span className="w-px h-5 bg-slate-700" aria-hidden="true" />
             <NotificationBell />
             <KeyboardShortcuts />
+            <Link
+              href="/ayuda"
+              target="_blank"
+              className="text-xs text-slate-gray hover:text-signal-white transition-colors duration-200"
+              title="Abrir ayuda"
+            >
+              Ayuda
+            </Link>
             <span className="text-sm text-slate-gray">{user?.name}</span>
             <button
               onClick={clearAuth}

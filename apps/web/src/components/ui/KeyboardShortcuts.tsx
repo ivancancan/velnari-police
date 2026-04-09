@@ -6,6 +6,7 @@ const SHORTCUTS = [
   { key: '2', desc: 'Tab Patrullajes' },
   { key: '3', desc: 'Tab Chat' },
   { key: 'Esc', desc: 'Deseleccionar unidad/incidente' },
+  { key: 'H', desc: 'Abrir ayuda' },
 ];
 
 export default function KeyboardShortcuts() {

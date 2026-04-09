@@ -18,12 +18,17 @@ export default function LandingPage() {
           </div>
           <span className="text-signal-white font-bold text-lg tracking-tight">Velnari</span>
         </div>
-        <Link
-          href="/login"
-          className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-signal-white text-sm font-medium rounded-lg transition-all border border-white/10 hover:border-white/20"
-        >
-          Acceder
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link href="/ayuda" className="text-sm text-slate-400 hover:text-white transition-colors">
+            Manual de uso
+          </Link>
+          <Link
+            href="/login"
+            className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-signal-white text-sm font-medium rounded-lg transition-all border border-white/10 hover:border-white/20"
+          >
+            Acceder
+          </Link>
+        </div>
       </header>
 
       <main className="relative z-10 max-w-5xl mx-auto px-8 py-24">
