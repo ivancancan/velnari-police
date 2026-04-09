@@ -91,9 +91,9 @@ export default function CreateIncidentModal({ onClose }: Props) {
   };
 
   const selectClass =
-    'w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-signal-white text-sm focus:outline-none focus:border-tactical-blue';
+    'w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-signal-white text-sm focus:outline-none focus:border-tactical-blue transition-colors';
   const inputClass =
-    'w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-signal-white text-sm focus:outline-none focus:border-tactical-blue';
+    'w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-signal-white text-sm focus:outline-none focus:border-tactical-blue transition-colors';
 
   return (
     <div
@@ -146,11 +146,11 @@ export default function CreateIncidentModal({ onClose }: Props) {
                 <MapPin size={11} /> Ubicación
               </label>
               {lat !== undefined && lng !== undefined ? (
-                <div className="bg-slate-800 border border-tactical-blue/50 rounded px-3 py-2 text-xs font-mono text-tactical-blue">
+                <div className="bg-slate-800 border border-tactical-blue/50 rounded-lg px-3 py-2 text-xs font-mono text-tactical-blue">
                   {lat.toFixed(5)}, {lng.toFixed(5)}
                 </div>
               ) : (
-                <div className="bg-slate-800 border border-slate-700 rounded px-3 py-2 text-xs text-slate-500">
+                <div className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-500">
                   Haz clic en el mapa →
                 </div>
               )}
@@ -200,14 +200,14 @@ export default function CreateIncidentModal({ onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 border border-slate-700 text-slate-gray hover:text-signal-white py-2 rounded text-sm transition-colors"
+            className="flex-1 border border-slate-700 text-slate-gray hover:text-signal-white py-2 rounded-lg text-sm transition-colors"
           >
             Cancelar
           </button>
           <button
             onClick={handleSubmit(onSubmit)}
             disabled={isSubmitting}
-            className="flex-1 bg-tactical-blue hover:bg-blue-600 disabled:opacity-50 text-white font-semibold py-2 rounded text-sm transition-colors"
+            className="flex-1 bg-tactical-blue hover:bg-blue-600 disabled:opacity-50 text-white font-semibold py-2 rounded-lg text-sm transition-colors"
           >
             {isSubmitting ? 'Creando…' : 'Crear incidente'}
           </button>

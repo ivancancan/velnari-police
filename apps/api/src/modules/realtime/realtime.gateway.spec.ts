@@ -9,7 +9,7 @@ describe('RealtimeGateway', () => {
   };
 
   beforeEach(() => {
-    gateway = new RealtimeGateway();
+    gateway = new RealtimeGateway({ verify: jest.fn() } as never, { get: jest.fn() } as never);
     // Inject mock server
     gateway['server'] = mockServer as never;
     jest.clearAllMocks();
@@ -55,12 +55,13 @@ describe('RealtimeGateway', () => {
   });
 
   it('emitIncidentAssigned emite al room correcto', () => {
-    gateway.emitIncidentAssigned('inc-1', 'unit-1');
+    gateway.emitIncidentAssigned('inc-1', 'unit-1', 3);
 
-    expect(mockServer.to).toHaveBeenCalledWith('incident:inc-1');
+    expect(mockServer.to).toHaveBeenCalledWith('command');
     expect(mockServer.emit).toHaveBeenCalledWith('incident:assigned', {
       incidentId: 'inc-1',
       unitId: 'unit-1',
+      etaMinutes: 3,
     });
   });
 });

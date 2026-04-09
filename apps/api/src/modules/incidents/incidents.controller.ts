@@ -42,8 +42,16 @@ export class IncidentsController {
     @Query('status') status?: IncidentStatus,
     @Query('sectorId') sectorId?: string,
     @Query('priority') priority?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
   ): Promise<IncidentEntity[]> {
-    return this.service.findAll({ status, sectorId, priority });
+    return this.service.findAll({
+      status,
+      sectorId,
+      priority,
+      limit: parseInt(limit as string) || 50,
+      offset: parseInt(offset as string) || 0,
+    });
   }
 
   @Get('stats')

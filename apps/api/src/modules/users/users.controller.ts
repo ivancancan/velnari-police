@@ -7,6 +7,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
@@ -23,8 +24,14 @@ export class UsersController {
   constructor(private readonly service: UsersService) {}
 
   @Get()
-  findAll(): Promise<UserEntity[]> {
-    return this.service.findAll();
+  findAll(
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ): Promise<UserEntity[]> {
+    return this.service.findAll(
+      parseInt(limit as string) || 50,
+      parseInt(offset as string) || 0,
+    );
   }
 
   @Get(':id')

@@ -200,7 +200,7 @@ export default function UserFormModal({ user, onSubmit, onClose }: UserFormModal
                   <span className="text-gray-400 text-xs">{showPermissions ? '▲ Ocultar' : '▼ Mostrar'}</span>
                 </button>
                 {showPermissions && (
-                  <div className="px-4 pb-4 pt-2 bg-gray-800">
+                  <div className="px-4 pb-4 pt-2 bg-gray-50">
                     <PermissionsEditor
                       role={role}
                       customPermissions={customPermissions}

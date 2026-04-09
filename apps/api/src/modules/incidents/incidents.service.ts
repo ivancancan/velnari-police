@@ -37,6 +37,8 @@ interface FindAllFilters {
   status?: IncidentStatus;
   sectorId?: string;
   priority?: string;
+  limit?: number;
+  offset?: number;
 }
 
 @Injectable()
@@ -59,7 +61,14 @@ export class IncidentsService {
     if (filters.status) where['status'] = filters.status;
     if (filters.sectorId) where['sectorId'] = filters.sectorId;
     if (filters.priority) where['priority'] = filters.priority;
-    return this.repo.find({ where, order: { createdAt: 'DESC' } });
+    const limit = filters.limit ?? 50;
+    const offset = filters.offset ?? 0;
+    return this.repo.find({
+      where,
+      order: { createdAt: 'DESC' },
+      take: Math.min(limit, 200),
+      skip: offset,
+    });
   }
 
   async findOne(id: string): Promise<IncidentEntity> {

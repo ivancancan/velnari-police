@@ -43,7 +43,7 @@ export default function ScoreboardPage() {
       ) : scores.length === 0 ? (
         <div className="text-center py-16 text-gray-400">Sin datos para este mes</div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-md">
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50/80 text-gray-500 text-xs uppercase tracking-wider border-b border-gray-200">

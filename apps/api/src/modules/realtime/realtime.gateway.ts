@@ -6,6 +6,8 @@ import {
   ConnectedSocket,
 } from '@nestjs/websockets';
 import { Logger } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import type { Server, Socket } from 'socket.io';
 
 // Rooms:
@@ -25,6 +27,31 @@ export class RealtimeGateway {
   server!: Server;
 
   private readonly logger = new Logger(RealtimeGateway.name);
+
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  async handleConnection(client: Socket): Promise<void> {
+    try {
+      const token =
+        client.handshake.auth?.token ??
+        client.handshake.headers?.authorization?.replace('Bearer ', '');
+      if (!token) {
+        this.logger.warn(`Client ${client.id} disconnected: no token`);
+        client.disconnect();
+        return;
+      }
+      const secret = this.configService.get<string>('JWT_SECRET');
+      const payload = this.jwtService.verify(token, { secret });
+      (client as any).user = payload;
+      this.logger.log(`Client ${client.id} authenticated as ${payload.email ?? payload.sub}`);
+    } catch {
+      this.logger.warn(`Client ${client.id} disconnected: invalid token`);
+      client.disconnect();
+    }
+  }
 
   // ─── Client events (received from client) ───────────────────────────────
 

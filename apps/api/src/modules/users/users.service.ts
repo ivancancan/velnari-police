@@ -17,8 +17,12 @@ export class UsersService {
     private readonly repo: Repository<UserEntity>,
   ) {}
 
-  findAll(): Promise<UserEntity[]> {
-    return this.repo.find({ where: { isActive: true } });
+  findAll(limit = 50, offset = 0): Promise<UserEntity[]> {
+    return this.repo.find({
+      where: { isActive: true },
+      take: Math.min(limit, 200),
+      skip: offset,
+    });
   }
 
   async findOne(id: string): Promise<UserEntity> {

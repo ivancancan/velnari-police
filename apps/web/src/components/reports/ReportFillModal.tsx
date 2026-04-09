@@ -211,7 +211,7 @@ export default function ReportFillModal({ incidentId, onClose, onSubmitted }: Pr
           </p>
           <button
             onClick={onClose}
-            className="mt-2 px-6 py-2 bg-tactical-blue hover:bg-blue-600 text-white text-sm font-semibold rounded transition-colors"
+            className="mt-2 px-6 py-2 bg-tactical-blue hover:bg-blue-600 text-white text-sm font-semibold rounded-lg transition-colors"
           >
             Cerrar
           </button>
@@ -252,7 +252,7 @@ export default function ReportFillModal({ incidentId, onClose, onSubmitted }: Pr
           <div className="flex gap-2 mt-1">
             <button
               onClick={onClose}
-              className="flex-1 py-2 text-slate-gray hover:text-signal-white text-sm transition-colors border border-slate-700 rounded hover:bg-slate-800"
+              className="flex-1 py-2 text-slate-gray hover:text-signal-white text-sm transition-colors border border-slate-700 rounded-lg hover:bg-slate-800"
             >
               Cancelar
             </button>
@@ -283,14 +283,14 @@ export default function ReportFillModal({ incidentId, onClose, onSubmitted }: Pr
             <button
               type="button"
               onClick={() => { setSelectedTemplate(null); setError(''); }}
-              className="flex-1 py-2 text-slate-gray hover:text-signal-white text-sm transition-colors border border-slate-700 rounded hover:bg-slate-800"
+              className="flex-1 py-2 text-slate-gray hover:text-signal-white text-sm transition-colors border border-slate-700 rounded-lg hover:bg-slate-800"
             >
               Cambiar template
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="flex-1 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold rounded disabled:opacity-40 transition-colors"
+              className="flex-1 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold rounded-lg disabled:opacity-40 transition-colors"
             >
               {submitting ? 'Enviando...' : 'Enviar reporte'}
             </button>

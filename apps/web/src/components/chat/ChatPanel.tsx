@@ -72,7 +72,7 @@ export default function ChatPanel({ roomId, title = 'Chat operativo' }: Props) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-4 py-2.5 border-b border-slate-800 shrink-0">
+      <div className="px-4 py-2.5 border-b border-slate-700 shrink-0">
         <h3 className="text-xs font-semibold text-slate-gray uppercase tracking-wide">{title}</h3>
       </div>
 
@@ -95,17 +95,17 @@ export default function ChatPanel({ roomId, title = 'Chat operativo' }: Props) {
         <div ref={bottomRef} />
       </div>
 
-      <form onSubmit={handleSend} className="px-3 py-2 border-t border-slate-800 shrink-0 flex gap-2">
+      <form onSubmit={handleSend} className="px-3 py-2 border-t border-slate-700 shrink-0 flex gap-2">
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Mensaje..."
-          className="flex-1 bg-slate-800 border border-slate-700 text-signal-white text-sm rounded px-3 py-1.5 focus:outline-none focus:border-tactical-blue placeholder-slate-500"
+          className="flex-1 bg-slate-800 border border-slate-700 text-signal-white text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-tactical-blue placeholder-slate-500"
         />
         <button
           type="submit"
           disabled={!text.trim() || sending}
-          className="px-3 py-1.5 bg-tactical-blue hover:bg-blue-600 text-white text-xs font-medium rounded disabled:opacity-40 transition-colors"
+          className="px-3 py-1.5 bg-tactical-blue hover:bg-blue-600 text-white text-xs font-medium rounded-lg disabled:opacity-40 transition-colors"
         >
           Enviar
         </button>

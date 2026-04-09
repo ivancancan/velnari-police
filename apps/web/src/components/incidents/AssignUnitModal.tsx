@@ -114,7 +114,7 @@ export default function AssignUnitModal({ incidentId, onClose }: AssignUnitModal
                     <button
                       onClick={() => toggleUnit(sug.unitId)}
                       disabled={dispatching}
-                      className={`w-full flex items-center justify-between px-4 py-3 rounded border transition-colors ${
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded-lg border transition-colors ${
                         isSelected
                           ? 'bg-tactical-blue/20 border-tactical-blue'
                           : 'bg-slate-800/80 hover:bg-slate-700 border-tactical-blue/30'
@@ -166,7 +166,7 @@ export default function AssignUnitModal({ incidentId, onClose }: AssignUnitModal
                   <button
                     onClick={() => toggleUnit(unit.id)}
                     disabled={dispatching}
-                    className={`w-full flex items-center justify-between px-4 py-3 rounded border transition-colors ${
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-lg border transition-colors ${
                       isSelected
                         ? 'bg-tactical-blue/20 border-tactical-blue'
                         : 'bg-slate-800 hover:bg-slate-700 border-slate-700'
@@ -207,14 +207,14 @@ export default function AssignUnitModal({ incidentId, onClose }: AssignUnitModal
         <div className="flex gap-2 mt-1">
           <button
             onClick={onClose}
-            className="flex-1 py-2 text-slate-gray hover:text-signal-white text-sm transition-colors border border-slate-700 rounded hover:bg-slate-800"
+            className="flex-1 py-2 text-slate-gray hover:text-signal-white text-sm transition-colors border border-slate-700 rounded-lg hover:bg-slate-800"
           >
             Cancelar
           </button>
           <button
             onClick={handleDispatch}
             disabled={selected.size === 0 || dispatching}
-            className="flex-1 py-2 bg-tactical-blue hover:bg-blue-600 text-white text-sm font-semibold rounded disabled:opacity-40 transition-colors"
+            className="flex-1 py-2 bg-tactical-blue hover:bg-blue-600 text-white text-sm font-semibold rounded-lg disabled:opacity-40 transition-colors"
           >
             {dispatching ? 'Despachando…' : `Despachar ${selected.size > 0 ? `(${selected.size})` : ''}`}
           </button>

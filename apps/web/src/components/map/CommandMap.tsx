@@ -149,8 +149,8 @@ export default function CommandMap({
         {/* Incident density heatmap */}
         <HeatmapLayer points={heatmapPoints ?? []} />
 
-        {/* Coverage gap layer */}
-        {showCoverage && <CoverageLayer positions={positions} />}
+        {/* Coverage gap layer — always mounted to avoid react-map-gl source id errors */}
+        <CoverageLayer positions={showCoverage ? positions : {}} />
 
         {/* Unit trail polyline — historical, from API */}
         <UnitTrail unitId={selectedUnitId ?? ''} points={selectedUnitId ? trailPoints : []} />

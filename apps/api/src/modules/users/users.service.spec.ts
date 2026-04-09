@@ -44,7 +44,11 @@ describe('UsersService', () => {
     mockRepo.find.mockResolvedValue([mockUser]);
     const result = await service.findAll();
     expect(result).toHaveLength(1);
-    expect(mockRepo.find).toHaveBeenCalledWith({ where: { isActive: true } });
+    expect(mockRepo.find).toHaveBeenCalledWith({
+      where: { isActive: true },
+      take: 50,
+      skip: 0,
+    });
   });
 
   it('findOne throws NotFoundException when not found', async () => {
