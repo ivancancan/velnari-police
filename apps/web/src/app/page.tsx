@@ -1,4 +1,44 @@
+'use client';
+
 import Link from 'next/link';
+import { useEffect, useRef, useState } from 'react';
+
+function AnimatedCounter({ end, suffix = '', prefix = '', duration = 2000 }: {
+  end: number; suffix?: string; prefix?: string; duration?: number;
+}) {
+  const [count, setCount] = useState(0);
+  const [started, setStarted] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting && !started) {
+          setStarted(true);
+        }
+      },
+      { threshold: 0.5 }
+    );
+    observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, [started]);
+
+  useEffect(() => {
+    if (!started) return;
+    const startTime = Date.now();
+    const timer = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setCount(Math.round(eased * end));
+      if (progress >= 1) clearInterval(timer);
+    }, 16);
+    return () => clearInterval(timer);
+  }, [started, end, duration]);
+
+  return <span ref={ref}>{prefix}{count}{suffix}</span>;
+}
 
 export default function LandingPage() {
   return (
@@ -93,9 +133,9 @@ export default function LandingPage() {
           </h2>
           <div className="relative grid grid-cols-2 md:grid-cols-4 gap-8">
             {[
-              { value: '< 2 min', label: 'Tiempo de despacho' },
-              { value: '85%+', label: 'Incidentes trazados' },
-              { value: '90%+', label: 'Unidades conectadas' },
+              { value: <AnimatedCounter prefix="< " end={2} suffix=" min" />, label: 'Tiempo de despacho' },
+              { value: <AnimatedCounter end={85} suffix="%+" />, label: 'Incidentes trazados' },
+              { value: <AnimatedCounter end={90} suffix="%+" />, label: 'Unidades conectadas' },
               { value: '24/7', label: 'Monitoreo continuo' },
             ].map((m) => (
               <div key={m.label} className="text-center">

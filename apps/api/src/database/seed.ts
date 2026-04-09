@@ -10,7 +10,7 @@
  *   - 2 field units:   campo1/campo2@velnari.mx / Velnari2024!
  *   - 4 sectors: Centro Histórico, Norte, Sur, Oriente
  *   - 6 patrol units: P-01 … P-06
- *   - 5 demo incidents
+ *   - 25 demo incidents (5 basic + 20 extended with timelines)
  */
 
 import 'reflect-metadata';
@@ -136,6 +136,131 @@ async function seed(): Promise<void> {
       }
     }
   }
+
+  // ── Extended demo incidents (20 more, spanning 7 days) ──────────────────
+  const moreIncidents = [
+    // Today
+    { type: 'robbery', priority: 'critical', status: 'closed', desc: 'Asalto con arma de fuego en joyería', address: 'Calle Madero 42, Centro', lat: 19.4338, lng: -99.1395, resolution: 'Detenido puesto a disposición del MP. Arma asegurada.', daysAgo: 0 },
+    { type: 'traffic', priority: 'medium', status: 'open', desc: 'Choque múltiple en Eje Central, 3 vehículos', address: 'Eje Central Lázaro Cárdenas y Fray Servando', lat: 19.4290, lng: -99.1365, resolution: null, daysAgo: 0 },
+    { type: 'assault', priority: 'high', status: 'assigned', desc: 'Riña entre 5 personas afuera de bar', address: 'Plaza Garibaldi, Centro', lat: 19.4398, lng: -99.1397, resolution: null, daysAgo: 0 },
+    // Yesterday
+    { type: 'domestic', priority: 'high', status: 'closed', desc: 'Violencia doméstica, mujer con lesiones visibles', address: 'Calle República de Chile 28', lat: 19.4355, lng: -99.1348, resolution: 'Víctima trasladada a hospital. Agresor detenido.', daysAgo: 1 },
+    { type: 'noise', priority: 'low', status: 'closed', desc: 'Música a alto volumen en vecindad, queja de vecinos', address: 'Calle Mesones 89, Centro', lat: 19.4275, lng: -99.1345, resolution: 'Se habló con responsable, bajó el volumen.', daysAgo: 1 },
+    { type: 'robbery', priority: 'high', status: 'closed', desc: 'Robo de celular con violencia en Metro Zócalo', address: 'Estación Metro Zócalo', lat: 19.4325, lng: -99.1332, resolution: 'Víctima identificó a agresor. Remitido a MP.', daysAgo: 1 },
+    { type: 'missing_person', priority: 'critical', status: 'closed', desc: 'Menor de 8 años extraviado en Alameda Central', address: 'Alameda Central, Centro', lat: 19.4360, lng: -99.1442, resolution: 'Menor localizado con familiar. Situación resuelta.', daysAgo: 1 },
+    // 2 days ago
+    { type: 'traffic', priority: 'low', status: 'closed', desc: 'Vehículo estacionado en doble fila bloqueando tránsito', address: 'Av. 5 de Mayo esquina Bolívar', lat: 19.4335, lng: -99.1405, resolution: 'Grúa retiró vehículo. Infracción aplicada.', daysAgo: 2 },
+    { type: 'assault', priority: 'critical', status: 'closed', desc: 'Persona apuñalada en vía pública', address: 'Calle Corregidora 12, Centro', lat: 19.4305, lng: -99.1310, resolution: 'Lesionado trasladado a hospital. Agresor prófugo.', daysAgo: 2 },
+    { type: 'other', priority: 'medium', status: 'closed', desc: 'Individuo en estado de intoxicación generando disturbios', address: 'Calle Moneda 15, Centro', lat: 19.4318, lng: -99.1312, resolution: 'Persona trasladada a albergue municipal.', daysAgo: 2 },
+    // 3 days ago
+    { type: 'robbery', priority: 'high', status: 'closed', desc: 'Asalto a tienda de conveniencia OXXO', address: 'Av. Juárez 78, Centro', lat: 19.4348, lng: -99.1425, resolution: 'Cámaras de seguridad revisadas. Caso en investigación.', daysAgo: 3 },
+    { type: 'noise', priority: 'low', status: 'closed', desc: 'Construcción sin permiso generando ruido excesivo', address: 'Calle Donceles 55, Centro', lat: 19.4348, lng: -99.1388, resolution: 'Obra suspendida. Se notificó a Desarrollo Urbano.', daysAgo: 3 },
+    { type: 'domestic', priority: 'medium', status: 'closed', desc: 'Discusión fuerte entre vecinos por estacionamiento', address: 'Calle Guatemala 24, Centro', lat: 19.4342, lng: -99.1320, resolution: 'Mediación realizada. Partes llegaron a acuerdo.', daysAgo: 3 },
+    // 4 days ago
+    { type: 'traffic', priority: 'high', status: 'closed', desc: 'Motociclista atropellado por camión de carga', address: 'Circuito Interior y Av. Congreso de la Unión', lat: 19.4255, lng: -99.1180, resolution: 'Motociclista con fracturas, hospitalizado. Peritaje en proceso.', daysAgo: 4 },
+    { type: 'robbery', priority: 'medium', status: 'closed', desc: 'Carterismo en transporte público Ruta 1', address: 'Av. Hidalgo, parada de autobús', lat: 19.4370, lng: -99.1410, resolution: 'Carpeta de investigación iniciada.', daysAgo: 4 },
+    // 5 days ago
+    { type: 'assault', priority: 'high', status: 'closed', desc: 'Asalto a peatón con navaja, robo de pertenencias', address: 'Calle Tacuba 15, Centro', lat: 19.4355, lng: -99.1400, resolution: 'Detenido en flagrancia a 2 cuadras. Pertenencias recuperadas.', daysAgo: 5 },
+    { type: 'other', priority: 'low', status: 'closed', desc: 'Mascota agresiva sin correa atacó a transeúnte', address: 'Parque de la Ciudadela', lat: 19.4278, lng: -99.1420, resolution: 'Dueño identificado. Infracción y responsiva firmada.', daysAgo: 5 },
+    // 6 days ago
+    { type: 'missing_person', priority: 'high', status: 'closed', desc: 'Adulto mayor desorientado sin identificación', address: 'Mercado de la Merced', lat: 19.4280, lng: -99.1240, resolution: 'Identificado por familiar. Entregado a su domicilio.', daysAgo: 6 },
+    { type: 'robbery', priority: 'critical', status: 'closed', desc: 'Robo a casa habitación con personas adentro', address: 'Calle República de Argentina 50', lat: 19.4365, lng: -99.1335, resolution: '2 detenidos. Objetos recuperados parcialmente.', daysAgo: 6 },
+    { type: 'traffic', priority: 'medium', status: 'closed', desc: 'Semáforo descompuesto causando caos vial', address: 'Av. 20 de Noviembre y Fray Servando', lat: 19.4260, lng: -99.1330, resolution: 'Agente de tránsito controló el flujo. Semáforo reparado.', daysAgo: 6 },
+  ];
+
+  const [adminUser] = await query.query(`SELECT id FROM users WHERE email = 'admin@velnari.mx' LIMIT 1`);
+  const unitRows = await query.query(`SELECT id FROM units ORDER BY call_sign LIMIT 6`);
+
+  for (let i = 0; i < moreIncidents.length; i++) {
+    const inc = moreIncidents[i]!;
+    const existing = await query.query(`SELECT id FROM incidents WHERE description = $1 LIMIT 1`, [inc.desc]);
+    if (existing.length > 0) {
+      console.log(`  incident already exists: ${inc.desc.substring(0, 40)}...`);
+      continue;
+    }
+
+    const folio = `IC-${String(200 + i).padStart(3, '0')}`;
+    const now = new Date();
+    const createdAt = new Date(now.getTime() - inc.daysAgo * 24 * 60 * 60 * 1000);
+    // Randomize hour between 6:00 and 23:00
+    createdAt.setHours(6 + Math.floor(Math.random() * 17), Math.floor(Math.random() * 60), Math.floor(Math.random() * 60));
+
+    const assignedAt = inc.status !== 'open'
+      ? new Date(createdAt.getTime() + (1 + Math.random() * 4) * 60000)
+      : null;
+    const closedAt = inc.status === 'closed'
+      ? new Date(createdAt.getTime() + (30 + Math.random() * 90) * 60000)
+      : null;
+    const assignedUnitId = inc.status !== 'open'
+      ? unitRows[Math.floor(Math.random() * unitRows.length)]!.id
+      : null;
+
+    const [inserted] = await query.query(
+      `INSERT INTO incidents (folio, type, priority, status, description, address, lat, lng, location, sector_id, created_by, assigned_unit_id, assigned_at, closed_at, resolution, created_at, updated_at)
+       VALUES ($1, $2::incident_type, $3::incident_priority, $4::incident_status, $5, $6, $7, $8,
+               ST_SetSRID(ST_MakePoint($9, $10), 4326), $11, $12, $13, $14, $15, $16, $17, $17)
+       RETURNING id, created_at`,
+      [folio, inc.type, inc.priority, inc.status, inc.desc, inc.address, inc.lat, inc.lng,
+       inc.lng, inc.lat, sectorId, adminUser.id, assignedUnitId, assignedAt, closedAt, inc.resolution, createdAt],
+    );
+    console.log(`  ✓ incident created: ${folio} — ${inc.type} (${inc.status})`);
+
+    // ── Incident events / timeline ──
+    if (adminUser) {
+      // 'created' event
+      await query.query(
+        `INSERT INTO incident_events (incident_id, type, description, actor_id, created_at)
+         VALUES ($1, 'created', 'Incidente creado y registrado en el sistema', $2, $3)`,
+        [inserted.id, adminUser.id, createdAt],
+      );
+
+      if (inc.status !== 'open' && assignedAt) {
+        // 'assigned' event
+        await query.query(
+          `INSERT INTO incident_events (incident_id, type, description, actor_id, created_at)
+           VALUES ($1, 'assigned', 'Unidad asignada al incidente', $2, $3)`,
+          [inserted.id, adminUser.id, assignedAt],
+        );
+      }
+
+      if (inc.status === 'closed' && closedAt) {
+        // 'arrived' event (between assigned and closed)
+        const arrivedAt = new Date(
+          (assignedAt as Date).getTime() + (5 + Math.random() * 10) * 60000,
+        );
+        await query.query(
+          `INSERT INTO incident_events (incident_id, type, description, actor_id, created_at)
+           VALUES ($1, 'arrived', 'Unidad llegó al lugar de los hechos', $2, $3)`,
+          [inserted.id, adminUser.id, arrivedAt],
+        );
+
+        // 'note' event — operational observations
+        const notes = [
+          'Área asegurada, se acordonó perímetro.',
+          'Se solicitó apoyo adicional.',
+          'Testigos entrevistados en el lugar.',
+          'Evidencia fotográfica recopilada.',
+          'Se coordinó con servicios de emergencia.',
+          'Perimetral establecido, sin más afectados.',
+        ];
+        const noteAt = new Date(arrivedAt.getTime() + (3 + Math.random() * 5) * 60000);
+        await query.query(
+          `INSERT INTO incident_events (incident_id, type, description, actor_id, created_at)
+           VALUES ($1, 'note', $2, $3, $4)`,
+          [inserted.id, notes[Math.floor(Math.random() * notes.length)], adminUser.id, noteAt],
+        );
+
+        // 'closed' event
+        await query.query(
+          `INSERT INTO incident_events (incident_id, type, description, actor_id, created_at)
+           VALUES ($1, 'closed', $2, $3, $4)`,
+          [inserted.id, `Incidente cerrado. ${inc.resolution}`, adminUser.id, closedAt],
+        );
+      }
+    }
+  }
+
+  console.log(`  ✓ ${moreIncidents.length} extended incidents processed with timelines`);
 
   // ── Additional sectors ──
   const extraSectors = [
