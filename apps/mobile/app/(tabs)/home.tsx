@@ -9,7 +9,7 @@ import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '@/store/auth.store';
 import { useUnitStore } from '@/store/unit.store';
-import { unitsApi, incidentsApi } from '@/lib/api';
+import { unitsApi, incidentsApi, patrolsApi } from '@/lib/api';
 import { startLocationTracking, stopLocationTracking } from '@/lib/location';
 import { flushQueue } from '@/lib/offline-queue';
 
@@ -53,6 +53,16 @@ export default function HomeScreen() {
   const [noteText, setNoteText] = useState('');
   const [sendingNote, setSendingNote] = useState(false);
 
+  // Patrol state
+  interface PatrolInfo {
+    id: string; unitId: string; sectorId: string; status: string;
+    startAt: string; endAt: string; acceptedAt?: string;
+    sector?: { id: string; name: string };
+  }
+  const [pendingPatrols, setPendingPatrols] = useState<PatrolInfo[]>([]);
+  const [activePatrol, setActivePatrol] = useState<PatrolInfo | null>(null);
+  const [acceptingPatrol, setAcceptingPatrol] = useState(false);
+
   const loadUnitAndIncident = useCallback(async () => {
     try {
       const flushed = await flushQueue();
@@ -66,6 +76,17 @@ export default function HomeScreen() {
       setUnit(myUnit.id, myUnit.callSign, myUnit.status);
       if (myUnit.lat && myUnit.lng) {
         setCurrentCoords({ lat: myUnit.lat, lng: myUnit.lng });
+      }
+
+      // Load patrols for this unit
+      try {
+        const patrolsRes = await patrolsApi.getForUnit(myUnit.id);
+        const scheduled = patrolsRes.data.filter((p) => p.status === 'scheduled');
+        const active = patrolsRes.data.find((p) => p.status === 'active') ?? null;
+        setPendingPatrols(scheduled);
+        setActivePatrol(active);
+      } catch {
+        // silent — patrols are non-critical
       }
 
       const incidentsRes = await incidentsApi.getAll();
@@ -142,6 +163,40 @@ export default function HomeScreen() {
       Alert.alert('Error', 'No se pudo enviar la nota.');
     } finally {
       setSendingNote(false);
+    }
+  }
+
+  async function handleAcceptPatrol(patrolId: string) {
+    setAcceptingPatrol(true);
+    try {
+      await patrolsApi.accept(patrolId);
+      Vibration.vibrate(100);
+      // Refresh patrol data
+      if (unitId) {
+        const patrolsRes = await patrolsApi.getForUnit(unitId);
+        const scheduled = patrolsRes.data.filter((p) => p.status === 'scheduled');
+        const active = patrolsRes.data.find((p) => p.status === 'active') ?? null;
+        setPendingPatrols(scheduled);
+        setActivePatrol(active);
+      }
+      // Auto-start GPS tracking
+      if (unitId && !trackingActive) {
+        const started = await startLocationTracking(unitId);
+        if (started) {
+          setTrackingActive(true);
+          try {
+            const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+            setCurrentCoords({ lat: loc.coords.latitude, lng: loc.coords.longitude });
+            await unitsApi.updateLocation(unitId, loc.coords.latitude, loc.coords.longitude);
+            setGpsCount(1);
+          } catch { /* ignore */ }
+        }
+      }
+      Alert.alert('Patrullaje aceptado', 'Tu patrullaje ha iniciado. El GPS se activó automáticamente.');
+    } catch {
+      Alert.alert('Error', 'No se pudo aceptar el patrullaje.');
+    } finally {
+      setAcceptingPatrol(false);
     }
   }
 
@@ -252,6 +307,67 @@ export default function HomeScreen() {
             {currentCoords.lat.toFixed(5)}, {currentCoords.lng.toFixed(5)}
           </Text>
         </View>
+      )}
+
+      {/* Active patrol */}
+      {activePatrol && (
+        <>
+          <Text style={styles.sectionLabel}>Patrullaje activo</Text>
+          <View style={styles.patrolCardActive}>
+            <View style={styles.patrolHeader}>
+              <Text style={styles.patrolSector}>
+                {activePatrol.sector?.name ?? 'Sector'}
+              </Text>
+              <View style={styles.patrolBadgeActive}>
+                <Text style={styles.patrolBadgeActiveText}>EN CURSO</Text>
+              </View>
+            </View>
+            <Text style={styles.patrolTime}>
+              {new Date(activePatrol.startAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
+              {' — '}
+              {new Date(activePatrol.endAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+            {activePatrol.acceptedAt && (
+              <Text style={styles.patrolAccepted}>
+                Aceptado: {new Date(activePatrol.acceptedAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
+              </Text>
+            )}
+          </View>
+        </>
+      )}
+
+      {/* Pending patrols */}
+      {pendingPatrols.length > 0 && (
+        <>
+          <Text style={styles.sectionLabel}>Patrullajes pendientes</Text>
+          {pendingPatrols.map((patrol) => (
+            <View key={patrol.id} style={styles.patrolCardPending}>
+              <View style={styles.patrolHeader}>
+                <Text style={styles.patrolSector}>
+                  {patrol.sector?.name ?? 'Sector'}
+                </Text>
+                <View style={styles.patrolBadgePending}>
+                  <Text style={styles.patrolBadgePendingText}>PROGRAMADO</Text>
+                </View>
+              </View>
+              <Text style={styles.patrolTime}>
+                {new Date(patrol.startAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
+                {' — '}
+                {new Date(patrol.endAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
+              </Text>
+              <TouchableOpacity
+                style={[styles.acceptButton, acceptingPatrol && styles.acceptButtonDisabled]}
+                onPress={() => handleAcceptPatrol(patrol.id)}
+                disabled={acceptingPatrol}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.acceptButtonText}>
+                  {acceptingPatrol ? 'Aceptando...' : 'Aceptar e iniciar'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+        </>
       )}
 
       {/* Status selector */}
@@ -436,6 +552,21 @@ const styles = StyleSheet.create({
   emptyIcon: { fontSize: 24, color: '#22C55E', marginBottom: 8 },
   emptyText: { color: '#94A3B8', fontSize: 14, fontWeight: '600' },
   emptySubtext: { color: '#475569', fontSize: 12, marginTop: 4 },
+
+  // Patrol cards
+  patrolCardActive: { backgroundColor: '#1E293B', borderRadius: 14, padding: 18, marginBottom: 14, borderWidth: 2, borderColor: '#22C55E', shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.25, shadowRadius: 6, elevation: 5 },
+  patrolCardPending: { backgroundColor: '#1E293B', borderRadius: 14, padding: 18, marginBottom: 10, borderWidth: 2, borderColor: '#F59E0B', shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.25, shadowRadius: 6, elevation: 5 },
+  patrolHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  patrolSector: { color: '#F8FAFC', fontSize: 18, fontWeight: '700' },
+  patrolBadgeActive: { backgroundColor: '#22C55E22', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
+  patrolBadgeActiveText: { color: '#22C55E', fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
+  patrolBadgePending: { backgroundColor: '#F59E0B22', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
+  patrolBadgePendingText: { color: '#F59E0B', fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
+  patrolTime: { color: '#94A3B8', fontSize: 15, fontFamily: 'monospace', marginBottom: 4 },
+  patrolAccepted: { color: '#64748B', fontSize: 13, marginTop: 2 },
+  acceptButton: { backgroundColor: '#F59E0B', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 12, minHeight: 48 },
+  acceptButtonDisabled: { opacity: 0.4 },
+  acceptButtonText: { color: '#0F172A', fontWeight: '800', fontSize: 16, letterSpacing: 0.5 },
 
   // Panic button — larger with animated pulsing glow
   panicContainer: {

@@ -56,6 +56,23 @@ export const unitsApi = {
     api.patch(`/units/${id}/location`, { lat, lng, ...(batteryLevel != null ? { batteryLevel } : {}) }),
 };
 
+export const patrolsApi = {
+  getForUnit: (unitId: string) =>
+    api.get<{
+      id: string; unitId: string; sectorId: string; status: string;
+      startAt: string; endAt: string; acceptedAt?: string;
+      sector?: { id: string; name: string };
+    }[]>(`/patrols/unit/${unitId}`),
+  getActiveForUnit: (unitId: string) =>
+    api.get<{
+      id: string; unitId: string; sectorId: string; status: string;
+      startAt: string; endAt: string; acceptedAt?: string;
+      sector?: { id: string; name: string };
+    } | null>(`/patrols/unit/${unitId}/active`),
+  accept: (id: string) =>
+    api.post<{ id: string; status: string; acceptedAt: string }>(`/patrols/${id}/accept`),
+};
+
 export const incidentsApi = {
   getAll: () =>
     api.get<{

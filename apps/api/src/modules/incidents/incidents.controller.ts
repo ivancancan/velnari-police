@@ -15,7 +15,7 @@ function startOfDay(d: Date): Date {
 function endOfDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
 }
-import { IncidentsService, DailySummary, ShiftHandoff } from './incidents.service';
+import { IncidentsService, DailySummary, ShiftHandoff, AnalyticsResult, PatrolReport } from './incidents.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { RolesGuard } from '../../shared/guards/roles.guard';
 import { Roles } from '../../shared/decorators/roles.decorator';
@@ -77,6 +77,28 @@ export class IncidentsController {
   @Get('shift-handoff')
   getShiftHandoff(): Promise<ShiftHandoff> {
     return this.service.getShiftHandoff();
+  }
+
+  @Get('analytics')
+  getAnalytics(
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('unitId') unitId?: string,
+    @Query('sectorId') sectorId?: string,
+    @Query('patrolId') patrolId?: string,
+    @Query('userId') userId?: string,
+  ): Promise<AnalyticsResult> {
+    const now = new Date();
+    const fromDate = from && !isNaN(Date.parse(from)) ? new Date(from) : startOfDay(now);
+    const toDate = to && !isNaN(Date.parse(to)) ? new Date(to) : endOfDay(now);
+    return this.service.getAnalytics({
+      from: fromDate,
+      to: toDate,
+      unitId: unitId || undefined,
+      sectorId: sectorId || undefined,
+      patrolId: patrolId || undefined,
+      userId: userId || undefined,
+    });
   }
 
   @Get('heatmap')

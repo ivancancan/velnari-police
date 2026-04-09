@@ -27,6 +27,7 @@ export class PatrolsService {
     return this.repo.find({
       where: { unitId },
       order: { startAt: 'DESC' },
+      relations: ['sector'],
     });
   }
 
@@ -40,6 +41,22 @@ export class PatrolsService {
       createdBy,
     });
     return this.repo.save(patrol);
+  }
+
+  async accept(id: string, userId: string): Promise<PatrolEntity> {
+    const patrol = await this.repo.findOne({ where: { id } });
+    if (!patrol) throw new NotFoundException(`Patrullaje ${id} no encontrado`);
+    patrol.status = PatrolStatus.ACTIVE;
+    patrol.acceptedAt = new Date();
+    patrol.acceptedBy = userId;
+    return this.repo.save(patrol);
+  }
+
+  async getActivePatrolForUnit(unitId: string): Promise<PatrolEntity | null> {
+    return this.repo.findOne({
+      where: { unitId, status: PatrolStatus.ACTIVE },
+      relations: ['sector'],
+    });
   }
 
   async cancel(id: string): Promise<PatrolEntity> {

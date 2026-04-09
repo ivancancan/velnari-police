@@ -13,6 +13,7 @@ import { SectorEntity } from './sector.entity';
 import { UnitEntity } from './unit.entity';
 import { UserEntity } from './user.entity';
 import { IncidentEventEntity } from './incident-event.entity';
+import { PatrolEntity } from './patrol.entity';
 
 @Entity('incidents')
 export class IncidentEntity {
@@ -90,6 +91,13 @@ export class IncidentEntity {
 
   @Column({ name: 'resolution_notes', nullable: true, type: 'text' })
   resolutionNotes?: string;
+
+  @Column({ name: 'patrol_id', nullable: true, type: 'uuid' })
+  patrolId?: string;
+
+  @ManyToOne(() => PatrolEntity, { nullable: true })
+  @JoinColumn({ name: 'patrol_id' })
+  patrol?: PatrolEntity;
 
   @OneToMany(() => IncidentEventEntity, (e) => e.incident, { eager: false })
   events?: IncidentEventEntity[];

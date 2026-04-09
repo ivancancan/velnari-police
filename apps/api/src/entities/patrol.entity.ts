@@ -58,6 +58,16 @@ export class PatrolEntity {
   @JoinColumn({ name: 'created_by' })
   creator?: UserEntity;
 
+  @Column({ name: 'accepted_at', type: 'timestamptz', nullable: true })
+  acceptedAt?: Date;
+
+  @Column({ name: 'accepted_by', type: 'uuid', nullable: true })
+  acceptedBy?: string;
+
+  @ManyToOne(() => UserEntity, { nullable: true })
+  @JoinColumn({ name: 'accepted_by' })
+  acceptor?: UserEntity;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 

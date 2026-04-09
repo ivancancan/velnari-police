@@ -13,6 +13,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { PatrolsService } from './patrols.service';
+import { IncidentsService, PatrolReport } from '../incidents/incidents.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { RolesGuard } from '../../shared/guards/roles.guard';
 import { Roles } from '../../shared/decorators/roles.decorator';
@@ -23,7 +24,10 @@ import type { Request } from 'express';
 @Controller('patrols')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class PatrolsController {
-  constructor(private readonly service: PatrolsService) {}
+  constructor(
+    private readonly service: PatrolsService,
+    private readonly incidentsService: IncidentsService,
+  ) {}
 
   @Get()
   findActive(): Promise<PatrolEntity[]> {
@@ -47,6 +51,25 @@ export class PatrolsController {
     @Req() req: Request & { user: { sub: string } },
   ): Promise<PatrolEntity> {
     return this.service.create(dto, req.user.sub);
+  }
+
+  @Post(':id/accept')
+  @Roles(UserRole.ADMIN, UserRole.FIELD_UNIT, UserRole.OPERATOR, UserRole.SUPERVISOR)
+  accept(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request & { user: { sub: string } },
+  ): Promise<PatrolEntity> {
+    return this.service.accept(id, req.user.sub);
+  }
+
+  @Get('unit/:unitId/active')
+  getActiveForUnit(@Param('unitId', ParseUUIDPipe) unitId: string): Promise<PatrolEntity | null> {
+    return this.service.getActivePatrolForUnit(unitId);
+  }
+
+  @Get(':id/report')
+  getReport(@Param('id', ParseUUIDPipe) id: string): Promise<PatrolReport> {
+    return this.incidentsService.getPatrolReport(id);
   }
 
   @Delete(':id')

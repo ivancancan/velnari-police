@@ -6,6 +6,7 @@ import { IncidentUnitAssignmentEntity } from '../../entities/incident-unit-assig
 import { SectorEntity } from '../../entities/sector.entity';
 import { UnitEntity } from '../../entities/unit.entity';
 import { UserEntity } from '../../entities/user.entity';
+import { PatrolEntity } from '../../entities/patrol.entity';
 import { IncidentsService } from './incidents.service';
 import { IncidentsController } from './incidents.controller';
 import { PublicReportController } from './public-report.controller';
@@ -14,7 +15,7 @@ import { RealtimeModule } from '../realtime/realtime.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([IncidentEntity, IncidentEventEntity, IncidentUnitAssignmentEntity, SectorEntity, UnitEntity, UserEntity]),
+    TypeOrmModule.forFeature([IncidentEntity, IncidentEventEntity, IncidentUnitAssignmentEntity, SectorEntity, UnitEntity, UserEntity, PatrolEntity]),
     RealtimeModule,
   ],
   controllers: [IncidentsController, PublicReportController],

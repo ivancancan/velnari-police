@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type { UserRole, UnitStatus } from '@velnari/shared-types';
 import type { CreateIncidentDto } from '@velnari/shared-types';
-import type { Unit, Incident, IncidentAssignment, Sector, SectorWithBoundary, IncidentEvent, LocationHistoryPoint, IncidentStats, UnitStats, UnitWithDistance, UnitReport, User, Attachment, HeatmapPoint, Patrol, PatrolCoverage, SuggestedUnit, UnitScore, DailySummary } from './types';
+import type { Unit, Incident, IncidentAssignment, Sector, SectorWithBoundary, IncidentEvent, LocationHistoryPoint, IncidentStats, UnitStats, UnitWithDistance, UnitReport, User, Attachment, HeatmapPoint, Patrol, PatrolCoverage, SuggestedUnit, UnitScore, DailySummary, AnalyticsResult } from './types';
 
 const API_URL = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001/api';
 
@@ -163,6 +163,9 @@ export const incidentsApi = {
 
   getShiftHandoff: () =>
     api.get('/incidents/shift-handoff'),
+
+  getAnalytics: (params: { from: string; to: string; unitId?: string; sectorId?: string; patrolId?: string; userId?: string }) =>
+    api.get<AnalyticsResult>('/incidents/analytics', { params }),
 };
 
 // ─── Dispatch ────────────────────────────────────────────────────────────────
@@ -252,6 +255,8 @@ export const patrolsApi = {
   cancel: (id: string) => api.delete(`/patrols/${id}`),
 
   getCoverage: (id: string) => api.get<PatrolCoverage>(`/patrols/${id}/coverage`),
+
+  getReport: (id: string) => api.get(`/patrols/${id}/report`),
 };
 
 // ─── Reports ─────────────────────────────────────────────────────────────────

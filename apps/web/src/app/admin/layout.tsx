@@ -27,6 +27,7 @@ const NAV = [
   {
     section: 'Reportes',
     items: [
+      { label: 'Anal\u00edtica', href: '/admin/analytics', icon: BarChart2 },
       { label: 'Reportes', href: '/admin/reports', icon: BarChart2 },
       { label: 'Desempe\u00f1o', href: '/admin/scoreboard', icon: BarChart2 },
       { label: 'Audit Log', href: '/admin/audit', icon: FileText },

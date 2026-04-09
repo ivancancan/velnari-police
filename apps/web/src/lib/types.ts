@@ -203,3 +203,22 @@ export interface SuggestedUnit {
   incidentsToday: number;
   score: number;
 }
+
+export interface AnalyticsResult {
+  period: { from: string; to: string };
+  summary: {
+    totalIncidents: number;
+    closedIncidents: number;
+    openIncidents: number;
+    avgResponseMinutes: number | null;
+    avgCloseMinutes: number | null;
+  };
+  byPriority: Record<string, number>;
+  byType: Record<string, number>;
+  byStatus: Record<string, number>;
+  byHour: { hour: number; count: number }[];
+  byDay: { date: string; count: number }[];
+  bySector: { sectorId: string; sectorName: string; count: number }[];
+  byUnit: { unitId: string; callSign: string; count: number; avgResponseMin: number | null }[];
+  incidents: { id: string; folio: string; type: string; priority: string; status: string; createdAt: string; address?: string; patrolId?: string }[];
+}
