@@ -131,46 +131,65 @@ const GUIDES: Record<string, Guide[]> = {
     {
       title: 'Iniciar tu turno',
       steps: [
-        { text: 'Abre la app Velnari Field en tu celular', visual: '' },
-        { text: 'Inicia sesion con tus credenciales', visual: 'login-mobile' },
-        { text: 'Completa el checklist de turno (tab "Check")', visual: '' },
-        { text: 'Presiona "INICIAR RASTREO" para activar el GPS', visual: 'gps-start' },
-        { text: 'Tu ubicacion se enviara automaticamente al centro de mando', visual: '' },
+        { text: 'Abre la app Velnari Field en tu celular', visual: 'mobile-app-icon' },
+        { text: 'Inicia sesión con tus credenciales', visual: 'login-mobile' },
+        { text: 'Ve al tab "Check" y completa el checklist de turno', visual: 'mobile-checklist' },
+        { text: 'Regresa al tab "Servicio" y presiona "INICIAR RASTREO"', visual: 'mobile-gps-toggle' },
+        { text: 'Verás el contador de puntos GPS enviados y tus coordenadas', visual: 'mobile-gps-active' },
       ],
     },
     {
       title: 'Cambiar tu estado',
       steps: [
-        { text: 'En la pantalla principal, selecciona tu nuevo estado', visual: 'status-grid' },
-        { text: 'Disponible (verde), En camino (azul), En escena (amarillo), Fuera de servicio (rojo)', visual: '' },
-        { text: 'El cambio se refleja inmediatamente en el centro de mando', visual: '' },
+        { text: 'En el tab "Servicio", busca la sección "Estado de la unidad"', visual: 'mobile-status-section' },
+        { text: 'Toca el botón del estado deseado — los botones son grandes para usar con guantes', visual: 'status-grid' },
+        { text: 'El cambio se refleja inmediatamente en el centro de mando', visual: 'mobile-status-confirmed' },
       ],
     },
     {
-      title: 'Reportar un incidente',
+      title: 'Ver tu ruta en el mapa',
       steps: [
-        { text: 'Ve al tab "Reportar"', visual: '' },
-        { text: 'Presiona "Obtener mi ubicacion"', visual: '' },
-        { text: 'Selecciona tipo y prioridad', visual: '' },
-        { text: 'Agrega descripcion y presiona "Reportar incidente"', visual: '' },
-        { text: 'El incidente aparecera en el mapa del centro de mando', visual: '' },
+        { text: 'Ve al tab "Mapa" — verás tu posición actual en el mapa', visual: 'mobile-map-screen' },
+        { text: 'La línea azul muestra tu ruta desde que activaste el GPS', visual: 'mobile-map-trail' },
+        { text: 'El pin verde "INICIO" marca dónde empezaste el patrullaje', visual: 'mobile-map-start' },
+        { text: 'Arriba verás: puntos GPS, distancia recorrida, tiempo y velocidad', visual: 'mobile-map-stats' },
       ],
     },
     {
-      title: 'Tomar foto de evidencia',
+      title: 'Reportar un incidente desde campo',
       steps: [
-        { text: 'En tu incidente asignado, presiona el boton de camara', visual: '' },
-        { text: 'Toma la foto — se adjuntara automaticamente al incidente', visual: '' },
-        { text: 'La foto queda disponible en el detalle del incidente para todos', visual: '' },
+        { text: 'Ve al tab "Reportar" (icono 🚨)', visual: 'mobile-report-tab' },
+        { text: 'Presiona "Obtener mi ubicación" — usará el GPS de tu celular', visual: 'mobile-report-location' },
+        { text: 'Selecciona el tipo de incidente tocando el botón correspondiente', visual: 'mobile-report-types' },
+        { text: 'Selecciona la prioridad (Crítica, Alta, Media, Baja)', visual: 'mobile-report-priority' },
+        { text: 'Agrega descripción y dirección si es posible', visual: 'mobile-report-desc' },
+        { text: 'Presiona "Reportar incidente" — aparecerá en el mapa del C2', visual: 'mobile-report-submit' },
       ],
     },
     {
-      title: 'Boton de panico (SOS)',
+      title: 'Agregar notas y fotos al incidente',
       steps: [
-        { text: 'En la parte inferior de la pantalla hay un boton rojo "SOS"', visual: 'sos-btn' },
-        { text: 'MANTEN PRESIONADO por 1 segundo (para evitar activaciones accidentales)', visual: '' },
-        { text: 'Se enviara tu ubicacion y una alerta critica al centro de mando', visual: '' },
-        { text: 'Todas las unidades cercanas seran notificadas', visual: '' },
+        { text: 'En el tab "Servicio", debajo de tu incidente asignado verás el campo de notas', visual: 'mobile-notes-input' },
+        { text: 'Escribe tu nota y presiona "Enviar"', visual: 'mobile-notes-send' },
+        { text: 'Para adjuntar una foto, presiona el botón de cámara 📷', visual: 'mobile-camera-btn' },
+        { text: 'Toma la foto — se adjuntará automáticamente al incidente', visual: 'mobile-camera-take' },
+      ],
+    },
+    {
+      title: 'Botón de pánico (SOS)',
+      steps: [
+        { text: 'En la parte inferior de la pantalla siempre verás el botón rojo "SOS"', visual: 'mobile-sos-screen' },
+        { text: 'MANTÉN PRESIONADO por 1 segundo — el botón pulsa en rojo', visual: 'sos-btn' },
+        { text: 'Se enviará tu ubicación GPS y una alerta CRÍTICA al centro de mando', visual: 'mobile-sos-sent' },
+        { text: 'Todos los operadores y unidades cercanas serán notificados inmediatamente', visual: 'mobile-sos-alert' },
+      ],
+    },
+    {
+      title: 'Tu perfil y cerrar sesión',
+      steps: [
+        { text: 'Ve al tab "Perfil" (último tab)', visual: 'mobile-profile-tab' },
+        { text: 'Verás tu nombre, rol, número de placa y email', visual: 'mobile-profile-info' },
+        { text: 'Para cerrar sesión, presiona "Cerrar sesión" — esto detendrá el GPS', visual: 'mobile-profile-logout' },
       ],
     },
   ],
@@ -494,9 +513,387 @@ function StepVisual({ visual }: { visual: string }) {
         </div>
       );
 
+    // ── Mobile phone frame visuals ───────────────────────────────
+    case 'mobile-app-icon':
+      return (
+        <div className="flex items-center gap-4 bg-slate-800 rounded-lg p-4 border border-slate-700">
+          <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/30">
+            <span className="text-white font-black text-xl">V</span>
+          </div>
+          <div>
+            <p className="text-white text-sm font-semibold">Velnari Field</p>
+            <p className="text-slate-400 text-[10px]">App para unidades en campo</p>
+          </div>
+        </div>
+      );
+
+    case 'mobile-checklist':
+      return (
+        <PhoneFrame title="Check">
+          <div className="space-y-1.5 p-2">
+            {['Radio operativo', 'Arma verificada', 'Vehículo revisado', 'GPS activado', 'Uniforme completo'].map((item, i) => (
+              <div key={i} className="flex items-center gap-2 bg-slate-700/60 rounded px-2 py-1.5">
+                <div className={`w-4 h-4 rounded flex items-center justify-center ${i < 3 ? 'bg-green-500' : 'border border-slate-500'}`}>
+                  {i < 3 && <span className="text-white text-[8px] font-bold">✓</span>}
+                </div>
+                <span className="text-[10px] text-slate-300">{item}</span>
+              </div>
+            ))}
+            <div className="bg-blue-500/30 text-blue-400 text-[10px] text-center py-1.5 rounded mt-2 font-medium">Iniciar turno</div>
+          </div>
+        </PhoneFrame>
+      );
+
+    case 'mobile-gps-toggle':
+      return (
+        <PhoneFrame title="Servicio">
+          <div className="p-2 space-y-2">
+            <div className="flex items-center justify-between bg-slate-700/60 rounded-lg p-2">
+              <span className="text-white text-xs font-bold">P-01</span>
+              <span className="text-[9px] text-green-400 bg-green-500/20 px-2 py-0.5 rounded-full">Disponible</span>
+            </div>
+            <div className="bg-green-900/40 border-2 border-green-500 rounded-lg p-3 flex items-center gap-2">
+              <span className="text-lg">📡</span>
+              <div>
+                <p className="text-green-400 text-[10px] font-bold tracking-wide">GPS ACTIVO</p>
+                <p className="text-slate-400 text-[8px]">12 puntos enviados</p>
+              </div>
+              <div className="w-2 h-2 rounded-full bg-green-400 ml-auto animate-pulse" />
+            </div>
+          </div>
+        </PhoneFrame>
+      );
+
+    case 'mobile-gps-active':
+      return (
+        <PhoneFrame title="Servicio">
+          <div className="p-2 space-y-2">
+            <div className="bg-green-900/40 border-2 border-green-500 rounded-lg p-3 flex items-center gap-2">
+              <span className="text-lg">📡</span>
+              <div>
+                <p className="text-green-400 text-[10px] font-bold">GPS ACTIVO</p>
+                <p className="text-slate-400 text-[8px]">28 puntos · Toca para detener</p>
+              </div>
+            </div>
+            <div className="bg-slate-700/60 rounded text-center py-1">
+              <span className="text-blue-400 text-[10px] font-mono">19.43260, -99.13320</span>
+            </div>
+          </div>
+        </PhoneFrame>
+      );
+
+    case 'mobile-status-section':
+      return (
+        <PhoneFrame title="Servicio">
+          <div className="p-2">
+            <p className="text-slate-400 text-[8px] font-semibold uppercase tracking-widest mb-1.5">Estado de la unidad</p>
+            <div className="grid grid-cols-2 gap-1.5">
+              <div className="bg-green-500/20 border border-green-500/40 rounded p-2 text-center"><span className="text-[9px] text-green-400 font-medium">🟢 Disponible</span></div>
+              <div className="bg-slate-700/60 border border-slate-600 rounded p-2 text-center"><span className="text-[9px] text-slate-400">🔵 En camino</span></div>
+              <div className="bg-slate-700/60 border border-slate-600 rounded p-2 text-center"><span className="text-[9px] text-slate-400">🟡 En escena</span></div>
+              <div className="bg-slate-700/60 border border-slate-600 rounded p-2 text-center"><span className="text-[9px] text-slate-400">🔴 Fuera</span></div>
+            </div>
+          </div>
+        </PhoneFrame>
+      );
+
+    case 'mobile-status-confirmed':
+      return (
+        <div className="bg-slate-800 rounded-lg p-3 border border-slate-700 text-center">
+          <p className="text-green-400 text-xs font-medium">✓ Estado actualizado</p>
+          <p className="text-slate-500 text-[10px] mt-1">El centro de mando ve el cambio en tiempo real</p>
+        </div>
+      );
+
+    case 'mobile-map-screen':
+      return (
+        <PhoneFrame title="Mapa">
+          <div className="relative h-32 bg-slate-700/30 overflow-hidden">
+            <div className="absolute inset-0 opacity-20">
+              <div className="absolute top-6 left-4 w-28 h-px bg-slate-500" />
+              <div className="absolute top-12 left-8 w-20 h-px bg-slate-500" />
+              <div className="absolute top-6 left-16 w-px h-16 bg-slate-500" />
+              <div className="absolute top-4 left-28 w-px h-20 bg-slate-500" />
+            </div>
+            <svg className="absolute" viewBox="0 0 160 128" width="160" height="128">
+              <polyline points="20,90 40,70 60,75 80,50 100,55 120,40" fill="none" stroke="#3B82F6" strokeWidth="2.5" strokeLinecap="round" />
+              <circle cx="20" cy="90" r="4" fill="#22C55E" stroke="white" strokeWidth="1.5" />
+              <circle cx="120" cy="40" r="5" fill="#3B82F6" stroke="white" strokeWidth="2" />
+            </svg>
+            <div className="absolute top-2 left-2 right-2 bg-slate-900/70 rounded-lg p-1.5 flex justify-around">
+              <div className="text-center"><p className="text-white text-[9px] font-bold">24</p><p className="text-slate-400 text-[6px]">PUNTOS</p></div>
+              <div className="text-center"><p className="text-white text-[9px] font-bold">1.2km</p><p className="text-slate-400 text-[6px]">DIST</p></div>
+              <div className="text-center"><p className="text-white text-[9px] font-bold">18m</p><p className="text-slate-400 text-[6px]">TIEMPO</p></div>
+            </div>
+          </div>
+        </PhoneFrame>
+      );
+
+    case 'mobile-map-trail':
+      return (
+        <div className="bg-slate-800 rounded-lg p-3 border border-slate-700">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-8 h-1 rounded bg-blue-500" />
+            <span className="text-[10px] text-slate-400">= Tu ruta de patrullaje</span>
+          </div>
+          <p className="text-slate-500 text-[10px]">La línea azul se dibuja en tiempo real conforme te mueves</p>
+        </div>
+      );
+
+    case 'mobile-map-start':
+      return (
+        <div className="bg-slate-800 rounded-lg p-3 border border-slate-700 flex items-center gap-3">
+          <div className="flex flex-col items-center">
+            <div className="bg-green-500 text-white text-[7px] font-bold px-1.5 py-0.5 rounded-full border border-white">INICIO</div>
+            <div className="w-0.5 h-1.5 bg-green-500/60" />
+            <div className="w-2 h-2 rounded-full bg-green-500 border border-white" />
+          </div>
+          <p className="text-slate-400 text-[10px]">Pin verde que marca dónde empezaste</p>
+        </div>
+      );
+
+    case 'mobile-map-stats':
+      return (
+        <div className="bg-slate-800 rounded-lg border border-slate-700 p-2">
+          <div className="bg-slate-900/70 rounded-lg p-2 flex justify-around">
+            <div className="text-center"><p className="text-white text-xs font-bold font-mono">47</p><p className="text-slate-400 text-[8px] uppercase">Puntos</p></div>
+            <div className="w-px h-6 bg-slate-600" />
+            <div className="text-center"><p className="text-white text-xs font-bold font-mono">2.3km</p><p className="text-slate-400 text-[8px] uppercase">Distancia</p></div>
+            <div className="w-px h-6 bg-slate-600" />
+            <div className="text-center"><p className="text-white text-xs font-bold font-mono">35m</p><p className="text-slate-400 text-[8px] uppercase">Tiempo</p></div>
+            <div className="w-px h-6 bg-slate-600" />
+            <div className="text-center"><p className="text-white text-xs font-bold font-mono">28</p><p className="text-slate-400 text-[8px] uppercase">km/h</p></div>
+          </div>
+        </div>
+      );
+
+    case 'mobile-report-tab':
+      return (
+        <PhoneFrame title="Reportar">
+          <div className="p-2 space-y-2">
+            <div className="bg-slate-700/60 border border-slate-600 rounded-lg p-3 flex items-center gap-2">
+              <span className="text-lg">📍</span>
+              <span className="text-slate-400 text-[10px]">Obtener mi ubicación</span>
+            </div>
+            <p className="text-slate-500 text-[8px] uppercase tracking-widest font-semibold">Tipo de incidente</p>
+            <div className="flex flex-wrap gap-1">
+              <span className="bg-slate-700/60 rounded px-2 py-1 text-[9px] text-slate-400">💰 Robo</span>
+              <span className="bg-slate-700/60 rounded px-2 py-1 text-[9px] text-slate-400">👊 Agresión</span>
+              <span className="bg-slate-700/60 rounded px-2 py-1 text-[9px] text-slate-400">🚗 Accidente</span>
+            </div>
+          </div>
+        </PhoneFrame>
+      );
+
+    case 'mobile-report-location':
+      return (
+        <PhoneFrame title="Reportar">
+          <div className="p-2">
+            <div className="bg-slate-900 border-2 border-blue-500 rounded-lg p-3 flex items-center gap-2">
+              <span className="text-lg">📍</span>
+              <div>
+                <p className="text-blue-400 text-[10px] font-mono font-bold">19.43260, -99.13320</p>
+                <p className="text-slate-500 text-[8px]">Toca para actualizar</p>
+              </div>
+            </div>
+          </div>
+        </PhoneFrame>
+      );
+
+    case 'mobile-report-types':
+      return (
+        <PhoneFrame title="Reportar">
+          <div className="p-2">
+            <p className="text-slate-500 text-[8px] uppercase tracking-widest font-semibold mb-1.5">Tipo de incidente</p>
+            <div className="flex flex-wrap gap-1">
+              <span className="bg-blue-500/20 border border-blue-500/40 rounded px-2 py-1.5 text-[9px] text-blue-400 font-medium">💰 Robo</span>
+              <span className="bg-slate-700/60 rounded px-2 py-1.5 text-[9px] text-slate-400">👊 Agresión</span>
+              <span className="bg-slate-700/60 rounded px-2 py-1.5 text-[9px] text-slate-400">🚗 Accidente</span>
+              <span className="bg-slate-700/60 rounded px-2 py-1.5 text-[9px] text-slate-400">🔊 Ruido</span>
+            </div>
+          </div>
+        </PhoneFrame>
+      );
+
+    case 'mobile-report-priority':
+      return (
+        <PhoneFrame title="Reportar">
+          <div className="p-2">
+            <p className="text-slate-500 text-[8px] uppercase tracking-widest font-semibold mb-1.5">Prioridad</p>
+            <div className="flex gap-1">
+              <div className="flex-1 bg-red-500/20 border border-red-500/40 rounded py-1.5 text-center"><span className="text-[9px] text-red-400">Crítica</span></div>
+              <div className="flex-1 bg-orange-500/20 border border-orange-500/40 rounded py-1.5 text-center"><span className="text-[9px] text-orange-400 font-medium">Alta</span></div>
+              <div className="flex-1 bg-slate-700/60 rounded py-1.5 text-center"><span className="text-[9px] text-slate-400">Media</span></div>
+              <div className="flex-1 bg-slate-700/60 rounded py-1.5 text-center"><span className="text-[9px] text-slate-400">Baja</span></div>
+            </div>
+          </div>
+        </PhoneFrame>
+      );
+
+    case 'mobile-report-desc':
+      return (
+        <PhoneFrame title="Reportar">
+          <div className="p-2 space-y-1.5">
+            <div className="bg-slate-700/60 rounded px-2 py-2 text-[10px] text-slate-300">Av. Juárez 120, Centro...</div>
+            <div className="bg-slate-700/60 rounded px-2 py-3 text-[10px] text-slate-400">Asalto a mano armada en tienda...</div>
+          </div>
+        </PhoneFrame>
+      );
+
+    case 'mobile-report-submit':
+      return (
+        <PhoneFrame title="Reportar">
+          <div className="p-2">
+            <div className="bg-blue-500 text-white text-[11px] text-center py-3 rounded-lg font-bold shadow-lg shadow-blue-500/30">
+              Reportar incidente
+            </div>
+            <p className="text-slate-500 text-[8px] text-center mt-2">El incidente aparecerá en el mapa del C2</p>
+          </div>
+        </PhoneFrame>
+      );
+
+    case 'mobile-notes-input':
+      return (
+        <PhoneFrame title="Servicio">
+          <div className="p-2">
+            <div className="bg-slate-700/60 rounded-lg p-2 mb-1">
+              <p className="text-white text-[10px] font-bold mb-1">IC-003 · ALTO</p>
+              <p className="text-slate-400 text-[9px]">Robo en Av. Juárez</p>
+            </div>
+            <div className="bg-slate-900 rounded-lg p-2 mt-1.5">
+              <div className="bg-slate-800 rounded px-2 py-2 text-[10px] text-slate-500 mb-1.5">Agregar nota al incidente...</div>
+              <div className="flex gap-1.5">
+                <div className="bg-slate-700 rounded px-2 py-1.5 text-[10px]">📷</div>
+                <div className="flex-1 bg-blue-500 text-white text-[10px] text-center py-1.5 rounded font-medium">Enviar</div>
+              </div>
+            </div>
+          </div>
+        </PhoneFrame>
+      );
+
+    case 'mobile-notes-send':
+      return (
+        <div className="bg-slate-800 rounded-lg p-3 border border-slate-700 text-center">
+          <p className="text-green-400 text-xs font-medium">✓ Nota enviada</p>
+          <p className="text-slate-500 text-[10px] mt-1">Visible en la línea de tiempo del incidente</p>
+        </div>
+      );
+
+    case 'mobile-camera-btn':
+      return (
+        <div className="bg-slate-800 rounded-lg p-3 border border-slate-700 flex items-center gap-3">
+          <div className="bg-slate-700 rounded-lg w-12 h-10 flex items-center justify-center text-lg">📷</div>
+          <p className="text-slate-400 text-[10px]">Toca para abrir la cámara y adjuntar foto</p>
+        </div>
+      );
+
+    case 'mobile-camera-take':
+      return (
+        <div className="bg-slate-800 rounded-lg p-3 border border-slate-700 text-center">
+          <p className="text-green-400 text-xs font-medium">✓ Foto adjuntada</p>
+          <p className="text-slate-500 text-[10px] mt-1">Disponible para todos en el detalle del incidente</p>
+        </div>
+      );
+
+    case 'mobile-sos-screen':
+      return (
+        <PhoneFrame title="Servicio">
+          <div className="p-2 pt-8 flex flex-col items-center relative">
+            <p className="text-slate-500 text-[9px] mb-3">↑ Contenido del servicio arriba ↑</p>
+            <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center shadow-lg shadow-red-600/50 border-3 border-red-400 animate-pulse">
+              <span className="text-white font-black text-sm tracking-wider">SOS</span>
+            </div>
+            <p className="text-red-400/60 text-[8px] mt-1">Mantén presionado</p>
+          </div>
+        </PhoneFrame>
+      );
+
+    case 'mobile-sos-sent':
+      return (
+        <div className="bg-red-950 rounded-lg p-4 border border-red-500 text-center">
+          <p className="text-red-400 text-sm font-bold">🚨 Alerta enviada</p>
+          <p className="text-red-300 text-[10px] mt-1">Tu ubicación y alerta fueron enviadas al centro de mando</p>
+        </div>
+      );
+
+    case 'mobile-sos-alert':
+      return (
+        <div className="bg-slate-800 rounded-lg p-3 border border-slate-700">
+          <p className="text-slate-400 text-[10px] mb-2">En el centro de mando aparece:</p>
+          <div className="bg-red-950/80 border border-red-500 rounded-lg p-2">
+            <p className="text-red-300 text-[10px] font-bold">CRÍTICO · P-01</p>
+            <p className="text-white text-[10px]">🚨 ALERTA DE PÁNICO — Requiere apoyo</p>
+          </div>
+        </div>
+      );
+
+    case 'mobile-profile-tab':
+      return (
+        <PhoneFrame title="Mi perfil">
+          <div className="p-3 flex flex-col items-center">
+            <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center mb-2">
+              <span className="text-white font-bold text-lg">M</span>
+            </div>
+            <p className="text-white text-xs font-semibold">Miguel Patrullero</p>
+            <p className="text-slate-400 text-[10px]">Unidad de Campo</p>
+          </div>
+        </PhoneFrame>
+      );
+
+    case 'mobile-profile-info':
+      return (
+        <PhoneFrame title="Mi perfil">
+          <div className="p-2 space-y-1.5">
+            <div className="flex justify-between bg-slate-700/40 rounded px-2 py-1.5"><span className="text-slate-400 text-[10px]">Nombre</span><span className="text-white text-[10px]">Miguel Patrullero</span></div>
+            <div className="flex justify-between bg-slate-700/40 rounded px-2 py-1.5"><span className="text-slate-400 text-[10px]">Rol</span><span className="text-white text-[10px]">Unidad de Campo</span></div>
+            <div className="flex justify-between bg-slate-700/40 rounded px-2 py-1.5"><span className="text-slate-400 text-[10px]">Placa</span><span className="text-white text-[10px]">FLD-001</span></div>
+            <div className="flex justify-between bg-slate-700/40 rounded px-2 py-1.5"><span className="text-slate-400 text-[10px]">Email</span><span className="text-white text-[10px]">campo1@velnari.mx</span></div>
+          </div>
+        </PhoneFrame>
+      );
+
+    case 'mobile-profile-logout':
+      return (
+        <PhoneFrame title="Mi perfil">
+          <div className="p-2 pt-6">
+            <div className="bg-red-500/20 border border-red-500/30 text-red-400 text-[11px] text-center py-2.5 rounded-lg font-medium">
+              Cerrar sesión
+            </div>
+            <p className="text-slate-500 text-[8px] text-center mt-1.5">Esto detendrá el envío de GPS</p>
+          </div>
+        </PhoneFrame>
+      );
+
     default:
       return null;
   }
+}
+
+// ── Phone frame wrapper for mobile visuals ──────────────────────
+function PhoneFrame({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="bg-slate-900 rounded-2xl border-2 border-slate-600 w-44 overflow-hidden shadow-xl">
+      {/* Status bar */}
+      <div className="bg-slate-800 px-3 py-1 flex items-center justify-between">
+        <span className="text-[8px] text-slate-400">9:41</span>
+        <span className="text-[8px] text-slate-400">●●●</span>
+      </div>
+      {/* Header */}
+      <div className="bg-slate-800 border-b border-slate-700 px-3 py-1.5">
+        <p className="text-white text-[10px] font-semibold text-center">{title}</p>
+      </div>
+      {/* Content */}
+      <div className="bg-[#0F172A] min-h-[120px]">{children}</div>
+      {/* Tab bar */}
+      <div className="bg-slate-800 border-t border-slate-700 px-2 py-1 flex justify-around">
+        <span className="text-[8px]">🚔</span>
+        <span className="text-[8px]">✅</span>
+        <span className="text-[8px]">🗺️</span>
+        <span className="text-[8px]">🚨</span>
+        <span className="text-[8px]">👤</span>
+      </div>
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------
