@@ -77,6 +77,11 @@ export default function RealtimeProvider({ children }: { children: React.ReactNo
       }
     });
 
+    // Track all unit positions for map
+    socket.on('unit:location:changed', (payload: { unitId: string; lat: number; lng: number }) => {
+      useUnitStore.getState().updateNearbyUnitPosition(payload.unitId, payload.lat, payload.lng);
+    });
+
     // Incident closed
     socket.on('incident:closed', (payload: { incidentId: string }) => {
       const state = useUnitStore.getState();
@@ -89,6 +94,7 @@ export default function RealtimeProvider({ children }: { children: React.ReactNo
       socket.off('connect');
       socket.off('incident:assigned');
       socket.off('unit:status:changed');
+      socket.off('unit:location:changed');
       socket.off('incident:closed');
       disconnectSocket();
     };

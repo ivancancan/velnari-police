@@ -20,6 +20,9 @@ interface UnitState {
   setUnit: (unitId: string, callSign: string, status: string) => void;
   setStatus: (status: string) => void;
   setAssignedIncident: (incident: AssignedIncident | null) => void;
+  nearbyUnits: { id: string; callSign: string; status: string; lat: number; lng: number }[];
+  setNearbyUnits: (units: { id: string; callSign: string; status: string; lat: number; lng: number }[]) => void;
+  updateNearbyUnitPosition: (unitId: string, lat: number, lng: number) => void;
   addPendingAssignment: (incident: AssignedIncident) => void;
   clearPendingAssignment: (incidentId: string) => void;
 }
@@ -30,6 +33,14 @@ export const useUnitStore = create<UnitState>((set) => ({
   status: 'available',
   assignedIncident: null,
   pendingAssignments: [],
+  nearbyUnits: [],
+  setNearbyUnits: (units) => set({ nearbyUnits: units }),
+  updateNearbyUnitPosition: (unitId, lat, lng) =>
+    set((state) => ({
+      nearbyUnits: state.nearbyUnits.map((u) =>
+        u.id === unitId ? { ...u, lat, lng } : u,
+      ),
+    })),
   setUnit: (unitId, callSign, status) => set({ unitId, callSign, status }),
   setStatus: (status) => set({ status }),
   setAssignedIncident: (incident) => set({ assignedIncident: incident }),

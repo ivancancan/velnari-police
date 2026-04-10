@@ -3,9 +3,24 @@ import { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
 import * as Location from 'expo-location';
+import { unitsApi, incidentsApi } from '@/lib/api';
 import { useUnitStore } from '@/store/unit.store';
 
 const CDMX = { latitude: 19.4326, longitude: -99.1332, latitudeDelta: 0.03, longitudeDelta: 0.03 };
+
+const STATUS_MARKER_COLORS: Record<string, string> = {
+  available: '#22C55E',
+  en_route: '#3B82F6',
+  on_scene: '#F59E0B',
+  out_of_service: '#EF4444',
+};
+
+const PRIORITY_COLORS: Record<string, string> = {
+  critical: '#EF4444',
+  high: '#F97316',
+  medium: '#F59E0B',
+  low: '#22C55E',
+};
 
 interface Coord {
   latitude: number;
@@ -14,13 +29,15 @@ interface Coord {
 
 export default function MapScreen() {
   const mapRef = useRef<MapView>(null);
-  const { callSign, status } = useUnitStore();
+  const { callSign, status, nearbyUnits, setNearbyUnits, unitId: myUnitId } = useUnitStore();
 
   const [currentPos, setCurrentPos] = useState<Coord | null>(null);
   const [trail, setTrail] = useState<Coord[]>([]);
   const [following, setFollowing] = useState(true);
   const [elapsedSecs, setElapsedSecs] = useState(0);
   const [speedKmh, setSpeedKmh] = useState(0);
+  const [openIncidents, setOpenIncidents] = useState<{ id: string; folio: string; type: string; priority: string; lat: number; lng: number; address?: string }[]>([]);
+  const [showOverlay, setShowOverlay] = useState(true);
 
   // Watch position
   useEffect(() => {
@@ -59,6 +76,26 @@ export default function MapScreen() {
     const timer = setInterval(() => setElapsedSecs((s) => s + 1), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Fetch nearby units and open incidents
+  useEffect(() => {
+    async function load() {
+      try {
+        const [unitsRes, incidentsRes] = await Promise.all([
+          unitsApi.getAll(),
+          incidentsApi.getAll(),
+        ]);
+        // Filter out own unit and units without position
+        const others = unitsRes.data
+          .filter((u: any) => u.id !== myUnitId && u.lat != null && u.lng != null)
+          .map((u: any) => ({ id: u.id, callSign: u.callSign, status: u.status, lat: u.lat!, lng: u.lng! }));
+        setNearbyUnits(others);
+        // Only show non-closed incidents
+        setOpenIncidents(incidentsRes.data.filter((i: any) => i.status !== 'closed'));
+      } catch {}
+    }
+    load();
+  }, [myUnitId, setNearbyUnits]);
 
   const distanceKm = trail.length >= 2
     ? trail.reduce((acc, point, i) => {
@@ -119,6 +156,34 @@ export default function MapScreen() {
             </View>
           </Marker>
         )}
+
+        {/* Nearby unit markers */}
+        {showOverlay && nearbyUnits.map((unit) => (
+          <Marker
+            key={`unit-${unit.id}`}
+            coordinate={{ latitude: unit.lat, longitude: unit.lng }}
+            anchor={{ x: 0.5, y: 0.5 }}
+          >
+            <View style={styles.otherUnitMarker}>
+              <View style={[styles.otherUnitDot, { backgroundColor: STATUS_MARKER_COLORS[unit.status] ?? '#64748B' }]} />
+              <Text style={styles.otherUnitLabel}>{unit.callSign}</Text>
+            </View>
+          </Marker>
+        ))}
+
+        {/* Open incident markers */}
+        {showOverlay && openIncidents.map((incident) => (
+          <Marker
+            key={`inc-${incident.id}`}
+            coordinate={{ latitude: incident.lat, longitude: incident.lng }}
+            anchor={{ x: 0.5, y: 0.5 }}
+          >
+            <View style={styles.incidentMarker}>
+              <View style={[styles.incidentTriangle, { borderBottomColor: PRIORITY_COLORS[incident.priority] ?? '#F59E0B' }]} />
+              <Text style={styles.incidentLabel}>{incident.folio}</Text>
+            </View>
+          </Marker>
+        ))}
       </MapView>
 
       {/* Stats overlay */}
@@ -150,6 +215,15 @@ export default function MapScreen() {
           <Text style={styles.speedUnit}>km/h</Text>
         </View>
       )}
+
+      {/* Toggle overlay button */}
+      <TouchableOpacity
+        style={[styles.overlayToggle, showOverlay && styles.overlayToggleActive]}
+        onPress={() => setShowOverlay((v) => !v)}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.overlayToggleText}>{showOverlay ? '\u{1F465}' : '\u{1F441}'}</Text>
+      </TouchableOpacity>
 
       {/* Coords readout */}
       {currentPos && (
@@ -247,6 +321,26 @@ const styles = StyleSheet.create({
   },
   speedValue: { color: '#F8FAFC', fontSize: 22, fontWeight: '800', fontFamily: 'monospace' },
   speedUnit: { color: '#64748B', fontSize: 10, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 1 },
+
+  // Other unit markers
+  otherUnitMarker: { alignItems: 'center' },
+  otherUnitDot: { width: 14, height: 14, borderRadius: 7, borderWidth: 2, borderColor: '#fff' },
+  otherUnitLabel: { color: '#F8FAFC', fontSize: 8, fontWeight: '700', fontFamily: 'monospace', marginTop: 2, backgroundColor: 'rgba(15,23,42,0.7)', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4, overflow: 'hidden' },
+
+  // Incident markers
+  incidentMarker: { alignItems: 'center' },
+  incidentTriangle: { width: 0, height: 0, borderLeftWidth: 8, borderRightWidth: 8, borderBottomWidth: 14, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: '#F59E0B' },
+  incidentLabel: { color: '#F8FAFC', fontSize: 7, fontWeight: '700', fontFamily: 'monospace', marginTop: 2, backgroundColor: 'rgba(15,23,42,0.7)', paddingHorizontal: 3, paddingVertical: 1, borderRadius: 3, overflow: 'hidden' },
+
+  // Overlay toggle
+  overlayToggle: {
+    position: 'absolute', top: 130, left: 16,
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: 'rgba(15,23,42,0.85)', alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, borderColor: '#334155',
+  },
+  overlayToggleActive: { borderColor: '#3B82F6' },
+  overlayToggleText: { fontSize: 20 },
 
   // Clear button
   clearButton: {
