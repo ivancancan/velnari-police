@@ -7,6 +7,7 @@ import {
 import { router } from 'expo-router';
 import { authApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
+import { registerForPushNotifications } from '@/lib/notifications';
 
 export default function LoginScreen() {
   const { setAuth } = useAuthStore();
@@ -26,6 +27,8 @@ export default function LoginScreen() {
       await setItemAsync('accessToken', res.data.accessToken);
       const meRes = await authApi.me();
       await setAuth(res.data.accessToken, res.data.refreshToken, meRes.data);
+      // Register for push notifications (non-blocking)
+      registerForPushNotifications().catch(() => {});
       router.replace('/(tabs)/home');
     } catch {
       setError('Credenciales incorrectas');
