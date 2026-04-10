@@ -61,8 +61,8 @@ export class AttachmentsController {
       url: `${API_URL}/uploads/${file.filename}`,
       uploadedBy: req.user.sub,
       filePath: file.path,
-      gpsLat: body.gpsLat ? parseFloat(body.gpsLat) : undefined,
-      gpsLng: body.gpsLng ? parseFloat(body.gpsLng) : undefined,
+      gpsLat: body.gpsLat != null && isFinite(parseFloat(body.gpsLat)) ? parseFloat(body.gpsLat) : undefined,
+      gpsLng: body.gpsLng != null && isFinite(parseFloat(body.gpsLng)) ? parseFloat(body.gpsLng) : undefined,
       capturedAt: body.capturedAt,
     });
   }
