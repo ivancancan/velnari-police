@@ -133,6 +133,18 @@ export class IncidentsController {
     return this.service.getSlaCompliance(fromDate, toDate);
   }
 
+  @Get('trends')
+  @Roles(UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.COMMANDER)
+  getTrends(@Query('weeks') weeks?: string) {
+    return this.service.getTrends(weeks ? parseInt(weeks) : 4);
+  }
+
+  @Get('anomalies')
+  @Roles(UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.COMMANDER)
+  getAnomalies() {
+    return this.service.getAnomalies();
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseUUIDPipe) id: string): Promise<IncidentEntity> {
     return this.service.findOne(id);

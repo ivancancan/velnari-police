@@ -771,6 +771,180 @@ export class IncidentsService {
     };
   }
 
+  async getTrends(weeks: number = 4): Promise<{
+    weeklyTrend: { week: string; count: number; avgResponseMin: number | null }[];
+    changePercent: number | null;
+    byType: { type: string; thisWeek: number; lastWeek: number; change: number }[];
+    byHour: { hour: number; avgCount: number }[];
+  }> {
+    const now = new Date();
+    const from = new Date(now.getTime() - weeks * 7 * 86400000);
+
+    const incidents = await this.repo.find({
+      where: { createdAt: MoreThanOrEqual(from) },
+      select: ['id', 'type', 'priority', 'createdAt', 'assignedAt'],
+    });
+
+    // Group by ISO week
+    const weekMap: Record<string, { count: number; responseTimes: number[] }> = {};
+    const typeThisWeek: Record<string, number> = {};
+    const typeLastWeek: Record<string, number> = {};
+    const hourCounts: Record<number, number[]> = {};
+
+    const thisWeekStart = new Date(now);
+    thisWeekStart.setDate(thisWeekStart.getDate() - 7);
+    const lastWeekStart = new Date(now);
+    lastWeekStart.setDate(lastWeekStart.getDate() - 14);
+
+    for (const inc of incidents) {
+      const weekKey = this.getISOWeek(inc.createdAt);
+      if (!weekMap[weekKey]) weekMap[weekKey] = { count: 0, responseTimes: [] };
+      weekMap[weekKey]!.count++;
+      if (inc.assignedAt) {
+        const responseMin = (inc.assignedAt.getTime() - inc.createdAt.getTime()) / 60000;
+        weekMap[weekKey]!.responseTimes.push(responseMin);
+      }
+
+      // Type trends (this week vs last week)
+      if (inc.createdAt >= thisWeekStart) {
+        typeThisWeek[inc.type] = (typeThisWeek[inc.type] ?? 0) + 1;
+      } else if (inc.createdAt >= lastWeekStart) {
+        typeLastWeek[inc.type] = (typeLastWeek[inc.type] ?? 0) + 1;
+      }
+
+      // Hourly pattern
+      const hour = inc.createdAt.getHours();
+      if (!hourCounts[hour]) hourCounts[hour] = [];
+      hourCounts[hour]!.push(1);
+    }
+
+    const weeklyTrend = Object.entries(weekMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([week, data]) => ({
+        week,
+        count: data.count,
+        avgResponseMin: data.responseTimes.length > 0
+          ? Math.round((data.responseTimes.reduce((a, b) => a + b, 0) / data.responseTimes.length) * 10) / 10
+          : null,
+      }));
+
+    const lastTwo = weeklyTrend.slice(-2);
+    const changePercent = lastTwo.length === 2 && lastTwo[0]!.count > 0
+      ? Math.round(((lastTwo[1]!.count - lastTwo[0]!.count) / lastTwo[0]!.count) * 100)
+      : null;
+
+    const allTypes = new Set([...Object.keys(typeThisWeek), ...Object.keys(typeLastWeek)]);
+    const byType = Array.from(allTypes).map((type) => {
+      const tw = typeThisWeek[type] ?? 0;
+      const lw = typeLastWeek[type] ?? 0;
+      return { type, thisWeek: tw, lastWeek: lw, change: lw > 0 ? Math.round(((tw - lw) / lw) * 100) : 0 };
+    });
+
+    const totalDays = Math.ceil((now.getTime() - from.getTime()) / 86400000);
+    const byHour = Array.from({ length: 24 }, (_, h) => ({
+      hour: h,
+      avgCount: Math.round(((hourCounts[h]?.length ?? 0) / totalDays) * 100) / 100,
+    }));
+
+    return { weeklyTrend, changePercent, byType, byHour };
+  }
+
+  private getISOWeek(date: Date): string {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
+    const yearStart = new Date(d.getFullYear(), 0, 1);
+    const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+    return `${d.getFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+  }
+
+  async getAnomalies(): Promise<{
+    sectorAnomalies: { sectorId: string; sectorName: string; currentCount: number; avgCount: number; multiplier: number }[];
+    hourlyAnomalies: { hour: number; currentCount: number; avgCount: number; multiplier: number }[];
+  }> {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    // Last 30 days baseline
+    const baselineStart = new Date(now.getTime() - 30 * 86400000);
+
+    // Today's incidents by sector
+    const todayBySector = await this.repo
+      .createQueryBuilder('i')
+      .select('i.sector_id', 'sectorId')
+      .addSelect('s.name', 'sectorName')
+      .addSelect('COUNT(*)', 'count')
+      .innerJoin('sectors', 's', 's.id = i.sector_id')
+      .where('i.created_at >= :todayStart', { todayStart })
+      .groupBy('i.sector_id')
+      .addGroupBy('s.name')
+      .getRawMany();
+
+    // 30-day average by sector
+    const baselineBySector = await this.repo
+      .createQueryBuilder('i')
+      .select('i.sector_id', 'sectorId')
+      .addSelect('COUNT(*) / 30.0', 'avgDaily')
+      .where('i.created_at >= :baselineStart', { baselineStart })
+      .andWhere('i.created_at < :todayStart', { todayStart })
+      .groupBy('i.sector_id')
+      .getRawMany();
+
+    const sectorAvgMap = new Map(baselineBySector.map((r: any) => [r.sectorId, Number(r.avgDaily)]));
+
+    const sectorAnomalies = todayBySector
+      .map((r: any) => {
+        const avg = sectorAvgMap.get(r.sectorId) ?? 1;
+        const current = Number(r.count);
+        return {
+          sectorId: r.sectorId,
+          sectorName: r.sectorName,
+          currentCount: current,
+          avgCount: Math.round(avg * 10) / 10,
+          multiplier: Math.round((current / avg) * 10) / 10,
+        };
+      })
+      .filter((a) => a.multiplier >= 2.0)
+      .sort((a, b) => b.multiplier - a.multiplier);
+
+    // Hourly anomalies
+    const todayByHour = await this.repo
+      .createQueryBuilder('i')
+      .select('EXTRACT(HOUR FROM i.created_at)', 'hour')
+      .addSelect('COUNT(*)', 'count')
+      .where('i.created_at >= :todayStart', { todayStart })
+      .groupBy('EXTRACT(HOUR FROM i.created_at)')
+      .getRawMany();
+
+    const baselineByHour = await this.repo
+      .createQueryBuilder('i')
+      .select('EXTRACT(HOUR FROM i.created_at)', 'hour')
+      .addSelect('COUNT(*) / 30.0', 'avgCount')
+      .where('i.created_at >= :baselineStart', { baselineStart })
+      .andWhere('i.created_at < :todayStart', { todayStart })
+      .groupBy('EXTRACT(HOUR FROM i.created_at)')
+      .getRawMany();
+
+    const hourAvgMap = new Map(baselineByHour.map((r: any) => [Number(r.hour), Number(r.avgCount)]));
+
+    const hourlyAnomalies = todayByHour
+      .map((r: any) => {
+        const hour = Number(r.hour);
+        const avg = hourAvgMap.get(hour) ?? 1;
+        const current = Number(r.count);
+        return {
+          hour,
+          currentCount: current,
+          avgCount: Math.round(avg * 10) / 10,
+          multiplier: Math.round((current / avg) * 10) / 10,
+        };
+      })
+      .filter((a) => a.multiplier >= 2.0)
+      .sort((a, b) => b.multiplier - a.multiplier);
+
+    return { sectorAnomalies, hourlyAnomalies };
+  }
+
   async merge(
     sourceId: string,
     targetId: string,
