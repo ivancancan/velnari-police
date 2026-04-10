@@ -54,32 +54,32 @@ export async function flushPhotoQueue(): Promise<{ success: number; failed: numb
 
   let success = 0;
   let failed = 0;
-  const remaining: QueuedPhoto[] = [];
 
-  for (const photo of queue) {
-    // Verify file still exists (could have been cleared)
+  for (let i = 0; i < queue.length; i++) {
+    const photo = queue[i]!;
+
+    // Verify file still exists (could have been cleared by OS)
     const info = await FileSystem.getInfoAsync(photo.localUri);
     if (!info.exists) {
-      // File gone — drop from queue silently
+      // File gone — drop from queue silently, continue to next
       continue;
     }
+
     try {
       await incidentsApi.uploadPhoto(photo.incidentId, photo.localUri);
       // Delete local copy after successful upload
       await FileSystem.deleteAsync(photo.localUri, { idempotent: true });
       success++;
     } catch {
-      remaining.push(photo);
       failed++;
-      // Stop attempting — still offline
-      break;
+      // Still offline — keep this photo and all remaining ones
+      await saveQueue(queue.slice(i));
+      return { success, failed };
     }
   }
 
-  // Keep remaining (failed) + any not yet attempted
-  const successCount = queue.length - remaining.length - failed;
-  const notAttempted = queue.slice(successCount + failed + remaining.length);
-  await saveQueue([...remaining, ...notAttempted]);
+  // All photos processed (uploaded or file-gone) — clear queue
+  await saveQueue([]);
   return { success, failed };
 }
 
