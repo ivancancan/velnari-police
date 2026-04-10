@@ -13,17 +13,39 @@
       "infoPlist": {
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Velnari necesita tu ubicación para el despacho.",
         "NSLocationWhenInUseUsageDescription": "Velnari necesita tu ubicación para el despacho.",
-        "NSCameraUsageDescription": "Velnari necesita la cámara para adjuntar fotos a incidentes."
+        "NSCameraUsageDescription": "Velnari necesita la cámara para adjuntar fotos a incidentes.",
+        "NSFaceIDUsageDescription": "Velnari usa Face ID para proteger el acceso a datos operativos."
       }
     },
     "android": {
       "package": "mx.velnari.field",
-      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_BACKGROUND_LOCATION"]
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT"
+      ]
     },
     "plugins": [
-      ["expo-location", { "locationAlwaysAndWhenInUsePermission": "Velnari necesita tu ubicación." }],
-      "expo-notifications",
-      "expo-image-picker"
-    ]
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Velnari necesita tu ubicación."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#3B82F6",
+          "sounds": []
+        }
+      ],
+      "expo-image-picker",
+      "expo-router",
+      "expo-secure-store",
+      "expo-local-authentication"
+    ],
+    "newArchEnabled": false
   }
 }
