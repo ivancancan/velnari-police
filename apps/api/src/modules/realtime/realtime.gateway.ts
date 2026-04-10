@@ -11,9 +11,10 @@ import { ConfigService } from '@nestjs/config';
 import type { Server, Socket } from 'socket.io';
 
 // Rooms:
-//   'command'           → all operators and supervisors (Command view)
-//   'sector:{sectorId}' → units in a specific sector
-//   'incident:{id}'     → tracking a specific incident
+//   'command'             → all operators and supervisors (Command view)
+//   'sector:{sectorId}'   → units in a specific sector
+//   'incident:{id}'       → tracking a specific incident
+//   'unit:{unitId}'       → dedicated room for a specific unit (mobile)
 
 @WebSocketGateway({
   cors: {
@@ -21,6 +22,8 @@ import type { Server, Socket } from 'socket.io';
     credentials: true,
   },
   namespace: '/',
+  pingInterval: 25000,
+  pingTimeout: 20000,
 })
 export class RealtimeGateway {
   @WebSocketServer()
@@ -28,10 +31,18 @@ export class RealtimeGateway {
 
   private readonly logger = new Logger(RealtimeGateway.name);
 
+  // ─── Presence tracking ────────────────────────────────────────────────────
+  /** userId → Set of connected socketIds (one user can have multiple tabs/devices) */
+  private readonly connectedUsers = new Map<string, Set<string>>();
+  /** socketId → userId (reverse lookup for disconnect cleanup) */
+  private readonly socketUserMap = new Map<string, string>();
+
   constructor(
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) {}
+
+  // ─── Connection lifecycle ─────────────────────────────────────────────────
 
   async handleConnection(client: Socket): Promise<void> {
     try {
@@ -46,11 +57,63 @@ export class RealtimeGateway {
       const secret = this.configService.get<string>('JWT_SECRET');
       const payload = this.jwtService.verify(token, { secret });
       (client as any).user = payload;
-      this.logger.log(`Client ${client.id} authenticated as ${payload.email ?? payload.sub}`);
+
+      const userId: string = payload.sub ?? payload.id;
+      this.logger.log(`Client ${client.id} authenticated as ${payload.email ?? userId}`);
+
+      // Track presence
+      if (!this.connectedUsers.has(userId)) {
+        this.connectedUsers.set(userId, new Set());
+      }
+      this.connectedUsers.get(userId)!.add(client.id);
+      this.socketUserMap.set(client.id, userId);
+
+      // Notify command room about presence change
+      this.server.to('command').emit('presence:update', {
+        onlineCount: this.getOnlineCount(),
+        userId,
+        status: 'connected',
+      });
     } catch {
       this.logger.warn(`Client ${client.id} disconnected: invalid token`);
       client.disconnect();
     }
+  }
+
+  handleDisconnect(client: Socket): void {
+    const userId = this.socketUserMap.get(client.id);
+    if (!userId) return;
+
+    // Remove this socket from the user's set
+    const sockets = this.connectedUsers.get(userId);
+    if (sockets) {
+      sockets.delete(client.id);
+      if (sockets.size === 0) {
+        this.connectedUsers.delete(userId);
+      }
+    }
+    this.socketUserMap.delete(client.id);
+
+    this.logger.log(`Client ${client.id} disconnected (user ${userId})`);
+
+    // Notify command room about presence change
+    this.server.to('command').emit('presence:update', {
+      onlineCount: this.getOnlineCount(),
+      userId,
+      status: 'disconnected',
+    });
+  }
+
+  // ─── Presence query helpers ───────────────────────────────────────────────
+
+  /** Returns the set of unique user IDs currently connected */
+  getOnlineUserIds(): string[] {
+    return Array.from(this.connectedUsers.keys());
+  }
+
+  /** Returns the number of unique users currently connected */
+  getOnlineCount(): number {
+    return this.connectedUsers.size;
   }
 
   // ─── Client events (received from client) ───────────────────────────────
@@ -78,6 +141,17 @@ export class RealtimeGateway {
   ): void {
     const room = `incident:${data.incidentId}`;
     void client.join(room);
+    this.logger.log(`Client ${client.id} joined room: ${room}`);
+  }
+
+  @SubscribeMessage('join:unit')
+  handleJoinUnit(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { unitId: string },
+  ): void {
+    const room = `unit:${data.unitId}`;
+    void client.join(room);
+    this.logger.log(`Client ${client.id} joined room: ${room}`);
   }
 
   // ─── Server events (emitted from services) ────────────────────────────────
@@ -100,6 +174,8 @@ export class RealtimeGateway {
     previousStatus: string;
   }): void {
     this.server.to('command').emit('unit:status:changed', payload);
+    // Also emit to the unit's dedicated room (mobile app)
+    this.server.to(`unit:${payload.unitId}`).emit('unit:status:changed', payload);
   }
 
   emitIncidentCreated(incident: Record<string, unknown>): void {
@@ -110,6 +186,13 @@ export class RealtimeGateway {
     const payload = { incidentId, unitId, etaMinutes };
     this.server.to('command').emit('incident:assigned', payload);
     this.server.to(`incident:${incidentId}`).emit('incident:assigned', payload);
+    // Also emit to the unit's dedicated room (mobile app gets direct notification)
+    this.server.to(`unit:${unitId}`).emit('incident:assigned', payload);
+  }
+
+  emitIncidentUpdated(incidentId: string, incident: Record<string, unknown>): void {
+    this.server.to('command').emit('incident:updated', { incidentId, ...incident });
+    this.server.to(`incident:${incidentId}`).emit('incident:updated', { incidentId, ...incident });
   }
 
   emitIncidentStatusChanged(incidentId: string, status: string): void {
