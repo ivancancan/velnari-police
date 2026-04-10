@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -25,6 +26,7 @@ import {
   UserRole,
   IncidentStatus,
   CreateIncidentDto,
+  UpdateIncidentDto,
   CloseIncidentDto,
   AddIncidentNoteDto,
 } from '@velnari/shared-types';
@@ -134,6 +136,16 @@ export class IncidentsController {
     @CurrentUser() user: JwtPayload,
   ): Promise<IncidentEntity> {
     return this.service.create(dto, user.sub);
+  }
+
+  @Patch(':id')
+  @Roles(UserRole.ADMIN, UserRole.OPERATOR, UserRole.SUPERVISOR)
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateIncidentDto,
+    @CurrentUser() user: JwtPayload,
+  ): Promise<IncidentEntity> {
+    return this.service.update(id, dto, user.sub);
   }
 
   @Post(':id/close')

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, In, MoreThanOrEqual, Repository } from 'typeorm';
 import { IncidentEntity } from '../../entities/incident.entity';
@@ -10,6 +10,7 @@ import { PatrolEntity, PatrolStatus } from '../../entities/patrol.entity';
 import {
   IncidentStatus,
   CreateIncidentDto,
+  UpdateIncidentDto,
   CloseIncidentDto,
   AddIncidentNoteDto,
 } from '@velnari/shared-types';
@@ -152,6 +153,51 @@ export class IncidentsService {
       type: 'created',
       description: `Incidente ${folio} creado`,
       actorId,
+    });
+    await this.eventRepo.save(event);
+
+    return saved;
+  }
+
+  async update(
+    id: string,
+    dto: UpdateIncidentDto,
+    actorId: string,
+  ): Promise<IncidentEntity> {
+    const incident = await this.findOne(id);
+
+    if (incident.status === IncidentStatus.CLOSED) {
+      throw new BadRequestException('No se puede actualizar un incidente cerrado.');
+    }
+
+    const changes: string[] = [];
+    if (dto.type && dto.type !== incident.type) {
+      changes.push(`tipo: ${incident.type} → ${dto.type}`);
+      incident.type = dto.type;
+    }
+    if (dto.priority && dto.priority !== incident.priority) {
+      changes.push(`prioridad: ${incident.priority} → ${dto.priority}`);
+      incident.priority = dto.priority;
+    }
+    if (dto.address !== undefined && dto.address !== incident.address) {
+      changes.push(`dirección actualizada`);
+      incident.address = dto.address;
+    }
+    if (dto.description !== undefined && dto.description !== incident.description) {
+      changes.push(`descripción actualizada`);
+      incident.description = dto.description;
+    }
+
+    if (changes.length === 0) return incident;
+
+    const saved = await this.repo.save(incident);
+
+    const event = this.eventRepo.create({
+      incidentId: id,
+      type: 'updated',
+      description: `Incidente actualizado: ${changes.join(', ')}`,
+      actorId,
+      metadata: { changes: dto },
     });
     await this.eventRepo.save(event);
 
