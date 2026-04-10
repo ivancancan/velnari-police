@@ -1045,4 +1045,88 @@ export class IncidentsService {
 
     return target;
   }
+
+  async getSesnspExport(from: Date, to: Date): Promise<{
+    periodo: { inicio: string; fin: string };
+    resumen: {
+      totalIncidentes: number;
+      porTipo: Record<string, number>;
+      porPrioridad: Record<string, number>;
+      porEstatus: Record<string, number>;
+      tiempoPromedioRespuestaMin: number | null;
+      tiempoPromedioCierreMin: number | null;
+    };
+    incidentes: {
+      folio: string;
+      tipo: string;
+      prioridad: string;
+      estatus: string;
+      direccion: string;
+      latitud: number;
+      longitud: number;
+      fechaCreacion: string;
+      fechaAsignacion: string | null;
+      fechaCierre: string | null;
+      resolucion: string | null;
+      unidadAsignada: string | null;
+    }[];
+  }> {
+    const incidents = await this.repo.find({
+      where: { createdAt: Between(from, to) },
+      relations: ['assignedUnit'],
+      order: { createdAt: 'ASC' },
+    });
+
+    const porTipo: Record<string, number> = {};
+    const porPrioridad: Record<string, number> = {};
+    const porEstatus: Record<string, number> = {};
+    const responseTimes: number[] = [];
+    const closeTimes: number[] = [];
+
+    for (const inc of incidents) {
+      porTipo[inc.type] = (porTipo[inc.type] ?? 0) + 1;
+      porPrioridad[inc.priority] = (porPrioridad[inc.priority] ?? 0) + 1;
+      porEstatus[inc.status] = (porEstatus[inc.status] ?? 0) + 1;
+
+      if (inc.assignedAt) {
+        responseTimes.push((inc.assignedAt.getTime() - inc.createdAt.getTime()) / 60000);
+      }
+      if (inc.closedAt) {
+        closeTimes.push((inc.closedAt.getTime() - inc.createdAt.getTime()) / 60000);
+      }
+    }
+
+    const avgResponse = responseTimes.length > 0
+      ? Math.round((responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length) * 10) / 10
+      : null;
+    const avgClose = closeTimes.length > 0
+      ? Math.round((closeTimes.reduce((a, b) => a + b, 0) / closeTimes.length) * 10) / 10
+      : null;
+
+    return {
+      periodo: { inicio: from.toISOString(), fin: to.toISOString() },
+      resumen: {
+        totalIncidentes: incidents.length,
+        porTipo,
+        porPrioridad,
+        porEstatus,
+        tiempoPromedioRespuestaMin: avgResponse,
+        tiempoPromedioCierreMin: avgClose,
+      },
+      incidentes: incidents.map((inc) => ({
+        folio: inc.folio,
+        tipo: inc.type,
+        prioridad: inc.priority,
+        estatus: inc.status,
+        direccion: inc.address ?? '',
+        latitud: Number(inc.lat),
+        longitud: Number(inc.lng),
+        fechaCreacion: inc.createdAt.toISOString(),
+        fechaAsignacion: inc.assignedAt?.toISOString() ?? null,
+        fechaCierre: inc.closedAt?.toISOString() ?? null,
+        resolucion: inc.resolution ?? null,
+        unidadAsignada: inc.assignedUnit?.callSign ?? null,
+      })),
+    };
+  }
 }

@@ -145,6 +145,19 @@ export class IncidentsController {
     return this.service.getAnomalies();
   }
 
+  @Get('sesnsp-export')
+  @Roles(UserRole.ADMIN, UserRole.COMMANDER)
+  getSesnspExport(
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    const now = new Date();
+    const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const fromDate = from && !isNaN(Date.parse(from)) ? new Date(from) : firstOfMonth;
+    const toDate = to && !isNaN(Date.parse(to)) ? new Date(to) : now;
+    return this.service.getSesnspExport(fromDate, toDate);
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseUUIDPipe) id: string): Promise<IncidentEntity> {
     return this.service.findOne(id);
