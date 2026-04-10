@@ -152,6 +152,13 @@ export class IncidentsService {
 
     const saved = await this.findOne(savedId);
 
+    // Generate tracking token for citizen reports
+    if (dto.description?.includes('[Reporte ciudadano]')) {
+      const token = this.generateTrackingToken();
+      await this.repo.update(savedId, { trackingToken: token });
+      (saved as any).trackingToken = token;
+    }
+
     const event = this.eventRepo.create({
       incidentId: saved.id,
       type: 'created',
@@ -846,6 +853,44 @@ export class IncidentsService {
     }));
 
     return { weeklyTrend, changePercent, byType, byHour };
+  }
+
+  private generateTrackingToken(): string {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // No I/O/0/1 to avoid confusion
+    let token = '';
+    for (let i = 0; i < 8; i++) {
+      token += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return token;
+  }
+
+  async getByTrackingToken(token: string): Promise<{
+    folio: string;
+    status: string;
+    type: string;
+    priority: string;
+    createdAt: Date;
+    assignedAt: Date | null;
+    closedAt: Date | null;
+    resolution: string | null;
+  }> {
+    const incident = await this.repo.findOne({
+      where: { trackingToken: token },
+      select: ['id', 'folio', 'status', 'type', 'priority', 'createdAt', 'assignedAt', 'closedAt', 'resolution'],
+    });
+    if (!incident) {
+      throw new NotFoundException('Reporte no encontrado. Verifica tu código de seguimiento.');
+    }
+    return {
+      folio: incident.folio,
+      status: incident.status,
+      type: incident.type,
+      priority: incident.priority,
+      createdAt: incident.createdAt,
+      assignedAt: incident.assignedAt ?? null,
+      closedAt: incident.closedAt ?? null,
+      resolution: incident.resolution ?? null,
+    };
   }
 
   private getISOWeek(date: Date): string {

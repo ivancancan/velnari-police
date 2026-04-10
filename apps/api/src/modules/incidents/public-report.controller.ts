@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -41,5 +41,10 @@ export class PublicReportController {
       },
       createdBy,
     );
+  }
+
+  @Get('track/:token')
+  async trackReport(@Param('token') token: string) {
+    return this.service.getByTrackingToken(token);
   }
 }

@@ -21,6 +21,7 @@ export default function CitizenReportPage() {
   const [loadingGps, setLoadingGps] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ folio: string } | null>(null);
+  const [trackingToken, setTrackingToken] = useState<string | null>(null);
   const [error, setError] = useState('');
 
   async function getLocation() {
@@ -59,6 +60,7 @@ export default function CitizenReportPage() {
       if (!res.ok) throw new Error('Error del servidor');
       const data = await res.json();
       setResult({ folio: data.folio });
+      if (data.trackingToken) setTrackingToken(data.trackingToken);
     } catch {
       setError('Error al enviar el reporte. Intenta de nuevo.');
     } finally {
@@ -72,6 +74,7 @@ export default function CitizenReportPage() {
     setAddress('');
     setCoords(null);
     setResult(null);
+    setTrackingToken(null);
     setError('');
   }
 
@@ -145,6 +148,16 @@ export default function CitizenReportPage() {
                 <p className="text-xs text-[#64748B] mb-2 uppercase tracking-widest font-medium">Folio de seguimiento</p>
                 <p className="text-3xl font-mono font-bold bg-gradient-to-r from-[#3B82F6] to-cyan-400 bg-clip-text text-transparent">{result.folio}</p>
               </div>
+              {trackingToken && (
+                <div className="mt-4 p-4 bg-[#1E293B] border border-[#3B82F6] rounded-lg">
+                  <p className="text-xs text-[#64748B] uppercase tracking-wider mb-1">Código de seguimiento</p>
+                  <p className="font-mono text-2xl font-bold text-[#3B82F6] tracking-widest">{trackingToken}</p>
+                  <p className="text-sm text-[#64748B] mt-2">
+                    Guarda este código para verificar el estado de tu reporte en{' '}
+                    <a href="/seguimiento" className="text-[#3B82F6] underline">/seguimiento</a>
+                  </p>
+                </div>
+              )}
               <div className="pt-2">
                 <button
                   onClick={reset}

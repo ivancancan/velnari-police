@@ -105,6 +105,9 @@ export class IncidentEntity {
   @Column({ name: 'auto_dispatched', default: false })
   autoDispatched!: boolean;
 
+  @Column({ name: 'tracking_token', nullable: true, length: 12 })
+  trackingToken?: string;
+
   @OneToMany(() => IncidentEventEntity, (e) => e.incident, { eager: false })
   events?: IncidentEventEntity[];
 
