@@ -21,6 +21,7 @@ describe('IncidentsService', () => {
     lng: -99.1332,
     location: '',
     createdBy: 'user-uuid-1',
+    autoDispatched: false,
     createdAt: new Date(),
     updatedAt: new Date(),
   };

@@ -6,6 +6,7 @@ import { IncidentUnitAssignmentEntity } from '../../entities/incident-unit-assig
 import { UnitEntity } from '../../entities/unit.entity';
 import { DispatchService } from './dispatch.service';
 import { DispatchController } from './dispatch.controller';
+import { AutoDispatchService } from './auto-dispatch.service';
 import { IncidentsModule } from '../incidents/incidents.module';
 import { UnitsModule } from '../units/units.module';
 import { RealtimeModule } from '../realtime/realtime.module';
@@ -18,7 +19,7 @@ import { RealtimeModule } from '../realtime/realtime.module';
     RealtimeModule,
   ],
   controllers: [DispatchController],
-  providers: [DispatchService],
+  providers: [DispatchService, AutoDispatchService],
   exports: [DispatchService],
 })
 export class DispatchModule {}
