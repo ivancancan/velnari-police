@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { IncidentEventEntity } from '../../entities/incident-event.entity';
 import { IncidentEntity } from '../../entities/incident.entity';
@@ -13,7 +13,7 @@ import { RealtimeModule } from '../realtime/realtime.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([IncidentEventEntity, IncidentEntity, IncidentUnitAssignmentEntity, UnitEntity]),
-    IncidentsModule,
+    forwardRef(() => IncidentsModule),
     UnitsModule,
     RealtimeModule,
   ],

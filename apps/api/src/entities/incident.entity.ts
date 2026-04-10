@@ -99,6 +99,9 @@ export class IncidentEntity {
   @JoinColumn({ name: 'patrol_id' })
   patrol?: PatrolEntity;
 
+  @Column({ name: 'merged_into', nullable: true, type: 'uuid' })
+  mergedInto?: string;
+
   @OneToMany(() => IncidentEventEntity, (e) => e.incident, { eager: false })
   events?: IncidentEventEntity[];
 

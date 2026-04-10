@@ -9,6 +9,7 @@ import { UnitEntity } from '../../entities/unit.entity';
 import { PatrolEntity, PatrolStatus } from '../../entities/patrol.entity';
 import {
   IncidentStatus,
+  UnitStatus,
   CreateIncidentDto,
   UpdateIncidentDto,
   CloseIncidentDto,
@@ -700,5 +701,55 @@ export class IncidentsService {
           : null,
       },
     };
+  }
+
+  async merge(
+    sourceId: string,
+    targetId: string,
+    actorId: string,
+  ): Promise<IncidentEntity> {
+    const [source, target] = await Promise.all([
+      this.findOne(sourceId),
+      this.findOne(targetId),
+    ]);
+
+    if (source.status === IncidentStatus.CLOSED) {
+      throw new BadRequestException('El incidente origen ya está cerrado.');
+    }
+    if (target.status === IncidentStatus.CLOSED) {
+      throw new BadRequestException('El incidente destino está cerrado.');
+    }
+    if (sourceId === targetId) {
+      throw new BadRequestException('No se puede fusionar un incidente consigo mismo.');
+    }
+
+    // Release source's unit
+    if (source.assignedUnitId) {
+      await this.unitRepo.update(source.assignedUnitId, { status: UnitStatus.AVAILABLE });
+    }
+
+    source.mergedInto = targetId;
+    source.status = IncidentStatus.CLOSED;
+    source.closedAt = new Date();
+    source.resolution = `Fusionado con ${target.folio}`;
+    await this.repo.save(source);
+
+    const sourceEvent = this.eventRepo.create({
+      incidentId: sourceId,
+      type: 'merged',
+      description: `Fusionado con ${target.folio}`,
+      actorId,
+      metadata: { targetId, targetFolio: target.folio },
+    });
+    const targetEvent = this.eventRepo.create({
+      incidentId: targetId,
+      type: 'merged',
+      description: `Se fusionó ${source.folio} en este incidente`,
+      actorId,
+      metadata: { sourceId, sourceFolio: source.folio },
+    });
+    await this.eventRepo.save([sourceEvent, targetEvent]);
+
+    return target;
   }
 }

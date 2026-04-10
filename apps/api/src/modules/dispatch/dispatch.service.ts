@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { IncidentsService } from '../incidents/incidents.service';
@@ -21,6 +21,7 @@ export interface SuggestedUnit {
 @Injectable()
 export class DispatchService {
   constructor(
+    @Inject(forwardRef(() => IncidentsService))
     private readonly incidentsService: IncidentsService,
     private readonly unitsService: UnitsService,
     @InjectRepository(IncidentEventEntity)
@@ -96,6 +97,73 @@ export class DispatchService {
     this.realtime.emitIncidentAssigned(incidentId, unitId, etaMinutes);
 
     return savedIncident;
+  }
+
+  async reassignUnit(
+    incidentId: string,
+    newUnitId: string,
+    actorId: string,
+  ): Promise<IncidentEntity> {
+    const [incident, newUnit] = await Promise.all([
+      this.incidentsService.findOne(incidentId),
+      this.unitsService.findOne(newUnitId),
+    ]);
+
+    if (incident.status === IncidentStatus.CLOSED) {
+      throw new BadRequestException('No se puede reasignar un incidente cerrado.');
+    }
+
+    if (newUnit.status !== UnitStatus.AVAILABLE) {
+      throw new BadRequestException(
+        `La unidad ${newUnit.callSign} no está disponible (estado: ${newUnit.status}).`,
+      );
+    }
+
+    // Release previous unit if assigned
+    const previousUnitId = incident.assignedUnitId;
+    if (previousUnitId) {
+      await this.unitsService.updateStatus(previousUnitId, UnitStatus.AVAILABLE);
+    }
+
+    incident.assignedUnitId = newUnitId;
+    incident.status = IncidentStatus.ASSIGNED;
+    incident.assignedAt = new Date();
+
+    await this.unitsService.updateStatus(newUnitId, UnitStatus.EN_ROUTE);
+    const saved = await this.incidentsService.saveIncident(incident);
+
+    await this.assignmentRepo.upsert(
+      { incidentId, unitId: newUnitId, assignedBy: actorId, assignedAt: new Date() },
+      ['incidentId', 'unitId'],
+    );
+
+    let etaMinutes: number | null = null;
+    if (newUnit.currentLocation) {
+      const distResult = await this.unitRepo
+        .createQueryBuilder('u')
+        .select('ST_Distance(u.current_location::geography, ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography) / 1000', 'distance_km')
+        .where('u.id = :id', { id: newUnitId })
+        .setParameters({ lat: Number(incident.lat), lng: Number(incident.lng) })
+        .getRawOne();
+      if (distResult?.distance_km) {
+        etaMinutes = Math.max(1, Math.round((Number(distResult.distance_km) / 30) * 60));
+      }
+    }
+
+    const previousUnit = previousUnitId ? await this.unitsService.findOne(previousUnitId) : null;
+
+    const event = this.eventRepo.create({
+      incidentId,
+      type: 'reassigned',
+      description: `Reasignado: ${previousUnit?.callSign ?? 'sin unidad'} → ${newUnit.callSign}${etaMinutes ? ` · ETA: ~${etaMinutes} min` : ''}`,
+      actorId,
+      metadata: { previousUnitId, newUnitId, callSign: newUnit.callSign },
+    });
+    await this.eventRepo.save(event);
+
+    this.realtime.emitIncidentAssigned(incidentId, newUnitId, etaMinutes);
+
+    return saved;
   }
 
   async suggestUnits(incidentId: string): Promise<SuggestedUnit[]> {

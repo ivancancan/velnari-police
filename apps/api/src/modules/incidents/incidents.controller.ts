@@ -2,12 +2,14 @@ import {
   Body,
   Controller,
   Get,
+  Inject,
   Param,
   ParseUUIDPipe,
   Patch,
   Post,
   Query,
   UseGuards,
+  forwardRef,
 } from '@nestjs/common';
 
 function startOfDay(d: Date): Date {
@@ -17,6 +19,7 @@ function endOfDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
 }
 import { IncidentsService, DailySummary, ShiftHandoff, AnalyticsResult, PatrolReport } from './incidents.service';
+import { DispatchService } from '../dispatch/dispatch.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { RolesGuard } from '../../shared/guards/roles.guard';
 import { Roles } from '../../shared/decorators/roles.decorator';
@@ -37,7 +40,11 @@ import type { IncidentUnitAssignmentEntity } from '../../entities/incident-unit-
 @Controller('incidents')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class IncidentsController {
-  constructor(private readonly service: IncidentsService) {}
+  constructor(
+    private readonly service: IncidentsService,
+    @Inject(forwardRef(() => DispatchService))
+    private readonly dispatchService: DispatchService,
+  ) {}
 
   @Get()
   findAll(
@@ -156,6 +163,26 @@ export class IncidentsController {
     @CurrentUser() user: JwtPayload,
   ): Promise<IncidentEntity> {
     return this.service.close(id, dto, user.sub);
+  }
+
+  @Post(':id/reassign')
+  @Roles(UserRole.ADMIN, UserRole.OPERATOR, UserRole.SUPERVISOR, UserRole.COMMANDER)
+  reassign(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { unitId: string },
+    @CurrentUser() user: JwtPayload,
+  ): Promise<IncidentEntity> {
+    return this.dispatchService.reassignUnit(id, body.unitId, user.sub);
+  }
+
+  @Post(':id/merge')
+  @Roles(UserRole.ADMIN, UserRole.OPERATOR, UserRole.SUPERVISOR)
+  merge(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { targetIncidentId: string },
+    @CurrentUser() user: JwtPayload,
+  ): Promise<IncidentEntity> {
+    return this.service.merge(id, body.targetIncidentId, user.sub);
   }
 
   @Post(':id/notes')
