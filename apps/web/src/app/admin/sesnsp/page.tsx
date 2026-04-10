@@ -144,7 +144,7 @@ export default function SesnspPage() {
       {data && (
         <>
           {/* Summary cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
             <div className="bg-[#1E293B] border border-[#334155] rounded-xl p-4">
               <p className="text-xs text-[#64748B] uppercase tracking-wider mb-1">Total Incidentes</p>
               <p className="text-3xl font-bold text-[#F8FAFC]">{data.resumen.totalIncidentes}</p>
@@ -153,6 +153,12 @@ export default function SesnspPage() {
               <p className="text-xs text-[#64748B] uppercase tracking-wider mb-1">Tiempo Prom. Respuesta</p>
               <p className="text-3xl font-bold text-[#3B82F6]">
                 {data.resumen.tiempoPromedioRespuestaMin !== null ? `${data.resumen.tiempoPromedioRespuestaMin} min` : '—'}
+              </p>
+            </div>
+            <div className="bg-[#1E293B] border border-[#334155] rounded-xl p-4">
+              <p className="text-xs text-[#64748B] uppercase tracking-wider mb-1">Tiempo Prom. Cierre</p>
+              <p className="text-3xl font-bold text-[#F59E0B]">
+                {data.resumen.tiempoPromedioCierreMin !== null ? `${data.resumen.tiempoPromedioCierreMin} min` : '—'}
               </p>
             </div>
             <div className="bg-[#1E293B] border border-[#334155] rounded-xl p-4">
