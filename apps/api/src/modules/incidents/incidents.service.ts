@@ -730,14 +730,15 @@ export class IncidentsService {
       if (!byPriority[inc.priority]) {
         byPriority[inc.priority] = { total: 0, withinSla: 0, responseTimes: [] };
       }
-      byPriority[inc.priority].total++;
+      const bucket = byPriority[inc.priority]!;
+      bucket.total++;
 
       if (inc.assignedAt) {
         const responseMin = (inc.assignedAt.getTime() - inc.createdAt.getTime()) / 60000;
-        byPriority[inc.priority].responseTimes.push(responseMin);
+        bucket.responseTimes.push(responseMin);
         const target = targets.get(inc.priority) ?? 15;
         if (responseMin <= target) {
-          byPriority[inc.priority].withinSla++;
+          bucket.withinSla++;
         }
       }
     }
