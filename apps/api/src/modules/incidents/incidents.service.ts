@@ -789,7 +789,7 @@ export class IncidentsService {
     const weekMap: Record<string, { count: number; responseTimes: number[] }> = {};
     const typeThisWeek: Record<string, number> = {};
     const typeLastWeek: Record<string, number> = {};
-    const hourCounts: Record<number, number[]> = {};
+    const hourCounts: Record<number, number> = {};
 
     const thisWeekStart = new Date(now);
     thisWeekStart.setDate(thisWeekStart.getDate() - 7);
@@ -814,8 +814,7 @@ export class IncidentsService {
 
       // Hourly pattern
       const hour = inc.createdAt.getHours();
-      if (!hourCounts[hour]) hourCounts[hour] = [];
-      hourCounts[hour]!.push(1);
+      hourCounts[hour] = (hourCounts[hour] ?? 0) + 1;
     }
 
     const weeklyTrend = Object.entries(weekMap)
@@ -843,19 +842,19 @@ export class IncidentsService {
     const totalDays = Math.ceil((now.getTime() - from.getTime()) / 86400000);
     const byHour = Array.from({ length: 24 }, (_, h) => ({
       hour: h,
-      avgCount: Math.round(((hourCounts[h]?.length ?? 0) / totalDays) * 100) / 100,
+      avgCount: Math.round(((hourCounts[h] ?? 0) / totalDays) * 100) / 100,
     }));
 
     return { weeklyTrend, changePercent, byType, byHour };
   }
 
   private getISOWeek(date: Date): string {
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
-    d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
-    const yearStart = new Date(d.getFullYear(), 0, 1);
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
     const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-    return `${d.getFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+    return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
   }
 
   async getAnomalies(): Promise<{
@@ -871,23 +870,23 @@ export class IncidentsService {
     // Today's incidents by sector
     const todayBySector = await this.repo
       .createQueryBuilder('i')
-      .select('i.sector_id', 'sectorId')
+      .select('i.sectorId', 'sectorId')
       .addSelect('s.name', 'sectorName')
       .addSelect('COUNT(*)', 'count')
       .innerJoin('sectors', 's', 's.id = i.sector_id')
-      .where('i.created_at >= :todayStart', { todayStart })
-      .groupBy('i.sector_id')
+      .where('i.createdAt >= :todayStart', { todayStart })
+      .groupBy('i.sectorId')
       .addGroupBy('s.name')
       .getRawMany();
 
     // 30-day average by sector
     const baselineBySector = await this.repo
       .createQueryBuilder('i')
-      .select('i.sector_id', 'sectorId')
+      .select('i.sectorId', 'sectorId')
       .addSelect('COUNT(*) / 30.0', 'avgDaily')
-      .where('i.created_at >= :baselineStart', { baselineStart })
-      .andWhere('i.created_at < :todayStart', { todayStart })
-      .groupBy('i.sector_id')
+      .where('i.createdAt >= :baselineStart', { baselineStart })
+      .andWhere('i.createdAt < :todayStart', { todayStart })
+      .groupBy('i.sectorId')
       .getRawMany();
 
     const sectorAvgMap = new Map(baselineBySector.map((r: any) => [r.sectorId, Number(r.avgDaily)]));
@@ -910,19 +909,19 @@ export class IncidentsService {
     // Hourly anomalies
     const todayByHour = await this.repo
       .createQueryBuilder('i')
-      .select('EXTRACT(HOUR FROM i.created_at)', 'hour')
+      .select('EXTRACT(HOUR FROM i.createdAt)', 'hour')
       .addSelect('COUNT(*)', 'count')
-      .where('i.created_at >= :todayStart', { todayStart })
-      .groupBy('EXTRACT(HOUR FROM i.created_at)')
+      .where('i.createdAt >= :todayStart', { todayStart })
+      .groupBy('EXTRACT(HOUR FROM i.createdAt)')
       .getRawMany();
 
     const baselineByHour = await this.repo
       .createQueryBuilder('i')
-      .select('EXTRACT(HOUR FROM i.created_at)', 'hour')
+      .select('EXTRACT(HOUR FROM i.createdAt)', 'hour')
       .addSelect('COUNT(*) / 30.0', 'avgCount')
-      .where('i.created_at >= :baselineStart', { baselineStart })
-      .andWhere('i.created_at < :todayStart', { todayStart })
-      .groupBy('EXTRACT(HOUR FROM i.created_at)')
+      .where('i.createdAt >= :baselineStart', { baselineStart })
+      .andWhere('i.createdAt < :todayStart', { todayStart })
+      .groupBy('EXTRACT(HOUR FROM i.createdAt)')
       .getRawMany();
 
     const hourAvgMap = new Map(baselineByHour.map((r: any) => [Number(r.hour), Number(r.avgCount)]));
