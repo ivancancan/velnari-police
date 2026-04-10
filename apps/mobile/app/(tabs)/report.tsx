@@ -2,10 +2,12 @@
 import { useState } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, TextInput,
-  StyleSheet, Alert, Vibration, ActivityIndicator,
+  StyleSheet, Alert, Vibration, ActivityIndicator, Image,
 } from 'react-native';
 import * as Location from 'expo-location';
+import * as ImagePicker from 'expo-image-picker';
 import { incidentsApi } from '@/lib/api';
+import { enqueuePhoto } from '@/lib/photo-queue';
 
 const TYPES = [
   { value: 'robbery', label: 'Robo', icon: '💰' },
@@ -33,6 +35,7 @@ export default function ReportScreen() {
   const [loadingGps, setLoadingGps] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<string[]>([]);
 
   async function getLocation() {
     setLoadingGps(true);
@@ -52,6 +55,52 @@ export default function ReportScreen() {
     }
   }
 
+  async function pickPhoto() {
+    Alert.alert(
+      'Adjuntar foto',
+      'Elige una opción',
+      [
+        {
+          text: 'Cámara',
+          onPress: async () => {
+            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+            if (status !== 'granted') {
+              Alert.alert('Permiso denegado', 'Activa la cámara en configuración.');
+              return;
+            }
+            const result = await ImagePicker.launchCameraAsync({ quality: 0.7, allowsEditing: false });
+            if (!result.canceled && result.assets[0]) {
+              setPhotos((prev) => [...prev, result.assets[0]!.uri]);
+            }
+          },
+        },
+        {
+          text: 'Galería',
+          onPress: async () => {
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+              Alert.alert('Permiso denegado', 'Activa el acceso a fotos en configuración.');
+              return;
+            }
+            const result = await ImagePicker.launchImageLibraryAsync({
+              quality: 0.7,
+              allowsMultipleSelection: true,
+              selectionLimit: 5,
+            });
+            if (!result.canceled) {
+              setPhotos((prev) => [...prev, ...result.assets.map((a) => a.uri)]);
+            }
+          },
+        },
+        { text: 'Cancelar', style: 'cancel' },
+      ],
+    );
+  }
+
+  function removePhoto(uri: string) {
+    setPhotos((prev) => prev.filter((p) => p !== uri));
+  }
+
   async function handleSubmit() {
     if (!type) { Alert.alert('Selecciona un tipo de incidente'); return; }
     if (!priority) { Alert.alert('Selecciona la prioridad'); return; }
@@ -67,18 +116,39 @@ export default function ReportScreen() {
         address: address.trim() || undefined,
         description: description.trim() || undefined,
       });
+
+      const incidentId = res.data.id;
       Vibration.vibrate(200);
+
+      // Upload photos — queue offline, upload online
+      let photosQueued = 0;
+      for (const uri of photos) {
+        try {
+          await incidentsApi.uploadPhoto(incidentId, uri);
+        } catch {
+          await enqueuePhoto(incidentId, uri);
+          photosQueued++;
+        }
+      }
+
       setSuccess(res.data.folio);
-      // Reset form
       setType('');
       setPriority('');
       setAddress('');
       setDescription('');
       setCoords(null);
-      // Clear success after 4s
+      setPhotos([]);
+
+      if (photosQueued > 0) {
+        Alert.alert(
+          'Incidente creado',
+          `${photosQueued} foto(s) se subirán cuando haya conexión.`,
+        );
+      }
+
       setTimeout(() => setSuccess(null), 4000);
     } catch {
-      Alert.alert('Error', 'No se pudo crear el incidente.');
+      Alert.alert('Error', 'No se pudo crear el incidente. Se enviará cuando haya conexión.');
     } finally {
       setSubmitting(false);
     }
@@ -189,6 +259,32 @@ export default function ReportScreen() {
         numberOfLines={3}
       />
 
+      {/* Photos */}
+      <Text style={styles.sectionLabel}>Fotos (opcional)</Text>
+      <TouchableOpacity style={styles.photoButton} onPress={pickPhoto} activeOpacity={0.7}>
+        <Text style={styles.photoButtonIcon}>📷</Text>
+        <Text style={styles.photoButtonText}>
+          {photos.length === 0 ? 'Adjuntar foto' : `${photos.length} foto(s) — agregar más`}
+        </Text>
+      </TouchableOpacity>
+
+      {photos.length > 0 && (
+        <View style={styles.photoGrid}>
+          {photos.map((uri) => (
+            <View key={uri} style={styles.photoThumb}>
+              <Image source={{ uri }} style={styles.thumbImage} />
+              <TouchableOpacity
+                style={styles.thumbRemove}
+                onPress={() => removePhoto(uri)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={styles.thumbRemoveText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+      )}
+
       {/* Submit */}
       <TouchableOpacity
         style={[styles.submitButton, (!type || !priority || !coords || submitting) && styles.submitDisabled]}
@@ -213,12 +309,10 @@ const styles = StyleSheet.create({
 
   sectionLabel: { color: '#64748B', fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 10, marginTop: 20 },
 
-  // Success
   successBanner: { backgroundColor: '#052e16', borderColor: '#22C55E', borderWidth: 1, borderRadius: 12, padding: 14, marginBottom: 8, alignItems: 'center' },
   successText: { color: '#22C55E', fontWeight: '700', fontSize: 14 },
   successSubtext: { color: '#4ade80', fontSize: 11, marginTop: 2 },
 
-  // Location — prominent button, large touch target
   locationButton: { backgroundColor: '#1E293B', borderWidth: 2, borderColor: '#334155', borderRadius: 14, padding: 20, marginBottom: 10, minHeight: 72, justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 6, elevation: 4 },
   locationButtonDone: { borderColor: '#3B82F6', backgroundColor: '#0F172A' },
   locationContent: { flexDirection: 'row', alignItems: 'center', gap: 14 },
@@ -227,7 +321,6 @@ const styles = StyleSheet.create({
   locationPlaceholder: { color: '#94A3B8', fontSize: 16, fontWeight: '600' },
   locationHint: { color: '#475569', fontSize: 13, marginTop: 2 },
 
-  // Type — taller chips for gloved hands (48px min)
   typeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   typeChip: { backgroundColor: '#1E293B', borderWidth: 1.5, borderColor: '#334155', borderRadius: 12, paddingVertical: 14, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 50 },
   typeChipActive: { borderColor: '#3B82F6', backgroundColor: '#1e3a5f' },
@@ -235,17 +328,23 @@ const styles = StyleSheet.create({
   typeLabel: { color: '#94A3B8', fontSize: 15 },
   typeLabelActive: { color: '#3B82F6', fontWeight: '700' },
 
-  // Priority — taller buttons for gloves (48px+ height)
   priorityRow: { flexDirection: 'row', gap: 10 },
   priorityChip: { flex: 1, borderWidth: 1.5, borderColor: '#334155', borderRadius: 12, paddingVertical: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, minHeight: 50 },
   priorityDot: { width: 10, height: 10, borderRadius: 5 },
   priorityLabel: { color: '#94A3B8', fontSize: 14, fontWeight: '600' },
 
-  // Inputs — larger font for textarea
   input: { backgroundColor: '#1E293B', borderWidth: 1.5, borderColor: '#334155', borderRadius: 12, padding: 16, color: '#F8FAFC', fontSize: 16, minHeight: 52 },
   textArea: { height: 100, textAlignVertical: 'top', fontSize: 16, lineHeight: 22 },
 
-  // Submit — 56px height, prominent
+  photoButton: { backgroundColor: '#1E293B', borderWidth: 1.5, borderColor: '#334155', borderRadius: 12, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52 },
+  photoButtonIcon: { fontSize: 22 },
+  photoButtonText: { color: '#94A3B8', fontSize: 15, fontWeight: '600' },
+  photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 },
+  photoThumb: { width: 88, height: 88, borderRadius: 10, overflow: 'hidden', position: 'relative' },
+  thumbImage: { width: '100%', height: '100%' },
+  thumbRemove: { position: 'absolute', top: 4, right: 4, backgroundColor: '#0F172A', borderRadius: 12, width: 22, height: 22, alignItems: 'center', justifyContent: 'center' },
+  thumbRemoveText: { color: '#EF4444', fontSize: 11, fontWeight: '700' },
+
   submitButton: { backgroundColor: '#3B82F6', borderRadius: 14, paddingVertical: 18, alignItems: 'center', marginTop: 28, minHeight: 60, justifyContent: 'center', shadowColor: '#3B82F6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6 },
   submitDisabled: { opacity: 0.4, shadowOpacity: 0 },
   submitText: { color: '#fff', fontSize: 18, fontWeight: '700', letterSpacing: 0.5 },
