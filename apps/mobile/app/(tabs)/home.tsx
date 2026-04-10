@@ -12,6 +12,8 @@ import { useUnitStore } from '@/store/unit.store';
 import { unitsApi, incidentsApi, patrolsApi } from '@/lib/api';
 import { startLocationTracking, stopLocationTracking } from '@/lib/location';
 import { flushQueue } from '@/lib/offline-queue';
+import { flushPhotoQueue, enqueuePhoto } from '@/lib/photo-queue';
+import { flushLocationQueue } from '@/lib/location-queue';
 
 const STATUS_OPTIONS = [
   { value: 'available', label: 'Disponible', color: '#22C55E', icon: '✓', iconLabel: 'Listo' },
@@ -65,9 +67,23 @@ export default function HomeScreen() {
 
   const loadUnitAndIncident = useCallback(async () => {
     try {
-      const flushed = await flushQueue();
-      if (flushed.success > 0) {
-        Alert.alert('Sincronizado', `${flushed.success} acciones pendientes enviadas.`);
+      const [flushed, photosFlushed, locationFlushed] = await Promise.allSettled([
+        flushQueue(),
+        flushPhotoQueue(),
+        flushLocationQueue(),
+      ]);
+
+      const jsonSuccess = flushed.status === 'fulfilled' ? flushed.value.success : 0;
+      const photoSuccess = photosFlushed.status === 'fulfilled' ? photosFlushed.value.success : 0;
+      const locationSent = locationFlushed.status === 'fulfilled' ? locationFlushed.value.sent : 0;
+      const totalSynced = jsonSuccess + photoSuccess + locationSent;
+
+      if (totalSynced > 0) {
+        const parts: string[] = [];
+        if (jsonSuccess > 0) parts.push(`${jsonSuccess} acciones`);
+        if (photoSuccess > 0) parts.push(`${photoSuccess} foto(s)`);
+        if (locationSent > 0) parts.push(`${locationSent} punto(s) GPS`);
+        Alert.alert('Sincronizado', `${parts.join(', ')} enviadas.`);
       }
 
       const unitsRes = await unitsApi.getAll();
@@ -214,12 +230,18 @@ export default function HomeScreen() {
       allowsEditing: false,
     });
     if (result.canceled || !result.assets[0]) return;
+    const uri = result.assets[0].uri;
     try {
-      await incidentsApi.uploadPhoto(assignedIncident.id, result.assets[0].uri);
+      await incidentsApi.uploadPhoto(assignedIncident.id, uri);
       Vibration.vibrate(100);
       Alert.alert('Foto enviada', 'La foto fue adjuntada al incidente.');
     } catch {
-      Alert.alert('Error', 'No se pudo enviar la foto.');
+      try {
+        await enqueuePhoto(assignedIncident.id, uri);
+        Alert.alert('Sin conexión', 'La foto se guardó y se enviará cuando haya red.');
+      } catch {
+        Alert.alert('Error', 'No se pudo guardar la foto. Intenta de nuevo.');
+      }
     }
   }
 
