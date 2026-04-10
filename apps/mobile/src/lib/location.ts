@@ -22,7 +22,11 @@ TaskManager.defineTask(LOCATION_TASK, async ({ data, error }: TaskManager.TaskMa
   try {
     await unitsApi.updateLocation(_unitId, latitude, longitude, batteryLevel);
   } catch {
-    // silently fail — will retry on next ping
+    // Buffer the point for sync when network returns
+    try {
+      const { storeLocationPoint } = require('./location-queue') as typeof import('./location-queue');
+      await storeLocationPoint(_unitId, latitude, longitude);
+    } catch { /* storage unavailable — nothing we can do */ }
   }
 });
 
