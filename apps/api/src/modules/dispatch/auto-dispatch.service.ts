@@ -29,9 +29,9 @@ export class AutoDispatchService {
       .andWhere('i.priority IN (:...priorities)', {
         priorities: [IncidentPriority.LOW, IncidentPriority.MEDIUM],
       })
-      .andWhere('i.created_at <= :cutoff', { cutoff })
-      .andWhere('i.auto_dispatched = false')
-      .orderBy('i.created_at', 'ASC')
+      .andWhere('i.createdAt <= :cutoff', { cutoff })
+      .andWhere('i.autoDispatched = :autoDispatched', { autoDispatched: false })
+      .orderBy('i.createdAt', 'ASC')
       .limit(5) // Process max 5 per cycle to avoid overload
       .getMany();
 
