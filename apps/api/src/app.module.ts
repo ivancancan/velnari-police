@@ -19,6 +19,7 @@ import { PatrolsModule } from './modules/patrols/patrols.module';
 import { ChatModule } from './modules/chat/chat.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { ShiftsModule } from './modules/shifts/shifts.module';
 import { HealthController } from './modules/health/health.controller';
 import { AuditInterceptor } from './shared/interceptors/audit.interceptor';
 import { RedisCacheService } from './shared/services/redis-cache.service';
@@ -58,6 +59,7 @@ import { RedisCacheService } from './shared/services/redis-cache.service';
     ChatModule,
     AuditModule,
     ReportsModule,
+    ShiftsModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'),
       serveRoot: '/uploads',
