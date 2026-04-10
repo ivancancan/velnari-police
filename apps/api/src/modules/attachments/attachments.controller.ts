@@ -1,5 +1,6 @@
 // apps/api/src/modules/attachments/attachments.controller.ts
 import {
+  Body,
   Controller,
   Delete,
   Get,
@@ -48,6 +49,7 @@ export class AttachmentsController {
     @Param('incidentId', ParseUUIDPipe) incidentId: string,
     @UploadedFile() file: Express.Multer.File,
     @Req() req: Request & { user: { sub: string } },
+    @Body() body: { gpsLat?: string; gpsLng?: string; capturedAt?: string },
   ): Promise<IncidentAttachmentEntity> {
     const API_URL = process.env['API_URL'] ?? 'http://localhost:3001';
     return this.service.create({
@@ -58,6 +60,10 @@ export class AttachmentsController {
       size: file.size,
       url: `${API_URL}/uploads/${file.filename}`,
       uploadedBy: req.user.sub,
+      filePath: file.path,
+      gpsLat: body.gpsLat ? parseFloat(body.gpsLat) : undefined,
+      gpsLng: body.gpsLng ? parseFloat(body.gpsLng) : undefined,
+      capturedAt: body.capturedAt,
     });
   }
 

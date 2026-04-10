@@ -3,6 +3,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { IncidentAttachmentEntity } from '../../entities/incident-attachment.entity';
+import * as crypto from 'crypto';
+import * as fs from 'fs';
 
 interface CreateAttachmentInput {
   incidentId: string;
@@ -12,6 +14,10 @@ interface CreateAttachmentInput {
   size: number;
   url: string;
   uploadedBy: string;
+  filePath: string;
+  gpsLat?: number;
+  gpsLng?: number;
+  capturedAt?: string;
 }
 
 @Injectable()
@@ -28,8 +34,31 @@ export class AttachmentsService {
     });
   }
 
-  create(input: CreateAttachmentInput): Promise<IncidentAttachmentEntity> {
-    const attachment = this.repo.create(input);
+  private async computeFileHash(filePath: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const hash = crypto.createHash('sha256');
+      const stream = fs.createReadStream(filePath);
+      stream.on('data', (data) => hash.update(data));
+      stream.on('end', () => resolve(hash.digest('hex')));
+      stream.on('error', reject);
+    });
+  }
+
+  async create(input: CreateAttachmentInput): Promise<IncidentAttachmentEntity> {
+    const sha256Hash = await this.computeFileHash(input.filePath);
+    const attachment = this.repo.create({
+      incidentId: input.incidentId,
+      filename: input.filename,
+      originalName: input.originalName,
+      mimetype: input.mimetype,
+      size: input.size,
+      url: input.url,
+      uploadedBy: input.uploadedBy,
+      sha256Hash,
+      gpsLat: input.gpsLat,
+      gpsLng: input.gpsLng,
+      capturedAt: input.capturedAt ? new Date(input.capturedAt) : undefined,
+    });
     return this.repo.save(attachment);
   }
 

@@ -166,10 +166,23 @@ export const incidentsApi = {
     api.post<{ id: string; folio: string }>('/incidents', data),
   addNote: (incidentId: string, text: string) =>
     api.post(`/incidents/${incidentId}/notes`, { text }),
-  uploadPhoto: (incidentId: string, uri: string) => {
+  uploadPhoto: async (incidentId: string, uri: string) => {
     const formData = new FormData();
     const filename = uri.split('/').pop() ?? 'photo.jpg';
     formData.append('file', { uri, name: filename, type: 'image/jpeg' } as unknown as Blob);
+
+    // Capture current GPS position for chain of custody
+    try {
+      const Location = require('expo-location');
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      formData.append('gpsLat', String(loc.coords.latitude));
+      formData.append('gpsLng', String(loc.coords.longitude));
+      formData.append('capturedAt', new Date().toISOString());
+    } catch {
+      // GPS unavailable — upload without metadata
+      formData.append('capturedAt', new Date().toISOString());
+    }
+
     return api.post(`/incidents/${incidentId}/attachments`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });

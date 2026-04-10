@@ -5,6 +5,19 @@ import { AttachmentsService } from './attachments.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { IncidentAttachmentEntity } from '../../entities/incident-attachment.entity';
 
+// Mock fs and crypto so hash computation doesn't require a real file
+jest.mock('fs', () => ({
+  createReadStream: jest.fn(() => {
+    const { EventEmitter } = require('events');
+    const emitter = new EventEmitter();
+    process.nextTick(() => {
+      emitter.emit('data', Buffer.from('test'));
+      emitter.emit('end');
+    });
+    return emitter;
+  }),
+}));
+
 describe('AttachmentsService', () => {
   let service: AttachmentsService;
 
@@ -59,6 +72,7 @@ describe('AttachmentsService', () => {
       size: 204800,
       url: '/uploads/abc123.jpg',
       uploadedBy: 'user-uuid-1',
+      filePath: '/tmp/abc123.jpg',
     });
     expect(result.filename).toBe('abc123.jpg');
   });

@@ -44,6 +44,18 @@ export class IncidentAttachmentEntity {
   @JoinColumn({ name: 'uploaded_by' })
   uploader?: UserEntity;
 
+  @Column({ name: 'sha256_hash', nullable: true, length: 64 })
+  sha256Hash?: string;
+
+  @Column({ name: 'gps_lat', type: 'decimal', precision: 10, scale: 7, nullable: true })
+  gpsLat?: number;
+
+  @Column({ name: 'gps_lng', type: 'decimal', precision: 10, scale: 7, nullable: true })
+  gpsLng?: number;
+
+  @Column({ name: 'captured_at', type: 'timestamptz', nullable: true })
+  capturedAt?: Date;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 }
