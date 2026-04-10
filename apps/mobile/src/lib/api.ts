@@ -175,3 +175,18 @@ export const incidentsApi = {
     });
   },
 };
+
+export const chatApi = {
+  getMessages: (roomId: string, limit = 50) =>
+    api.get<{
+      id: string; roomId: string; senderId: string;
+      senderName: string; senderRole: string;
+      content: string; createdAt: string;
+    }[]>(`/chat/${roomId}`, { params: { limit } }),
+  sendMessage: (roomId: string, content: string) =>
+    api.post<{
+      id: string; roomId: string; senderId: string;
+      senderName: string; senderRole: string;
+      content: string; createdAt: string;
+    }>(`/chat/${roomId}`, { content }),
+};

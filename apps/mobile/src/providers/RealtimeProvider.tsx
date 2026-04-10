@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { useUnitStore } from '@/store/unit.store';
 import { sendLocalNotification } from '@/lib/notifications';
 import { incidentsApi } from '@/lib/api';
+import { chatEvents } from '@/lib/chat-events';
 
 export default function RealtimeProvider({ children }: { children: React.ReactNode }) {
   const accessToken = useAuthStore((s) => s.accessToken);
@@ -82,6 +83,11 @@ export default function RealtimeProvider({ children }: { children: React.ReactNo
       useUnitStore.getState().updateNearbyUnitPosition(payload.unitId, payload.lat, payload.lng);
     });
 
+    // Chat messages
+    socket.on('chat:message', (message: { id: string; roomId: string; senderId: string; senderName: string; senderRole: string; content: string; createdAt: string }) => {
+      chatEvents.emit(message);
+    });
+
     // Incident closed
     socket.on('incident:closed', (payload: { incidentId: string }) => {
       const state = useUnitStore.getState();
@@ -96,6 +102,7 @@ export default function RealtimeProvider({ children }: { children: React.ReactNo
       socket.off('unit:status:changed');
       socket.off('unit:location:changed');
       socket.off('incident:closed');
+      socket.off('chat:message');
       disconnectSocket();
     };
   }, [accessToken, unitId, setStatus, addPendingAssignment]);
