@@ -121,6 +121,18 @@ export class IncidentsController {
     return this.service.getHeatmapPoints(fromDate, toDate);
   }
 
+  @Get('sla-compliance')
+  @Roles(UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.COMMANDER, UserRole.OPERATOR)
+  getSlaCompliance(
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    const now = new Date();
+    const fromDate = from && !isNaN(Date.parse(from)) ? new Date(from) : startOfDay(now);
+    const toDate = to && !isNaN(Date.parse(to)) ? new Date(to) : endOfDay(now);
+    return this.service.getSlaCompliance(fromDate, toDate);
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseUUIDPipe) id: string): Promise<IncidentEntity> {
     return this.service.findOne(id);

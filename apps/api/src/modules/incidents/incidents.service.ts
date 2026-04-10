@@ -7,6 +7,7 @@ import { IncidentUnitAssignmentEntity } from '../../entities/incident-unit-assig
 import { SectorEntity } from '../../entities/sector.entity';
 import { UnitEntity } from '../../entities/unit.entity';
 import { PatrolEntity, PatrolStatus } from '../../entities/patrol.entity';
+import { SlaConfigEntity } from '../../entities/sla-config.entity';
 import {
   IncidentStatus,
   UnitStatus,
@@ -84,6 +85,8 @@ export class IncidentsService {
     private readonly assignmentRepo: Repository<IncidentUnitAssignmentEntity>,
     @InjectRepository(PatrolEntity)
     private readonly patrolRepo: Repository<PatrolEntity>,
+    @InjectRepository(SlaConfigEntity)
+    private readonly slaConfigRepo: Repository<SlaConfigEntity>,
   ) {}
 
   findAll(filters: FindAllFilters): Promise<IncidentEntity[]> {
@@ -699,6 +702,70 @@ export class IncidentsService {
         avgResponseMin: rCount > 0
           ? Math.round(totalMs / rCount / 60000 * 10) / 10
           : null,
+      },
+    };
+  }
+
+  async getSlaCompliance(from: Date, to: Date): Promise<{
+    byPriority: {
+      priority: string;
+      targetMinutes: number;
+      totalIncidents: number;
+      withinSla: number;
+      complianceRate: number;
+      avgResponseMinutes: number | null;
+    }[];
+    overall: { total: number; withinSla: number; complianceRate: number };
+  }> {
+    const slaConfigs = await this.slaConfigRepo.find();
+    const targets = new Map(slaConfigs.map(c => [c.priority, c.targetResponseMinutes]));
+
+    const incidents = await this.repo.find({
+      where: { createdAt: Between(from, to) },
+      select: ['id', 'priority', 'createdAt', 'assignedAt'],
+    });
+
+    const byPriority: Record<string, { total: number; withinSla: number; responseTimes: number[] }> = {};
+    for (const inc of incidents) {
+      if (!byPriority[inc.priority]) {
+        byPriority[inc.priority] = { total: 0, withinSla: 0, responseTimes: [] };
+      }
+      byPriority[inc.priority].total++;
+
+      if (inc.assignedAt) {
+        const responseMin = (inc.assignedAt.getTime() - inc.createdAt.getTime()) / 60000;
+        byPriority[inc.priority].responseTimes.push(responseMin);
+        const target = targets.get(inc.priority) ?? 15;
+        if (responseMin <= target) {
+          byPriority[inc.priority].withinSla++;
+        }
+      }
+    }
+
+    let totalAll = 0;
+    let withinAll = 0;
+    const result = Object.entries(byPriority).map(([priority, data]) => {
+      totalAll += data.total;
+      withinAll += data.withinSla;
+      const avg = data.responseTimes.length > 0
+        ? data.responseTimes.reduce((a, b) => a + b, 0) / data.responseTimes.length
+        : null;
+      return {
+        priority,
+        targetMinutes: targets.get(priority) ?? 15,
+        totalIncidents: data.total,
+        withinSla: data.withinSla,
+        complianceRate: data.total > 0 ? Math.round((data.withinSla / data.total) * 100) : 100,
+        avgResponseMinutes: avg ? Math.round(avg * 10) / 10 : null,
+      };
+    });
+
+    return {
+      byPriority: result,
+      overall: {
+        total: totalAll,
+        withinSla: withinAll,
+        complianceRate: totalAll > 0 ? Math.round((withinAll / totalAll) * 100) : 100,
       },
     };
   }

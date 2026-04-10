@@ -7,6 +7,7 @@ import { SectorEntity } from '../../entities/sector.entity';
 import { UnitEntity } from '../../entities/unit.entity';
 import { UserEntity } from '../../entities/user.entity';
 import { PatrolEntity } from '../../entities/patrol.entity';
+import { SlaConfigEntity } from '../../entities/sla-config.entity';
 import { IncidentsService } from './incidents.service';
 import { IncidentsController } from './incidents.controller';
 import { PublicReportController } from './public-report.controller';
@@ -16,7 +17,7 @@ import { DispatchModule } from '../dispatch/dispatch.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([IncidentEntity, IncidentEventEntity, IncidentUnitAssignmentEntity, SectorEntity, UnitEntity, UserEntity, PatrolEntity]),
+    TypeOrmModule.forFeature([IncidentEntity, IncidentEventEntity, IncidentUnitAssignmentEntity, SectorEntity, UnitEntity, UserEntity, PatrolEntity, SlaConfigEntity]),
     RealtimeModule,
     forwardRef(() => DispatchModule),
   ],

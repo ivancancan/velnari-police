@@ -53,6 +53,10 @@ export default function DashboardPage() {
   const [unitStats, setUnitStats] = useState<UnitStats | null>(null);
   const [recentIncidents, setRecentIncidents] = useState<Incident[]>([]);
   const [dailySummary, setDailySummary] = useState<DailySummary | null>(null);
+  const [slaData, setSlaData] = useState<{
+    byPriority: { priority: string; targetMinutes: number; totalIncidents: number; withinSla: number; complianceRate: number; avgResponseMinutes: number | null }[];
+    overall: { total: number; withinSla: number; complianceRate: number };
+  } | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -66,11 +70,13 @@ export default function DashboardPage() {
       unitsApi.getStats(),
       incidentsApi.getAll(),
       incidentsApi.getDailySummary(date),
+      incidentsApi.getSlaCompliance(),
     ])
-      .then(([statsRes, unitStatsRes, incidentsRes, summaryRes]) => {
+      .then(([statsRes, unitStatsRes, incidentsRes, summaryRes, slaRes]) => {
         setIncidentStats(statsRes.data);
         setUnitStats(unitStatsRes.data);
         setDailySummary(summaryRes.data);
+        setSlaData(slaRes.data);
         const forDate = incidentsRes.data
           .filter((i) => i.createdAt.startsWith(date))
           .slice(0, 15);
@@ -235,6 +241,88 @@ export default function DashboardPage() {
                 />
               </div>
             </section>
+
+            {/* SLA Compliance */}
+            {slaData && slaData.overall.total > 0 && (
+              <section className="mb-8">
+                <h2 className="text-xs text-slate-gray uppercase tracking-widest mb-3 font-semibold">
+                  Cumplimiento SLA
+                </h2>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  {/* Overall compliance card */}
+                  <div className="bg-slate-800/60 rounded-xl p-5 flex flex-col items-center justify-center border border-slate-700/50">
+                    <p className="text-xs text-slate-500 uppercase tracking-widest mb-2">Cumplimiento General</p>
+                    <p
+                      className="text-5xl font-bold font-mono"
+                      style={{
+                        color: slaData.overall.complianceRate >= 80
+                          ? '#22C55E'
+                          : slaData.overall.complianceRate >= 60
+                            ? '#F59E0B'
+                            : '#EF4444',
+                      }}
+                    >
+                      {slaData.overall.complianceRate}%
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {slaData.overall.withinSla} de {slaData.overall.total} dentro de SLA
+                    </p>
+                  </div>
+
+                  {/* Per-priority breakdown */}
+                  <div className="bg-slate-800/60 rounded-xl p-5 lg:col-span-2 border border-slate-700/50">
+                    <p className="text-xs text-slate-500 uppercase tracking-widest mb-3">Desglose por Prioridad</p>
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-slate-500 text-xs uppercase tracking-widest">
+                          <th className="text-left pb-2">Prioridad</th>
+                          <th className="text-left pb-2">Meta</th>
+                          <th className="text-left pb-2">Prom. Resp.</th>
+                          <th className="text-left pb-2">Cumplimiento</th>
+                          <th className="text-right pb-2">Incidentes</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {slaData.byPriority.map((row) => (
+                          <tr key={row.priority} className="border-t border-slate-700/50">
+                            <td className="py-2">
+                              <span className="flex items-center gap-2">
+                                <span
+                                  className="w-2 h-2 rounded-full inline-block"
+                                  style={{ backgroundColor: PRIORITY_COLORS[row.priority] ?? '#64748B' }}
+                                />
+                                <span className="text-signal-white text-xs font-medium">
+                                  {PRIORITY_LABELS[row.priority] ?? row.priority}
+                                </span>
+                              </span>
+                            </td>
+                            <td className="py-2 text-xs text-slate-400 font-mono">{'<'} {row.targetMinutes} min</td>
+                            <td className="py-2 text-xs font-mono text-signal-white">
+                              {row.avgResponseMinutes != null ? `${row.avgResponseMinutes} min` : '--'}
+                            </td>
+                            <td className="py-2">
+                              <span
+                                className="text-xs font-bold font-mono"
+                                style={{
+                                  color: row.complianceRate >= 80
+                                    ? '#22C55E'
+                                    : row.complianceRate >= 60
+                                      ? '#F59E0B'
+                                      : '#EF4444',
+                                }}
+                              >
+                                {row.complianceRate}%
+                              </span>
+                            </td>
+                            <td className="py-2 text-right text-xs font-mono text-slate-400">{row.totalIncidents}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </section>
+            )}
 
             {/* Charts */}
             <section className="mb-8 grid grid-cols-1 lg:grid-cols-2 gap-4">

@@ -166,6 +166,12 @@ export const incidentsApi = {
 
   getAnalytics: (params: { from: string; to: string; unitId?: string; sectorId?: string; patrolId?: string; userId?: string }) =>
     api.get<AnalyticsResult>('/incidents/analytics', { params }),
+
+  getSlaCompliance: (from?: string, to?: string) =>
+    api.get<{
+      byPriority: { priority: string; targetMinutes: number; totalIncidents: number; withinSla: number; complianceRate: number; avgResponseMinutes: number | null }[];
+      overall: { total: number; withinSla: number; complianceRate: number };
+    }>('/incidents/sla-compliance', { params: { from, to } }),
 };
 
 // ─── Dispatch ────────────────────────────────────────────────────────────────
