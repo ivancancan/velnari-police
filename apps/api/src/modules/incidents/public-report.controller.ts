@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -45,6 +45,9 @@ export class PublicReportController {
 
   @Get('track/:token')
   async trackReport(@Param('token') token: string) {
+    if (!/^[A-Z2-9]{8}$/.test(token)) {
+      throw new BadRequestException('Código de seguimiento inválido.');
+    }
     return this.service.getByTrackingToken(token);
   }
 }

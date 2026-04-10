@@ -156,7 +156,14 @@ export class IncidentsService {
     if (dto.description?.includes('[Reporte ciudadano]')) {
       const token = this.generateTrackingToken();
       await this.repo.update(savedId, { trackingToken: token });
-      (saved as any).trackingToken = token;
+      const event = this.eventRepo.create({
+        incidentId: saved.id,
+        type: 'created',
+        description: `Incidente ${folio} creado`,
+        actorId,
+      });
+      await this.eventRepo.save(event);
+      return this.findOne(savedId);
     }
 
     const event = this.eventRepo.create({
