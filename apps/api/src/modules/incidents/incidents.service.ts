@@ -360,20 +360,12 @@ export class IncidentsService {
     let totalResponseMs = 0;
     let responseCount = 0;
 
-    // Per-sector counts
-    const sectorCounts: Record<string, number> = {};
-    // Per-unit response times
-    const unitResponses: Record<string, { totalMs: number; count: number }> = {};
     // Per-hour counts
     const hourCounts: Record<number, number> = {};
 
     for (const inc of todayIncidents) {
       if (inc.status === IncidentStatus.CLOSED) closedIncidents++;
       if (inc.status === IncidentStatus.OPEN) openIncidents++;
-
-      if (inc.sectorId) {
-        sectorCounts[inc.sectorId] = (sectorCounts[inc.sectorId] ?? 0) + 1;
-      }
 
       const hour = new Date(inc.createdAt).getHours();
       hourCounts[hour] = (hourCounts[hour] ?? 0) + 1;
@@ -382,14 +374,6 @@ export class IncidentsService {
         const ms = new Date(inc.assignedAt).getTime() - new Date(inc.createdAt).getTime();
         totalResponseMs += ms;
         responseCount++;
-
-        if (inc.assignedUnitId) {
-          if (!unitResponses[inc.assignedUnitId]) {
-            unitResponses[inc.assignedUnitId] = { totalMs: 0, count: 0 };
-          }
-          unitResponses[inc.assignedUnitId]!.totalMs += ms;
-          unitResponses[inc.assignedUnitId]!.count++;
-        }
       }
     }
 
@@ -397,28 +381,41 @@ export class IncidentsService {
       ? Math.round(totalResponseMs / responseCount / 60000 * 10) / 10
       : null;
 
-    // Busiest sector
-    let busiestSector: DailySummary['busiestSector'] = null;
-    const sectorEntries = Object.entries(sectorCounts);
-    if (sectorEntries.length > 0) {
-      sectorEntries.sort((a, b) => b[1] - a[1]);
-      const [sectorId, count] = sectorEntries[0]!;
-      const sector = await this.sectorRepo.findOne({ where: { id: sectorId } });
-      busiestSector = { name: sector?.name ?? sectorId, count };
-    }
+    // Busiest sector — single query with JOIN
+    const sectorRows = await this.repo
+      .createQueryBuilder('i')
+      .select('i.sector_id', 'sectorId')
+      .addSelect('s.name', 'sectorName')
+      .addSelect('COUNT(*)', 'count')
+      .innerJoin('sectors', 's', 's.id = i.sector_id')
+      .where('i.created_at BETWEEN :from AND :to', { from: dayStart, to: dayEnd })
+      .andWhere('i.sector_id IS NOT NULL')
+      .groupBy('i.sector_id')
+      .addGroupBy('s.name')
+      .orderBy('count', 'DESC')
+      .limit(1)
+      .getRawMany();
 
-    // Best unit (lowest avg response time)
-    let bestUnit: DailySummary['bestUnit'] = null;
-    const unitEntries = Object.entries(unitResponses).filter(([, v]) => v.count > 0);
-    if (unitEntries.length > 0) {
-      unitEntries.sort((a, b) => (a[1].totalMs / a[1].count) - (b[1].totalMs / b[1].count));
-      const [unitId, data] = unitEntries[0]!;
-      const unit = await this.unitRepo.findOne({ where: { id: unitId } });
-      bestUnit = {
-        callSign: unit?.callSign ?? unitId,
-        avgResponseMin: Math.round(data.totalMs / data.count / 60000 * 10) / 10,
-      };
-    }
+    const busiestSector: DailySummary['busiestSector'] = sectorRows.length > 0
+      ? { name: sectorRows[0].sectorName, count: Number(sectorRows[0].count) }
+      : null;
+
+    // Best unit — single query with JOIN
+    const unitRows = await this.repo
+      .createQueryBuilder('i')
+      .select('u.call_sign', 'callSign')
+      .addSelect('AVG(EXTRACT(EPOCH FROM (i.assigned_at - i.created_at)) / 60)', 'avgResponseMin')
+      .innerJoin('units', 'u', 'u.id = i.assigned_unit_id')
+      .where('i.created_at BETWEEN :from AND :to', { from: dayStart, to: dayEnd })
+      .andWhere('i.assigned_at IS NOT NULL')
+      .groupBy('u.call_sign')
+      .orderBy('"avgResponseMin"', 'ASC')
+      .limit(1)
+      .getRawMany();
+
+    const bestUnit: DailySummary['bestUnit'] = unitRows.length > 0
+      ? { callSign: unitRows[0].callSign, avgResponseMin: Math.round(Number(unitRows[0].avgResponseMin) * 100) / 100 }
+      : null;
 
     // Worst hour (most incidents)
     let worstHour: DailySummary['worstHour'] = null;
