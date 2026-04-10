@@ -1,4 +1,3 @@
-// apps/mobile/src/store/unit.store.ts
 import { create } from 'zustand';
 
 interface AssignedIncident {
@@ -9,6 +8,7 @@ interface AssignedIncident {
   status: string;
   address?: string;
   description?: string;
+  etaMinutes?: number | null;
 }
 
 interface UnitState {
@@ -16,9 +16,12 @@ interface UnitState {
   callSign: string | null;
   status: string;
   assignedIncident: AssignedIncident | null;
+  pendingAssignments: AssignedIncident[];
   setUnit: (unitId: string, callSign: string, status: string) => void;
   setStatus: (status: string) => void;
   setAssignedIncident: (incident: AssignedIncident | null) => void;
+  addPendingAssignment: (incident: AssignedIncident) => void;
+  clearPendingAssignment: (incidentId: string) => void;
 }
 
 export const useUnitStore = create<UnitState>((set) => ({
@@ -26,7 +29,16 @@ export const useUnitStore = create<UnitState>((set) => ({
   callSign: null,
   status: 'available',
   assignedIncident: null,
+  pendingAssignments: [],
   setUnit: (unitId, callSign, status) => set({ unitId, callSign, status }),
   setStatus: (status) => set({ status }),
   setAssignedIncident: (incident) => set({ assignedIncident: incident }),
+  addPendingAssignment: (incident) =>
+    set((state) => ({
+      pendingAssignments: [...state.pendingAssignments, incident],
+    })),
+  clearPendingAssignment: (incidentId) =>
+    set((state) => ({
+      pendingAssignments: state.pendingAssignments.filter((i) => i.id !== incidentId),
+    })),
 }));
