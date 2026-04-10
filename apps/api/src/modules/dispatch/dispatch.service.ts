@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { MoreThanOrEqual, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { IncidentsService } from '../incidents/incidents.service';
 import { UnitsService } from '../units/units.service';
 import { IncidentEventEntity } from '../../entities/incident-event.entity';
@@ -102,47 +102,53 @@ export class DispatchService {
     const incident = await this.incidentsService.findOne(incidentId);
     if (!incident.lat || !incident.lng) return [];
 
-    const { raw, entities } = await this.unitRepo
-      .createQueryBuilder('u')
-      .addSelect(
-        `ST_Distance(
-          u.current_location::geography,
-          ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography
-        ) / 1000`,
-        'distance_km',
-      )
-      .where('u.is_active = true')
-      .andWhere('u.status = :status', { status: UnitStatus.AVAILABLE })
-      .andWhere('u.current_location IS NOT NULL')
-      .setParameters({ lat: Number(incident.lat), lng: Number(incident.lng) })
-      .orderBy('distance_km', 'ASC')
-      .limit(10)
-      .getRawAndEntities();
-
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const results: SuggestedUnit[] = [];
-    for (let i = 0; i < entities.length; i++) {
-      const unit = entities[i]!;
-      const distanceKm = Number(raw[i]?.distance_km) || 0;
+    // Single query: get nearby available units + their incident count for today
+    const rows: {
+      u_id: string;
+      u_call_sign: string;
+      distance_km: string;
+      incidents_today: string;
+    }[] = await this.unitRepo.query(
+      `SELECT
+         u.id AS u_id,
+         u.call_sign AS u_call_sign,
+         ST_Distance(
+           u.current_location::geography,
+           ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography
+         ) / 1000 AS distance_km,
+         COALESCE(ic.cnt, 0) AS incidents_today
+       FROM units u
+       LEFT JOIN (
+         SELECT assigned_unit_id, COUNT(*) AS cnt
+         FROM incidents
+         WHERE created_at >= $3
+         GROUP BY assigned_unit_id
+       ) ic ON ic.assigned_unit_id = u.id
+       WHERE u.is_active = true
+         AND u.status = $4
+         AND u.current_location IS NOT NULL
+       ORDER BY distance_km ASC
+       LIMIT 10`,
+      [Number(incident.lng), Number(incident.lat), today.toISOString(), UnitStatus.AVAILABLE],
+    );
 
-      const incidentsToday = await this.incidentRepo.count({
-        where: { assignedUnitId: unit.id, createdAt: MoreThanOrEqual(today) },
-      });
-
-      // Score: lower is better. Distance weighted 0.7, workload weighted 0.3
-      const score = distanceKm * 0.7 + incidentsToday * 2 * 0.3;
-
-      results.push({
-        unitId: unit.id,
-        callSign: unit.callSign,
-        distanceKm: Math.round(distanceKm * 100) / 100,
-        incidentsToday,
-        score: Math.round(score * 100) / 100,
-      });
-    }
-
-    return results.sort((a, b) => a.score - b.score).slice(0, 3);
+    return rows
+      .map((row) => {
+        const distanceKm = Number(row.distance_km) || 0;
+        const incidentsToday = Number(row.incidents_today) || 0;
+        const score = distanceKm * 0.7 + incidentsToday * 2 * 0.3;
+        return {
+          unitId: row.u_id,
+          callSign: row.u_call_sign,
+          distanceKm: Math.round(distanceKm * 100) / 100,
+          incidentsToday,
+          score: Math.round(score * 100) / 100,
+        };
+      })
+      .sort((a, b) => a.score - b.score)
+      .slice(0, 3);
   }
 }
