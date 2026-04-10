@@ -25,7 +25,7 @@ export default function LoginScreen() {
       const { setItemAsync } = await import('expo-secure-store');
       await setItemAsync('accessToken', res.data.accessToken);
       const meRes = await authApi.me();
-      await setAuth(res.data.accessToken, meRes.data);
+      await setAuth(res.data.accessToken, res.data.refreshToken, meRes.data);
       router.replace('/(tabs)/home');
     } catch {
       setError('Credenciales incorrectas');

@@ -1,6 +1,7 @@
-// apps/mobile/src/lib/api.ts
 import axios from 'axios';
+import type { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import { enqueue } from './offline-queue';
 
 const API_URL = process.env['EXPO_PUBLIC_API_URL'] ?? 'http://localhost:3001/api';
 
@@ -10,24 +11,96 @@ export const api = axios.create({
   timeout: 10000,
 });
 
+// Attach access token to every request
 api.interceptors.request.use(async (config) => {
   const token = await SecureStore.getItemAsync('accessToken');
   if (token) config.headers['Authorization'] = `Bearer ${token}`;
   return config;
 });
 
-import { enqueue } from './offline-queue';
+// Token refresh queue — prevents concurrent refresh calls
+let isRefreshing = false;
+let failedQueue: {
+  resolve: (token: string) => void;
+  reject: (err: unknown) => void;
+}[] = [];
 
-// Queue failed write requests for offline retry
+function processQueue(error: unknown, token: string | null): void {
+  for (const p of failedQueue) {
+    if (error) {
+      p.reject(error);
+    } else {
+      p.resolve(token!);
+    }
+  }
+  failedQueue = [];
+}
+
 api.interceptors.response.use(
   (response) => response,
-  async (error) => {
+  async (error: AxiosError) => {
+    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+
+    // 401 and not already retried — attempt token refresh
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        // Another refresh is in progress — queue this request
+        return new Promise((resolve, reject) => {
+          failedQueue.push({
+            resolve: (token: string) => {
+              originalRequest.headers['Authorization'] = `Bearer ${token}`;
+              resolve(api(originalRequest));
+            },
+            reject,
+          });
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const refreshToken = await SecureStore.getItemAsync('refreshToken');
+        if (!refreshToken) throw new Error('No refresh token');
+
+        const { data } = await axios.post<{ accessToken: string; expiresIn: number }>(
+          `${API_URL}/auth/refresh`,
+          { refreshToken },
+        );
+
+        await SecureStore.setItemAsync('accessToken', data.accessToken);
+
+        // Update Zustand store (lazy import to avoid circular dep)
+        const { useAuthStore } = require('../store/auth.store');
+        useAuthStore.getState().setAccessToken(data.accessToken);
+
+        processQueue(null, data.accessToken);
+
+        originalRequest.headers['Authorization'] = `Bearer ${data.accessToken}`;
+        return api(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        // Refresh failed — force logout
+        const { useAuthStore } = require('../store/auth.store');
+        await useAuthStore.getState().clearAuth();
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    // Offline write queueing (non-401 network errors)
     if (!error.response && error.config) {
       const method = error.config.method as string;
       if (['post', 'patch', 'delete'].includes(method)) {
-        await enqueue(method as 'post' | 'patch' | 'delete', error.config.url, error.config.data ? JSON.parse(error.config.data) : undefined);
+        await enqueue(
+          method as 'post' | 'patch' | 'delete',
+          error.config.url!,
+          error.config.data ? JSON.parse(error.config.data) : undefined,
+        );
       }
     }
+
     return Promise.reject(error);
   },
 );
@@ -41,6 +114,11 @@ export const authApi = {
   me: () =>
     api.get<{ id: string; email: string; name: string; role: string; badgeNumber?: string }>(
       '/auth/me',
+    ),
+  refresh: (refreshToken: string) =>
+    api.post<{ accessToken: string; expiresIn: number }>(
+      '/auth/refresh',
+      { refreshToken },
     ),
 };
 
