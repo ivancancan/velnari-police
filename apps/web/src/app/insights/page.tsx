@@ -5,6 +5,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { useRouter } from 'next/navigation';
 import DateRangeSelector, { presetToRange } from '@/components/insights/DateRangeSelector';
 import KpiGrid from '@/components/insights/KpiGrid';
+import AnalyticsSection from '@/components/insights/AnalyticsSection';
 import ExportBar from '@/components/insights/ExportBar';
 import { useInsightsData } from '@/hooks/useInsightsData';
 import type { DateRange } from '@/hooks/useInsightsData';
@@ -82,6 +83,7 @@ export default function InsightsPage() {
       {!data.loading && !data.error && (
         <div className="flex-1 overflow-y-auto">
           <KpiGrid data={data} />
+          <AnalyticsSection data={data} />
           {isAdmin && <ExportBar range={isSupervisor ? presetToRange('today') : range} />}
         </div>
       )}
