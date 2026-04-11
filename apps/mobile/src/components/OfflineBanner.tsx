@@ -2,15 +2,19 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { getQueueSize } from '@/lib/offline-queue';
 
-// These keys match the constants in offline-queue.ts, photo-queue.ts, location-queue.ts
-const QUEUE_KEYS = ['velnari_offline_queue', 'velnari_photo_queue', 'velnari_location_queue'];
+// Keys for AsyncStorage-backed queues
+const ASYNC_QUEUE_KEYS = ['velnari_photo_queue', 'velnari_location_queue'];
 
 async function getPendingCount(): Promise<number> {
   try {
-    const values = await AsyncStorage.multiGet(QUEUE_KEYS);
-    let total = 0;
-    for (const [, value] of values) {
+    const [secureCount, asyncValues] = await Promise.all([
+      getQueueSize(),
+      AsyncStorage.multiGet(ASYNC_QUEUE_KEYS),
+    ]);
+    let total = secureCount;
+    for (const [, value] of asyncValues) {
       if (!value) continue;
       const parsed = JSON.parse(value) as unknown[];
       if (Array.isArray(parsed)) total += parsed.length;
