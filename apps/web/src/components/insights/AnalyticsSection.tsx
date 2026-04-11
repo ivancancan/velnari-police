@@ -1,11 +1,14 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import {
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis,
   CartesianGrid, Tooltip, PieChart, Pie, Cell, Legend,
 } from 'recharts';
 import type { InsightsData } from '@/hooks/useInsightsData';
 import { CHART_COLORS, PRIORITY_COLORS, PRIORITY_LABELS, TYPE_LABELS, CHART_DEFAULTS } from './chartTheme';
+
+const InsightsHeatmap = dynamic(() => import('./InsightsHeatmap'), { ssr: false });
 
 interface Props {
   data: InsightsData;
@@ -284,6 +287,19 @@ export default function AnalyticsSection({ data }: Props) {
               ))}
             </div>
           )}
+        </div>
+      </div>
+
+      {/* ── Mapa de calor ────────────────────────────────────────────── */}
+      <div className="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
+          <div>
+            <p className="text-[11px] text-slate-400 uppercase tracking-widest">Mapa de calor — distribución geográfica</p>
+            <p className="text-xs text-slate-500 mt-0.5">{data.heatmapPoints?.length ?? 0} puntos en el período</p>
+          </div>
+        </div>
+        <div style={{ height: 380 }}>
+          <InsightsHeatmap points={data.heatmapPoints ?? []} />
         </div>
       </div>
 

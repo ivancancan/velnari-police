@@ -1,7 +1,7 @@
 // apps/web/src/hooks/useInsightsData.ts
 import { useState, useEffect, useCallback } from 'react';
 import { incidentsApi, unitsApi } from '@/lib/api';
-import type { AnalyticsResult, SlaCompliance, UnitStats } from '@/lib/types';
+import type { AnalyticsResult, SlaCompliance, UnitStats, HeatmapPoint } from '@/lib/types';
 
 export interface DateRange {
   from: string; // ISO date string YYYY-MM-DD
@@ -13,6 +13,7 @@ export interface InsightsData {
   previous: AnalyticsResult | null;
   sla: SlaCompliance | null;
   unitStats: UnitStats | null;
+  heatmapPoints: HeatmapPoint[] | null;
   loading: boolean;
   error: string | null;
 }
@@ -37,6 +38,7 @@ export function useInsightsData(range: DateRange): InsightsData {
   const [previous, setPrevious] = useState<AnalyticsResult | null>(null);
   const [sla, setSla] = useState<SlaCompliance | null>(null);
   const [unitStats, setUnitStats] = useState<UnitStats | null>(null);
+  const [heatmapPoints, setHeatmapPoints] = useState<HeatmapPoint[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -75,6 +77,12 @@ export function useInsightsData(range: DateRange): InsightsData {
       } catch {
         setSla(null);
       }
+
+      // Heatmap fetch is best-effort
+      const [heatRes] = await Promise.allSettled([
+        incidentsApi.getHeatmap(toISO(range.from), toISO(range.to, true)),
+      ]);
+      setHeatmapPoints(heatRes.status === 'fulfilled' ? heatRes.value.data : []);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al cargar datos');
     } finally {
@@ -84,7 +92,7 @@ export function useInsightsData(range: DateRange): InsightsData {
 
   useEffect(() => { void fetchData(); }, [fetchData]);
 
-  return { current, previous, sla, unitStats, loading, error };
+  return { current, previous, sla, unitStats, heatmapPoints, loading, error };
 }
 
 /** Compute % change between two numbers. Returns null if baseline is 0. */
