@@ -11,7 +11,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { useUnitStore } from '@/store/unit.store';
 import { unitsApi, incidentsApi, patrolsApi } from '@/lib/api';
 import { startLocationTracking, stopLocationTracking } from '@/lib/location';
-import { flushQueue } from '@/lib/offline-queue';
+import { flushQueue, enqueue } from '@/lib/offline-queue';
 import { flushPhotoQueue, enqueuePhoto } from '@/lib/photo-queue';
 import { flushLocationQueue } from '@/lib/location-queue';
 
@@ -263,8 +263,38 @@ export default function HomeScreen() {
         address: `GPS: ${loc.coords.latitude.toFixed(5)}, ${loc.coords.longitude.toFixed(5)}`,
       });
       Alert.alert('🚨 Alerta enviada', 'Tu ubicación y alerta fueron enviadas al centro de mando.');
-    } catch {
-      Alert.alert('Error', 'No se pudo enviar la alerta. Intenta de nuevo.');
+    } catch (err: unknown) {
+      const isNetworkError = !(err as { response?: unknown }).response;
+      if (isNetworkError) {
+        try {
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          await enqueue('post', '/incidents', {
+            type: 'other',
+            priority: 'critical',
+            lat: loc.coords.latitude,
+            lng: loc.coords.longitude,
+            description: `🚨 ALERTA DE PÁNICO — ${callSign ?? 'Unidad'} en peligro. Requiere apoyo inmediato.`,
+            address: `GPS: ${loc.coords.latitude.toFixed(5)}, ${loc.coords.longitude.toFixed(5)}`,
+          });
+        } catch {
+          await enqueue('post', '/incidents', {
+            type: 'other',
+            priority: 'critical',
+            lat: 0,
+            lng: 0,
+            description: `🚨 ALERTA DE PÁNICO — ${callSign ?? 'Unidad'} en peligro. Sin GPS disponible.`,
+            address: 'Sin GPS',
+          });
+        }
+        Vibration.vibrate([0, 200, 100, 200]);
+        Alert.alert(
+          '🚨 Alerta guardada',
+          'Sin conexión. La alerta se enviará al centro de mando cuando haya red.',
+          [{ text: 'Entendido', style: 'default' }],
+        );
+      } else {
+        Alert.alert('Error', 'No se pudo enviar la alerta. Intenta de nuevo.');
+      }
     }
   }
 
