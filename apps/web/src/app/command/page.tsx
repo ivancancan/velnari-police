@@ -10,6 +10,7 @@ import { incidentsApi, unitsApi, sectorsApi } from '@/lib/api';
 import dynamic from 'next/dynamic';
 import IncidentList from '@/components/incidents/IncidentList';
 import IncidentDetail from '@/components/incidents/IncidentDetail';
+import DispatchQueue from '@/components/incidents/DispatchQueue';
 import RealtimeProvider from '@/components/incidents/RealtimeProvider';
 import UnitDetailPanel from '@/components/units/UnitDetailPanel';
 import PatrolPanel from '@/components/patrols/PatrolPanel';
@@ -43,7 +44,7 @@ export default function CommandPage() {
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [showCoverage, setShowCoverage] = useState(false);
   const [heatmapPoints, setHeatmapPoints] = useState<HeatmapPoint[]>([]);
-  const [sidebarTab, setSidebarTab] = useState<'incidents' | 'patrols' | 'chat'>('incidents');
+  const [sidebarTab, setSidebarTab] = useState<'incidents' | 'dispatch' | 'patrols' | 'chat'>('incidents');
   const [crisisMode, setCrisisMode] = useState(false);
   const router = useRouter();
 
@@ -100,9 +101,12 @@ export default function CommandPage() {
           setSidebarTab('incidents');
           break;
         case '2':
-          setSidebarTab('patrols');
+          setSidebarTab('dispatch');
           break;
         case '3':
+          setSidebarTab('patrols');
+          break;
+        case '4':
           setSidebarTab('chat');
           break;
         case 'h':
@@ -283,6 +287,19 @@ export default function CommandPage() {
                     Incidentes
                   </button>
                   <button
+                    onClick={() => setSidebarTab('dispatch')}
+                    className={`flex-1 py-2.5 text-xs font-medium transition-colors duration-200 relative ${
+                      sidebarTab === 'dispatch' ? 'text-signal-white border-b-2 border-alert-amber' : 'text-slate-gray hover:text-signal-white/70'
+                    }`}
+                  >
+                    Despacho
+                    {incidents.filter((i) => i.status === 'open').length > 0 && (
+                      <span className="absolute top-1.5 right-1 bg-alert-amber text-midnight-command text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
+                        {incidents.filter((i) => i.status === 'open').length}
+                      </span>
+                    )}
+                  </button>
+                  <button
                     onClick={() => setSidebarTab('patrols')}
                     className={`flex-1 py-2.5 text-xs font-medium transition-colors duration-200 ${
                       sidebarTab === 'patrols' ? 'text-signal-white border-b-2 border-tactical-blue' : 'text-slate-gray hover:text-signal-white/70'
@@ -302,6 +319,8 @@ export default function CommandPage() {
                 <div key={sidebarTab} className="animate-tab-fade-in flex-1 overflow-hidden flex flex-col">
                 {sidebarTab === 'incidents' ? (
                   <IncidentList sectors={sectors} crisisMode={crisisMode} />
+                ) : sidebarTab === 'dispatch' ? (
+                  <DispatchQueue />
                 ) : sidebarTab === 'patrols' ? (
                   <PatrolPanel units={units} sectors={sectors} />
                 ) : (
