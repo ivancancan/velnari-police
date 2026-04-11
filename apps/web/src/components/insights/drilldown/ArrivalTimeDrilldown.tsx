@@ -1,13 +1,28 @@
 'use client';
 
-import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
+import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 import type { AnalyticsResult } from '@/lib/types';
 import { CHART_COLORS, CHART_DEFAULTS } from '../chartTheme';
 
-export default function ArrivalTimeDrilldown({ data }: { data: AnalyticsResult }) {
-  const byDayData = data.byDay.map((d) => ({
-    date: new Date(d.date).toLocaleDateString('es-MX', { weekday: 'short' }),
-    count: d.count,
+interface Props {
+  data: AnalyticsResult;
+  prevData?: AnalyticsResult | null;
+}
+
+function fmtDate(dateStr: string, totalDays: number) {
+  const d = new Date(dateStr);
+  if (totalDays <= 7) return d.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric' });
+  return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+}
+
+export default function ArrivalTimeDrilldown({ data, prevData }: Props) {
+  const totalDays = data.byDay.length;
+  const tickInterval = totalDays <= 7 ? 0 : totalDays <= 14 ? 1 : Math.floor(totalDays / 7);
+
+  const byDayData = data.byDay.map((d, i) => ({
+    date: fmtDate(d.date, totalDays),
+    actual: d.count,
+    anterior: prevData?.byDay[i]?.count ?? null,
   }));
 
   const unitBars = data.byUnit.slice(0, 6).sort((a, b) => b.count - a.count);
@@ -15,14 +30,22 @@ export default function ArrivalTimeDrilldown({ data }: { data: AnalyticsResult }
   return (
     <div className="grid grid-cols-2 gap-6">
       <div style={{ minWidth: 0 }}>
-        <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-3">Incidentes por día</p>
-        <ResponsiveContainer width="100%" height={140}>
+        <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-3">
+          Incidentes por día {prevData ? '(vs período anterior)' : ''}
+        </p>
+        <ResponsiveContainer width="100%" height={160}>
           <LineChart data={byDayData} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={CHART_DEFAULTS.gridColor} />
-            <XAxis dataKey="date" tick={{ fill: CHART_DEFAULTS.tickColor, fontSize: 10 }} tickLine={false} />
+            <XAxis dataKey="date" tick={{ fill: CHART_DEFAULTS.tickColor, fontSize: 9 }} tickLine={false} interval={tickInterval} />
             <YAxis tick={{ fill: CHART_DEFAULTS.tickColor, fontSize: 10 }} tickLine={false} axisLine={false} />
             <Tooltip contentStyle={CHART_DEFAULTS.tooltipStyle} />
-            <Line type="monotone" dataKey="count" stroke={CHART_COLORS.blue} strokeWidth={2} dot={{ r: 3, fill: CHART_COLORS.blue }} name="Incidentes" />
+            {prevData && (
+              <Line type="monotone" dataKey="anterior" stroke={CHART_COLORS.slate} strokeWidth={1.5}
+                strokeDasharray="4 2" dot={false} name="Anterior" connectNulls />
+            )}
+            <Line type="monotone" dataKey="actual" stroke={CHART_COLORS.blue} strokeWidth={2}
+              dot={totalDays <= 7 ? { fill: CHART_COLORS.blue, r: 3 } : false} name="Actual" />
+            {prevData && <Legend wrapperStyle={{ fontSize: 9, color: CHART_DEFAULTS.tickColor }} />}
           </LineChart>
         </ResponsiveContainer>
       </div>

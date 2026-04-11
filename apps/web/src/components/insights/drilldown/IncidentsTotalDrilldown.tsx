@@ -1,14 +1,29 @@
 'use client';
 
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from 'recharts';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts';
 import type { AnalyticsResult } from '@/lib/types';
 import { CHART_COLORS, PRIORITY_COLORS, PRIORITY_LABELS, TYPE_LABELS, CHART_DEFAULTS } from '../chartTheme';
 
-export default function IncidentsTotalDrilldown({ data }: { data: AnalyticsResult }) {
-  const byDayData = data.byDay.map((d) => ({
-    date: new Date(d.date).toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric' }),
-    count: d.count,
-  }));
+interface Props {
+  data: AnalyticsResult;
+  prevData: AnalyticsResult | null;
+}
+
+export default function IncidentsTotalDrilldown({ data, prevData }: Props) {
+  const totalDays = data.byDay.length;
+  const tickInterval = totalDays <= 7 ? 0 : totalDays <= 14 ? 1 : Math.floor(totalDays / 7);
+
+  const byDayData = data.byDay.map((d, i) => {
+    const date = new Date(d.date);
+    const label = totalDays <= 7
+      ? date.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric' })
+      : date.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+    return {
+      date: label,
+      actual: d.count,
+      anterior: prevData?.byDay[i]?.count ?? null,
+    };
+  });
 
   const byPriorityData = ['critical', 'high', 'medium', 'low'].map((p) => ({
     name: PRIORITY_LABELS[p] ?? p,
@@ -23,19 +38,29 @@ export default function IncidentsTotalDrilldown({ data }: { data: AnalyticsResul
 
   return (
     <div className="grid grid-cols-3 gap-6">
+      {/* Tendencia por día */}
       <div style={{ minWidth: 0 }}>
-        <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-3">Incidentes por día</p>
-        <ResponsiveContainer width="100%" height={140}>
-          <BarChart data={byDayData} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
+        <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-3">
+          Por día {prevData ? '(vs período anterior)' : ''}
+        </p>
+        <ResponsiveContainer width="100%" height={160}>
+          <LineChart data={byDayData} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={CHART_DEFAULTS.gridColor} />
-            <XAxis dataKey="date" tick={{ fill: CHART_DEFAULTS.tickColor, fontSize: 10 }} tickLine={false} />
+            <XAxis dataKey="date" tick={{ fill: CHART_DEFAULTS.tickColor, fontSize: 9 }} tickLine={false} interval={tickInterval} />
             <YAxis tick={{ fill: CHART_DEFAULTS.tickColor, fontSize: 10 }} tickLine={false} axisLine={false} />
             <Tooltip contentStyle={CHART_DEFAULTS.tooltipStyle} />
-            <Bar dataKey="count" fill={CHART_COLORS.blue} radius={[3, 3, 0, 0]} name="Incidentes" />
-          </BarChart>
+            {prevData && (
+              <Line type="monotone" dataKey="anterior" stroke={CHART_COLORS.slate} strokeWidth={1.5}
+                strokeDasharray="4 2" dot={false} name="Anterior" connectNulls />
+            )}
+            <Line type="monotone" dataKey="actual" stroke={CHART_COLORS.blue} strokeWidth={2}
+              dot={totalDays <= 7 ? { fill: CHART_COLORS.blue, r: 3 } : false} name="Actual" />
+            {prevData && <Legend wrapperStyle={{ fontSize: 9, color: CHART_DEFAULTS.tickColor }} />}
+          </LineChart>
         </ResponsiveContainer>
       </div>
 
+      {/* Donut por prioridad */}
       <div style={{ minWidth: 0 }}>
         <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-3">Por prioridad</p>
         <div className="flex items-center gap-4">
@@ -43,6 +68,7 @@ export default function IncidentsTotalDrilldown({ data }: { data: AnalyticsResul
             <Pie data={byPriorityData} cx={45} cy={45} innerRadius={28} outerRadius={45} dataKey="value" paddingAngle={2}>
               {byPriorityData.map((d, i) => <Cell key={i} fill={d.color} />)}
             </Pie>
+            <Tooltip contentStyle={CHART_DEFAULTS.tooltipStyle} />
           </PieChart>
           <div className="flex flex-col gap-1.5">
             {byPriorityData.map((d) => (
@@ -55,9 +81,10 @@ export default function IncidentsTotalDrilldown({ data }: { data: AnalyticsResul
         </div>
       </div>
 
+      {/* Barras por tipo */}
       <div style={{ minWidth: 0 }}>
         <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-3">Por tipo (top 5)</p>
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2 mt-1">
           {byTypeData.map((d) => {
             const max = byTypeData[0]?.value ?? 1;
             return (

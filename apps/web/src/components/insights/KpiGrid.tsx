@@ -56,7 +56,7 @@ export default function KpiGrid({ data }: Props) {
       subtitle: cur ? `Abiertos: ${cur.summary.openIncidents} · Cerrados: ${cur.summary.closedIncidents}` : undefined,
       trend: trendPct(cur?.summary.totalIncidents ?? null, prev?.summary.totalIncidents ?? null),
       sparkline: cur?.byDay.map((d) => d.count),
-      drilldown: cur ? <IncidentsTotalDrilldown data={cur} /> : null,
+      drilldown: cur ? <IncidentsTotalDrilldown data={cur} prevData={prev ?? null} /> : null,
     },
     {
       id: 'dispatch',
@@ -77,7 +77,7 @@ export default function KpiGrid({ data }: Props) {
       subtitle: 'Desde asignación hasta escena',
       trend: trendPct(cur?.summary.avgCloseMinutes ?? null, prev?.summary.avgCloseMinutes ?? null),
       trendInvert: true,
-      drilldown: cur ? <ArrivalTimeDrilldown data={cur} /> : null,
+      drilldown: cur ? <ArrivalTimeDrilldown data={cur} prevData={prev ?? null} /> : null,
     },
     {
       id: 'sla',
@@ -113,7 +113,7 @@ export default function KpiGrid({ data }: Props) {
       valueColor: '#f59e0b',
       subtitle: cur ? `${cur.summary.closedIncidents} cerrados / ${cur.summary.totalIncidents} total` : undefined,
       trend: trendPct(closureRate, prevClosureRate),
-      drilldown: cur ? <ClosureRateDrilldown data={cur} /> : null,
+      drilldown: cur ? <ClosureRateDrilldown data={cur} prevData={prev ?? null} /> : null,
     },
     {
       id: 'best-unit',
