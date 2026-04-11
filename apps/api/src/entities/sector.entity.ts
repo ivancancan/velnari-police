@@ -28,6 +28,9 @@ export class SectorEntity {
   @Column({ default: '#3B82F6' })
   color!: string;
 
+  @Column({ name: 'tenant_id', nullable: true, type: 'uuid' })
+  tenantId?: string | null;
+
   @Column({ name: 'is_active', default: true })
   isActive!: boolean;
 

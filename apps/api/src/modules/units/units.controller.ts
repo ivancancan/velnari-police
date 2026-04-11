@@ -11,6 +11,8 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { CurrentUser } from '../../shared/decorators/current-user.decorator';
+import type { JwtPayload } from '../../shared/decorators/current-user.decorator';
 import { UnitsService } from './units.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { RolesGuard } from '../../shared/guards/roles.guard';
@@ -49,8 +51,9 @@ export class UnitsController {
     @Query('status') status?: UnitStatus,
     @Query('sectorId') sectorId?: string,
     @Query('shift') shift?: string,
+    @CurrentUser() user?: JwtPayload,
   ): Promise<UnitEntity[]> {
-    return this.service.findAll({ status, sectorId, shift });
+    return this.service.findAll({ status, sectorId, shift, tenantId: user?.tenantId ?? null });
   }
 
   @Get('nearby')

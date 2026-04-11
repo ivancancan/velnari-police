@@ -13,6 +13,7 @@ interface FindAllFilters {
   status?: UnitStatus;
   sectorId?: string;
   shift?: string;
+  tenantId?: string | null;
 }
 
 interface NearbyPoint {
@@ -46,6 +47,7 @@ export class UnitsService {
     if (filters.status) qb.andWhere('u.status = :status', { status: filters.status });
     if (filters.sectorId) qb.andWhere('u.sector_id = :sectorId', { sectorId: filters.sectorId });
     if (filters.shift) qb.andWhere('u.shift = :shift', { shift: filters.shift });
+    if (filters.tenantId) qb.andWhere('(u.tenant_id = :tenantId OR u.tenant_id IS NULL)', { tenantId: filters.tenantId });
 
     const raws = await qb.getRawAndEntities();
     return raws.entities.map((entity, i) => ({

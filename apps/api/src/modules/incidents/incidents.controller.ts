@@ -53,6 +53,7 @@ export class IncidentsController {
     @Query('priority') priority?: string,
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
+    @CurrentUser() user?: JwtPayload,
   ): Promise<IncidentEntity[]> {
     return this.service.findAll({
       status,
@@ -60,6 +61,7 @@ export class IncidentsController {
       priority,
       limit: parseInt(limit as string) || 50,
       offset: parseInt(offset as string) || 0,
+      tenantId: user?.tenantId ?? null,
     });
   }
 
@@ -179,7 +181,7 @@ export class IncidentsController {
     @Body() dto: CreateIncidentDto,
     @CurrentUser() user: JwtPayload,
   ): Promise<IncidentEntity> {
-    return this.service.create(dto, user.sub);
+    return this.service.create(dto, user.sub, user.tenantId ?? null);
   }
 
   @Patch(':id')

@@ -5,6 +5,7 @@ export interface JwtPayload {
   sub: string;
   email: string;
   role: string;
+  tenantId: string | null;
 }
 
 export const CurrentUser = createParamDecorator(

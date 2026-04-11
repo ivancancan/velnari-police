@@ -268,6 +268,18 @@ export const patrolsApi = {
   getReport: (id: string) => api.get(`/patrols/${id}/report`),
 };
 
+// ─── Tenants (Municipios) ─────────────────────────────────────────────────────
+
+export const tenantsApi = {
+  getAll: () => api.get<{ id: string; name: string; state?: string; slug?: string; contactEmail?: string; isActive: boolean; createdAt: string }[]>('/tenants'),
+
+  create: (dto: { name: string; state?: string; contactEmail?: string }) =>
+    api.post<{ id: string; name: string; slug?: string; isActive: boolean }>('/tenants', dto),
+
+  update: (id: string, dto: { name?: string; state?: string; contactEmail?: string; isActive?: boolean }) =>
+    api.patch<{ id: string; name: string; isActive: boolean }>(`/tenants/${id}`, dto),
+};
+
 // ─── Reports ─────────────────────────────────────────────────────────────────
 
 export const reportsApi = {

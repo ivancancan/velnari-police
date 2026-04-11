@@ -58,6 +58,9 @@ export class PatrolEntity {
   @JoinColumn({ name: 'created_by' })
   creator?: UserEntity;
 
+  @Column({ name: 'tenant_id', nullable: true, type: 'uuid' })
+  tenantId?: string | null;
+
   @Column({ name: 'accepted_at', type: 'timestamptz', nullable: true })
   acceptedAt?: Date;
 

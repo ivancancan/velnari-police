@@ -56,6 +56,9 @@ export class UnitEntity {
   @Column({ name: 'last_location_at', nullable: true })
   lastLocationAt?: Date;
 
+  @Column({ name: 'tenant_id', nullable: true, type: 'uuid' })
+  tenantId?: string | null;
+
   @Column({ name: 'is_active', default: true })
   isActive!: boolean;
 

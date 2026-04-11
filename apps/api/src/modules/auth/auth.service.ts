@@ -32,7 +32,7 @@ export class AuthService {
   }
 
   async login(user: UserEntity): Promise<TokenResponseDto> {
-    const payload = { sub: user.id, email: user.email, role: user.role };
+    const payload = { sub: user.id, email: user.email, role: user.role, tenantId: user.tenantId ?? null };
 
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {
@@ -65,7 +65,7 @@ export class AuthService {
       throw new UnauthorizedException();
     }
 
-    const payload = { sub: userId, email: user.email, role };
+    const payload = { sub: userId, email: user.email, role, tenantId: user.tenantId ?? null };
     const accessToken = await this.jwtService.signAsync(payload, {
       secret: this.config.get<string>('jwt.secret'),
       expiresIn: this.config.get<string>('jwt.expiresIn'),

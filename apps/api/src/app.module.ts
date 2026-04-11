@@ -21,6 +21,7 @@ import { AuditModule } from './modules/audit/audit.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { ShiftsModule } from './modules/shifts/shifts.module';
 import { CleanupModule } from './modules/cleanup/cleanup.module';
+import { TenantsModule } from './modules/tenants/tenants.module';
 import { HealthController } from './modules/health/health.controller';
 import { AuditInterceptor } from './shared/interceptors/audit.interceptor';
 import { RedisCacheService } from './shared/services/redis-cache.service';
@@ -70,6 +71,7 @@ import { RedisCacheService } from './shared/services/redis-cache.service';
     ReportsModule,
     ShiftsModule,
     CleanupModule,
+    TenantsModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'),
       serveRoot: '/uploads',

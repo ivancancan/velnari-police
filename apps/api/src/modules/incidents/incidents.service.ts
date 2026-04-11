@@ -68,6 +68,7 @@ interface FindAllFilters {
   priority?: string;
   limit?: number;
   offset?: number;
+  tenantId?: string | null;
 }
 
 @Injectable()
@@ -94,6 +95,7 @@ export class IncidentsService {
     if (filters.status) where['status'] = filters.status;
     if (filters.sectorId) where['sectorId'] = filters.sectorId;
     if (filters.priority) where['priority'] = filters.priority;
+    if (filters.tenantId) where['tenantId'] = filters.tenantId;
     const limit = filters.limit ?? 50;
     const offset = filters.offset ?? 0;
     return this.repo.find({
@@ -113,7 +115,7 @@ export class IncidentsService {
     return incident;
   }
 
-  async create(dto: CreateIncidentDto, actorId: string): Promise<IncidentEntity> {
+  async create(dto: CreateIncidentDto, actorId: string, tenantId?: string | null): Promise<IncidentEntity> {
     const count = await this.repo.count();
     const folio = `IC-${String(count + 1).padStart(3, '0')}`;
 
@@ -132,6 +134,7 @@ export class IncidentsService {
         sectorId: dto.sectorId,
         createdBy: actorId,
         status: IncidentStatus.OPEN,
+        tenantId: tenantId ?? undefined,
         location: () => `ST_SetSRID(ST_MakePoint(${dto.lng}, ${dto.lat}), 4326)`,
       })
       .returning('id')

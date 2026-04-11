@@ -22,6 +22,7 @@ const NAV = [
     items: [
       { label: 'Tipos de Incidente', href: '/admin/incident-types', icon: AlertTriangle },
       { label: 'Sectores', href: '/admin/sectors', icon: Map },
+      { label: 'Municipios', href: '/admin/municipios', icon: Shield },
     ],
   },
   {

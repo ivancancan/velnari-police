@@ -108,6 +108,9 @@ export class IncidentEntity {
   @Column({ name: 'tracking_token', nullable: true, length: 12 })
   trackingToken?: string;
 
+  @Column({ name: 'tenant_id', nullable: true, type: 'uuid' })
+  tenantId?: string | null;
+
   @OneToMany(() => IncidentEventEntity, (e) => e.incident, { eager: false })
   events?: IncidentEventEntity[];
 

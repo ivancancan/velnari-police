@@ -41,6 +41,9 @@ export class UserEntity {
   @Column({ name: 'expo_push_token', nullable: true, length: 512 })
   expoPushToken?: string;
 
+  @Column({ name: 'tenant_id', nullable: true, type: 'uuid' })
+  tenantId?: string | null;
+
   @Column({ name: 'is_active', default: true })
   isActive!: boolean;
 

@@ -31,6 +31,24 @@ async function seed(): Promise<void> {
 
   const hash = await bcrypt.hash(PASSWORD_PLAIN, 10);
 
+  // ── Demo Municipio (tenant) ────────────────────────────────────────────────
+  const existingMunicipio = await query.query(
+    `SELECT id FROM municipios WHERE slug = 'demo' LIMIT 1`,
+  );
+  let demoTenantId: string | null = null;
+  if (existingMunicipio.length > 0) {
+    demoTenantId = existingMunicipio[0].id;
+    console.log(`  municipio already exists: ${demoTenantId}`);
+  } else {
+    const [mun] = await query.query(
+      `INSERT INTO municipios (name, state, slug, contact_email, is_active)
+       VALUES ($1, $2, $3, $4, true) RETURNING id`,
+      ['Municipio Demo', 'CDMX', 'demo', 'demo@velnari.mx'],
+    );
+    demoTenantId = mun.id;
+    console.log(`  ✓ municipio created: ${demoTenantId}`);
+  }
+
   // ── Sector ────────────────────────────────────────────────────────────────
   const existingSector = await query.query(
     `SELECT id FROM sectors WHERE name = 'Centro Histórico' LIMIT 1`,
@@ -42,8 +60,8 @@ async function seed(): Promise<void> {
     console.log(`  sector already exists: ${sectorId}`);
   } else {
     const [sector] = await query.query(
-      `INSERT INTO sectors (name, color, is_active) VALUES ($1, $2, $3) RETURNING id`,
-      ['Centro Histórico', '#3B82F6', true],
+      `INSERT INTO sectors (name, color, is_active, tenant_id) VALUES ($1, $2, $3, $4) RETURNING id`,
+      ['Centro Histórico', '#3B82F6', true, demoTenantId],
     );
     sectorId = sector.id;
     console.log(`  ✓ sector created: ${sectorId}`);
@@ -65,9 +83,9 @@ async function seed(): Promise<void> {
       console.log(`  user already exists: ${u.email}`);
     } else {
       await query.query(
-        `INSERT INTO users (email, password_hash, role, name, badge_number, sector_id, is_active)
-         VALUES ($1, $2, $3::user_role, $4, $5, $6, true)`,
-        [u.email, hash, u.role, u.name, u.badge, u.role === 'operator' ? sectorId : null],
+        `INSERT INTO users (email, password_hash, role, name, badge_number, sector_id, is_active, tenant_id)
+         VALUES ($1, $2, $3::user_role, $4, $5, $6, true, $7)`,
+        [u.email, hash, u.role, u.name, u.badge, u.role === 'operator' ? sectorId : null, demoTenantId],
       );
       console.log(`  ✓ user created: ${u.email}`);
     }
@@ -85,9 +103,9 @@ async function seed(): Promise<void> {
       console.log(`  unit already exists: ${callSign}`);
     } else {
       await query.query(
-        `INSERT INTO units (call_sign, status, sector_id, shift, is_active)
-         VALUES ($1, 'available'::unit_status, $2, $3, true)`,
-        [callSign, sectorId, callSign <= 'P-03' ? 'Matutino' : 'Vespertino'],
+        `INSERT INTO units (call_sign, status, sector_id, shift, is_active, tenant_id)
+         VALUES ($1, 'available'::unit_status, $2, $3, true, $4)`,
+        [callSign, sectorId, callSign <= 'P-03' ? 'Matutino' : 'Vespertino', demoTenantId],
       );
       console.log(`  ✓ unit created: ${callSign}`);
     }
@@ -104,9 +122,9 @@ async function seed(): Promise<void> {
     const existing = await query.query(`SELECT id FROM users WHERE email = $1 LIMIT 1`, [u.email]);
     if (existing.length === 0) {
       await query.query(
-        `INSERT INTO users (email, password_hash, role, name, badge_number, sector_id, is_active)
-         VALUES ($1, $2, $3::user_role, $4, $5, $6, true)`,
-        [u.email, hash, u.role, u.name, u.badge, sectorId],
+        `INSERT INTO users (email, password_hash, role, name, badge_number, sector_id, is_active, tenant_id)
+         VALUES ($1, $2, $3::user_role, $4, $5, $6, true, $7)`,
+        [u.email, hash, u.role, u.name, u.badge, sectorId, demoTenantId],
       );
       console.log(`  ✓ user created: ${u.email}`);
     }

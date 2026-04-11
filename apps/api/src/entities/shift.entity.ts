@@ -54,6 +54,9 @@ export class ShiftEntity {
   @Column({ name: 'handoff_notes', type: 'text', nullable: true })
   handoffNotes?: string;
 
+  @Column({ name: 'tenant_id', nullable: true, type: 'uuid' })
+  tenantId?: string | null;
+
   @Column({ name: 'created_by', type: 'uuid' })
   createdBy!: string;
 
