@@ -47,6 +47,11 @@ export class UsersService {
     return this.repo.save(user);
   }
 
+  async resetPassword(userId: string, newPassword: string): Promise<void> {
+    const hash = await bcrypt.hash(newPassword, 10);
+    await this.repo.update(userId, { passwordHash: hash });
+  }
+
   async update(id: string, dto: UpdateUserDto): Promise<UserEntity> {
     const user = await this.findOne(id);
     if (dto.name !== undefined) user.name = dto.name;

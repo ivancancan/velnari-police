@@ -1,8 +1,11 @@
 // apps/api/src/modules/users/users.controller.ts
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -50,5 +53,18 @@ export class UsersController {
     @Body() dto: UpdateUserDto,
   ): Promise<UserEntity> {
     return this.service.update(id, dto);
+  }
+
+  @Patch(':id/password')
+  @Roles(UserRole.ADMIN, UserRole.SUPERVISOR)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async resetPassword(
+    @Param('id') id: string,
+    @Body('password') password: string,
+  ): Promise<void> {
+    if (!password || password.length < 8) {
+      throw new BadRequestException('La contraseña debe tener al menos 8 caracteres');
+    }
+    await this.service.resetPassword(id, password);
   }
 }
