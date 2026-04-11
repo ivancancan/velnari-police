@@ -1,6 +1,6 @@
 # apps/api/Dockerfile
 FROM node:20-alpine AS base
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 WORKDIR /app
 
 # ---------- deps ----------
@@ -18,7 +18,7 @@ RUN pnpm --filter @velnari/api build
 
 # ---------- runtime ----------
 FROM node:20-alpine AS runner
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 WORKDIR /app
 ENV NODE_ENV=production
 
