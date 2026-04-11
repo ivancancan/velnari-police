@@ -224,7 +224,7 @@ export interface AnalyticsResult {
 }
 
 export interface SlaComplianceRow {
-  priority: string;
+  priority: IncidentPriority;
   targetMinutes: number;
   avgMinutes: number | null;
   compliantCount: number;
