@@ -15,4 +15,12 @@ export const AppDataSource = new DataSource({
   entities: [join(__dirname, '../**/*.entity{.ts,.js}')],
   migrations: [join(__dirname, './migrations/*{.ts,.js}')],
   synchronize: false,
+  connectTimeoutMS: 5_000,
+  maxQueryExecutionTime: 10_000,
+  extra: {
+    max: 20,
+    min: 2,
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 5_000,
+  },
 });
