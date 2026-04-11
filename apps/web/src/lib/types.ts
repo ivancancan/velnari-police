@@ -222,3 +222,17 @@ export interface AnalyticsResult {
   byUnit: { unitId: string; callSign: string; count: number; avgResponseMin: number | null }[];
   incidents: { id: string; folio: string; type: string; priority: string; status: string; createdAt: string; address?: string; patrolId?: string }[];
 }
+
+export interface SlaComplianceRow {
+  priority: string;
+  targetMinutes: number;
+  avgMinutes: number | null;
+  compliantCount: number;
+  totalCount: number;
+  compliancePct: number;
+}
+
+export interface SlaCompliance {
+  byPriority: SlaComplianceRow[];
+  overallPct: number;
+}
