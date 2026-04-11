@@ -86,7 +86,7 @@ export async function flushPhotoQueue(): Promise<{ success: number; failed: numb
     }
 
     try {
-      await incidentsApi.uploadPhoto(photo.incidentId, photo.localUri);
+      await incidentsApi.uploadPhotoPresigned(photo.incidentId, photo.localUri);
       await FileSystem.deleteAsync(photo.localUri, { idempotent: true });
       success++;
     } catch {

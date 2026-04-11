@@ -267,7 +267,7 @@ export default function HomeScreen() {
     if (result.canceled || !result.assets[0]) return;
     const uri = result.assets[0].uri;
     try {
-      await incidentsApi.uploadPhoto(assignedIncident.id, uri);
+      await incidentsApi.uploadPhotoPresigned(assignedIncident.id, uri);
       Vibration.vibrate(100);
       Alert.alert('Foto enviada', 'La foto fue adjuntada al incidente.');
     } catch {
