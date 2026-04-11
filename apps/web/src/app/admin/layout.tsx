@@ -32,6 +32,7 @@ const NAV = [
       { label: 'Desempe\u00f1o', href: '/admin/scoreboard', icon: BarChart2 },
       { label: 'Audit Log', href: '/admin/audit', icon: FileText },
       { label: 'Constructor de Reportes', href: '/admin/report-builder', icon: FileText },
+      { label: 'Exportar Incidentes', href: '/admin/reports/export', icon: FileText },
     ],
   },
 ];
