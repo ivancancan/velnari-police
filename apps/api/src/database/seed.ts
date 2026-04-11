@@ -112,6 +112,51 @@ async function seed(): Promise<void> {
     }
   }
 
+  // ── Assign field officers to units ────────────────────────────────────────
+  const [campo1User] = await query.query(`SELECT id FROM users WHERE email = 'campo1@velnari.mx' LIMIT 1`);
+  const [campo2User] = await query.query(`SELECT id FROM users WHERE email = 'campo2@velnari.mx' LIMIT 1`);
+  const [unitP01] = await query.query(`SELECT id FROM units WHERE call_sign = 'P-01' LIMIT 1`);
+  const [unitP02] = await query.query(`SELECT id FROM units WHERE call_sign = 'P-02' LIMIT 1`);
+
+  if (campo1User && unitP01) {
+    await query.query(`UPDATE units SET assigned_user_id = $1 WHERE id = $2`, [campo1User.id, unitP01.id]);
+    console.log(`  ✓ campo1 assigned to P-01`);
+  }
+  if (campo2User && unitP02) {
+    await query.query(`UPDATE units SET assigned_user_id = $1 WHERE id = $2`, [campo2User.id, unitP02.id]);
+    console.log(`  ✓ campo2 assigned to P-02`);
+  }
+
+  // ── More field officers for fuller demo ───────────────────────────────────
+  const moreFieldUsers = [
+    { email: 'campo3@velnari.mx', name: 'Juan Patrullero', badge: 'FLD-003', unit: 'P-03' },
+    { email: 'campo4@velnari.mx', name: 'Sofia Patrullera', badge: 'FLD-004', unit: 'P-04' },
+    { email: 'campo5@velnari.mx', name: 'Carlos Patrullero', badge: 'FLD-005', unit: 'P-05' },
+  ];
+
+  for (const u of moreFieldUsers) {
+    let userId: string | null = null;
+    const existing = await query.query(`SELECT id FROM users WHERE email = $1 LIMIT 1`, [u.email]);
+    if (existing.length === 0) {
+      const [created] = await query.query(
+        `INSERT INTO users (email, password_hash, role, name, badge_number, sector_id, is_active)
+         VALUES ($1, $2, 'field_unit'::user_role, $3, $4, $5, true) RETURNING id`,
+        [u.email, hash, u.name, u.badge, sectorId],
+      );
+      userId = created.id;
+      console.log(`  ✓ user created: ${u.email}`);
+    } else {
+      userId = existing[0].id;
+    }
+    if (userId) {
+      const [unitRow] = await query.query(`SELECT id FROM units WHERE call_sign = $1 LIMIT 1`, [u.unit]);
+      if (unitRow) {
+        await query.query(`UPDATE units SET assigned_user_id = $1 WHERE id = $2`, [userId, unitRow.id]);
+        console.log(`  ✓ ${u.email} assigned to ${u.unit}`);
+      }
+    }
+  }
+
   // ── Demo incidents ──
   const demoIncidents = [
     { type: 'robbery', priority: 'high', desc: 'Asalto a mano armada en tienda de conveniencia', address: 'Av. Juárez 120, Centro Histórico', lat: 19.4352, lng: -99.1412 },
@@ -136,6 +181,29 @@ async function seed(): Promise<void> {
       }
     }
   }
+
+  // ── Additional sectors (created before incidents so we can spread across them) ──
+  const extraSectors = [
+    { name: 'Sector Norte', color: '#10B981' },
+    { name: 'Sector Sur', color: '#F59E0B' },
+    { name: 'Sector Oriente', color: '#8B5CF6' },
+  ];
+
+  for (const s of extraSectors) {
+    const existing = await query.query(`SELECT id FROM sectors WHERE name = $1 LIMIT 1`, [s.name]);
+    if (existing.length === 0) {
+      await query.query(
+        `INSERT INTO sectors (name, color, is_active) VALUES ($1, $2, true)`,
+        [s.name, s.color],
+      );
+      console.log(`  ✓ sector created: ${s.name}`);
+    }
+  }
+
+  const [sectorNorteRow] = await query.query(`SELECT id FROM sectors WHERE name = 'Sector Norte' LIMIT 1`);
+  const [sectorSurRow] = await query.query(`SELECT id FROM sectors WHERE name = 'Sector Sur' LIMIT 1`);
+  const sectorNorteId: string = sectorNorteRow?.id ?? sectorId;
+  const sectorSurId: string = sectorSurRow?.id ?? sectorId;
 
   // ── Extended demo incidents (20 more, spanning 7 days) ──────────────────
   const moreIncidents = [
@@ -201,7 +269,7 @@ async function seed(): Promise<void> {
                ST_SetSRID(ST_MakePoint($9, $10), 4326), $11, $12, $13, $14, $15, $16, $17, $17)
        RETURNING id, created_at`,
       [folio, inc.type, inc.priority, inc.status, inc.desc, inc.address, inc.lat, inc.lng,
-       inc.lng, inc.lat, sectorId, adminUser.id, assignedUnitId, assignedAt, closedAt, inc.resolution, createdAt],
+       inc.lng, inc.lat, i % 3 === 0 ? sectorId : i % 3 === 1 ? sectorNorteId : sectorSurId, adminUser.id, assignedUnitId, assignedAt, closedAt, inc.resolution, createdAt],
     );
     console.log(`  ✓ incident created: ${folio} — ${inc.type} (${inc.status})`);
 
@@ -262,24 +330,6 @@ async function seed(): Promise<void> {
 
   console.log(`  ✓ ${moreIncidents.length} extended incidents processed with timelines`);
 
-  // ── Additional sectors ──
-  const extraSectors = [
-    { name: 'Sector Norte', color: '#10B981' },
-    { name: 'Sector Sur', color: '#F59E0B' },
-    { name: 'Sector Oriente', color: '#8B5CF6' },
-  ];
-
-  for (const s of extraSectors) {
-    const existing = await query.query(`SELECT id FROM sectors WHERE name = $1 LIMIT 1`, [s.name]);
-    if (existing.length === 0) {
-      await query.query(
-        `INSERT INTO sectors (name, color, is_active) VALUES ($1, $2, true)`,
-        [s.name, s.color],
-      );
-      console.log(`  ✓ sector created: ${s.name}`);
-    }
-  }
-
   await query.release();
   await AppDataSource.destroy();
 
@@ -291,8 +341,11 @@ async function seed(): Promise<void> {
   console.log('  📧 operador@velnari.mx    / Velnari2024!  (Operador)');
   console.log('  📧 supervisor@velnari.mx  / Velnari2024!  (Supervisor)');
   console.log('  📧 comandante@velnari.mx  / Velnari2024!  (Comandante)');
-  console.log('  📧 campo1@velnari.mx      / Velnari2024!  (Unidad de Campo)');
-  console.log('  📧 campo2@velnari.mx      / Velnari2024!  (Unidad de Campo)');
+  console.log('  📧 campo1@velnari.mx      / Velnari2024!  (Unidad de Campo — P-01)');
+  console.log('  📧 campo2@velnari.mx      / Velnari2024!  (Unidad de Campo — P-02)');
+  console.log('  📧 campo3@velnari.mx      / Velnari2024!  (Unidad de Campo — P-03)');
+  console.log('  📧 campo4@velnari.mx      / Velnari2024!  (Unidad de Campo — P-04)');
+  console.log('  📧 campo5@velnari.mx      / Velnari2024!  (Unidad de Campo — P-05)');
   console.log('');
 }
 
