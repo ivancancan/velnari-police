@@ -168,6 +168,8 @@ export const incidentsApi = {
     api.post<{ id: string; folio: string }>('/incidents', data),
   addNote: (incidentId: string, text: string) =>
     api.post(`/incidents/${incidentId}/notes`, { text }),
+  close: (incidentId: string, resolution: string, notes?: string) =>
+    api.post(`/incidents/${incidentId}/close`, { resolution, ...(notes ? { notes } : {}) }),
   uploadPhoto: async (incidentId: string, uri: string) => {
     const formData = new FormData();
     const filename = uri.split('/').pop() ?? 'photo.jpg';
