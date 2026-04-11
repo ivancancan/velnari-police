@@ -1,25 +1,36 @@
+# apps/api/Dockerfile
 FROM node:20-alpine AS base
-RUN corepack enable && corepack prepare pnpm@9 --activate
+RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app
 
+# ---------- deps ----------
 FROM base AS deps
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
-COPY apps/api/package.json apps/api/
-COPY packages/shared-types/package.json packages/shared-types/
-RUN pnpm install --frozen-lockfile --filter api --filter @velnari/shared-types
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/api/package.json ./apps/api/package.json
+COPY packages/ ./packages/
+RUN pnpm install --frozen-lockfile --filter @velnari/api...
 
-FROM base AS build
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
-COPY --from=deps /app/packages/shared-types/node_modules ./packages/shared-types/node_modules
-COPY . .
-RUN pnpm --filter @velnari/shared-types build 2>/dev/null || true
-RUN cd apps/api && npx nest build
+# ---------- build ----------
+FROM deps AS builder
+COPY apps/api ./apps/api
+COPY packages ./packages
+RUN pnpm --filter @velnari/api build
 
+# ---------- runtime ----------
 FROM node:20-alpine AS runner
+RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app
-COPY --from=build /app/apps/api/dist ./dist
-COPY --from=build /app/apps/api/node_modules ./node_modules
-COPY --from=build /app/node_modules ./node_modules
+ENV NODE_ENV=production
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/api/package.json ./apps/api/package.json
+COPY packages/ ./packages/
+RUN pnpm install --frozen-lockfile --filter @velnari/api... --prod
+
+COPY --from=builder /app/apps/api/dist ./apps/api/dist
+
+# Create uploads dir for local dev fallback
+RUN mkdir -p /app/apps/api/uploads
+
 EXPOSE 3001
-CMD ["node", "dist/main.js"]
+CMD ["node", "apps/api/dist/main.js"]
