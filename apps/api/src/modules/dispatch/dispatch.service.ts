@@ -7,8 +7,10 @@ import { IncidentEventEntity } from '../../entities/incident-event.entity';
 import { IncidentEntity } from '../../entities/incident.entity';
 import { IncidentUnitAssignmentEntity } from '../../entities/incident-unit-assignment.entity';
 import { UnitEntity } from '../../entities/unit.entity';
+import { UserEntity } from '../../entities/user.entity';
 import { IncidentStatus, UnitStatus } from '@velnari/shared-types';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
+import { NotificationsService } from '../notifications/notifications.service';
 
 export interface SuggestedUnit {
   unitId: string;
@@ -33,6 +35,9 @@ export class DispatchService {
     @InjectRepository(IncidentUnitAssignmentEntity)
     private readonly assignmentRepo: Repository<IncidentUnitAssignmentEntity>,
     private readonly realtime: RealtimeGateway,
+    @InjectRepository(UserEntity)
+    private readonly userRepo: Repository<UserEntity>,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async assignUnit(
@@ -95,6 +100,7 @@ export class DispatchService {
     await this.eventRepo.save(event);
 
     this.realtime.emitIncidentAssigned(incidentId, unitId, etaMinutes);
+    void this.sendAssignmentNotification(unitId, savedIncident.folio ?? incidentId, etaMinutes);
 
     return savedIncident;
   }
@@ -162,8 +168,26 @@ export class DispatchService {
     await this.eventRepo.save(event);
 
     this.realtime.emitIncidentAssigned(incidentId, newUnitId, etaMinutes);
+    void this.sendAssignmentNotification(newUnitId, saved.folio ?? incidentId, etaMinutes);
 
     return saved;
+  }
+
+  private async sendAssignmentNotification(unitId: string, incidentFolio: string, etaMinutes: number | null): Promise<void> {
+    const unit = await this.unitRepo.findOne({ where: { id: unitId } });
+    if (!unit?.assignedUserId) return;
+    const user = await this.userRepo.findOne({ where: { id: unit.assignedUserId } });
+    if (!user?.expoPushToken) return;
+
+    const eta = etaMinutes ? ` · ETA: ~${etaMinutes} min` : '';
+    await this.notifications.sendPush(user.expoPushToken, {
+      title: 'Incidente asignado',
+      body: `Se te asignó ${incidentFolio}${eta}`,
+      sound: 'default',
+      priority: 'high',
+      channelId: 'dispatch',
+      data: { incidentFolio },
+    });
   }
 
   async suggestUnits(incidentId: string): Promise<SuggestedUnit[]> {
