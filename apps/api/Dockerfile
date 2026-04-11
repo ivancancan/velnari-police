@@ -32,6 +32,11 @@ COPY --from=builder /app/apps/api/dist ./apps/api/dist
 # Create uploads dir for local dev fallback
 RUN mkdir -p /app/apps/api/uploads
 
+# Run as non-root user
+RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
+RUN chown -R nodejs:nodejs /app/apps/api/uploads
+USER nodejs
+
 EXPOSE 3001
 
 RUN apk add --no-cache curl
