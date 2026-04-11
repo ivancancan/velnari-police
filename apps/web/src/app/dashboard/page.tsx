@@ -8,6 +8,7 @@ import { incidentsApi, unitsApi } from '@/lib/api';
 import type { IncidentStats, UnitStats, Incident, DailySummary } from '@/lib/types';
 import StatsCard from '@/components/dashboard/StatsCard';
 import MiniBarChart from '@/components/dashboard/MiniBarChart';
+import ResponseTimeHeadline from '@/components/dashboard/ResponseTimeHeadline';
 
 const PRIORITY_COLORS: Record<string, string> = {
   critical: '#EF4444',
@@ -212,6 +213,11 @@ export default function DashboardPage() {
                 })()}
               </div>
             </section>
+
+            {/* Response time headline */}
+            {dailySummary && (
+              <ResponseTimeHeadline dailySummary={dailySummary} />
+            )}
 
             {/* Incidents stats + Avg dispatch time */}
             <section className="mb-8">
