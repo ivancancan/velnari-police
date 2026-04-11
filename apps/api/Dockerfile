@@ -33,4 +33,10 @@ COPY --from=builder /app/apps/api/dist ./apps/api/dist
 RUN mkdir -p /app/apps/api/uploads
 
 EXPOSE 3001
+
+RUN apk add --no-cache curl
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD curl -f http://localhost:3001/api/health || exit 1
+
 CMD ["node", "apps/api/dist/main.js"]
