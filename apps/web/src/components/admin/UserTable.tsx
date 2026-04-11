@@ -13,9 +13,10 @@ interface UserTableProps {
   users: User[];
   onEdit: (user: User) => void;
   onDeactivate: (user: User) => void;
+  onResetPassword: (user: User) => void;
 }
 
-export default function UserTable({ users, onEdit, onDeactivate }: UserTableProps) {
+export default function UserTable({ users, onEdit, onDeactivate, onResetPassword }: UserTableProps) {
   if (users.length === 0) {
     return <p className="text-gray-400 text-sm py-8 text-center">Sin usuarios registrados.</p>;
   }
@@ -59,6 +60,13 @@ export default function UserTable({ users, onEdit, onDeactivate }: UserTableProp
               </td>
               <td className="py-3 px-5 text-right">
                 <div className="flex items-center justify-end gap-3">
+                  <button
+                    onClick={() => onResetPassword(u)}
+                    title="Cambiar contraseña"
+                    className="text-xs text-amber-600 hover:text-amber-800 font-medium transition-colors"
+                  >
+                    🔑
+                  </button>
                   <button
                     onClick={() => onEdit(u)}
                     className="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors"

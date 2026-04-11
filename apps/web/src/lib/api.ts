@@ -230,6 +230,9 @@ export const usersApi = {
       customPermissions?: string[];
     },
   ) => api.patch<User>(`/users/${id}`, dto),
+
+  resetPassword: (id: string, password: string) =>
+    api.patch(`/users/${id}/password`, { password }),
 };
 
 // ─── Attachments ─────────────────────────────────────────────────────────────

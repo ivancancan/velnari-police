@@ -14,6 +14,9 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [editUser, setEditUser] = useState<User | null>(null);
+  const [resetTarget, setResetTarget] = useState<User | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [resetError, setResetError] = useState('');
 
   function loadUsers() {
     setLoading(true);
@@ -57,6 +60,18 @@ export default function AdminUsersPage() {
     loadUsers();
   }
 
+  async function handleResetPassword() {
+    if (!resetTarget) return;
+    if (!newPassword || newPassword.length < 8) {
+      setResetError('La contraseña debe tener al menos 8 caracteres');
+      return;
+    }
+    await usersApi.resetPassword(resetTarget.id, newPassword);
+    setResetTarget(null);
+    setNewPassword('');
+    setResetError('');
+  }
+
   async function handleDeactivate(u: User) {
     if (!confirm(`¿Desactivar a ${u.name}?`)) return;
     await usersApi.update(u.id, { isActive: false });
@@ -91,6 +106,7 @@ export default function AdminUsersPage() {
             users={users}
             onEdit={u => setEditUser(u)}
             onDeactivate={handleDeactivate}
+            onResetPassword={u => { setResetTarget(u); setNewPassword(''); setResetError(''); }}
           />
         )}
       </div>
@@ -107,6 +123,41 @@ export default function AdminUsersPage() {
           onSubmit={async (data) => { await handleEdit(data); setEditUser(null); }}
           onClose={() => setEditUser(null)}
         />
+      )}
+
+      {resetTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm mx-4">
+            <h2 className="text-base font-semibold text-gray-900 mb-1">Cambiar contraseña</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Establecer nueva contraseña para <span className="font-medium text-gray-700">{resetTarget.name}</span>
+            </p>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={e => { setNewPassword(e.target.value); setResetError(''); }}
+              placeholder="Nueva contraseña (mín. 8 caracteres)"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
+            />
+            {resetError && (
+              <p className="text-xs text-red-600 mb-2">{resetError}</p>
+            )}
+            <div className="flex gap-2 justify-end mt-3">
+              <button
+                onClick={() => { setResetTarget(null); setNewPassword(''); setResetError(''); }}
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleResetPassword}
+                className="px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+              >
+                Guardar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
