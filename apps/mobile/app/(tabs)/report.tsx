@@ -35,7 +35,11 @@ export default function ReportScreen() {
   const [loadingGps, setLoadingGps] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
-  const [photos, setPhotos] = useState<string[]>([]);
+  interface PhotoItem {
+    uri: string;
+    status: 'pending' | 'uploading' | 'done' | 'queued';
+  }
+  const [photos, setPhotos] = useState<PhotoItem[]>([]);
 
   async function getLocation() {
     setLoadingGps(true);
@@ -70,7 +74,7 @@ export default function ReportScreen() {
             }
             const result = await ImagePicker.launchCameraAsync({ quality: 0.7, allowsEditing: false });
             if (!result.canceled && result.assets[0]) {
-              setPhotos((prev) => [...prev, result.assets[0]!.uri]);
+              setPhotos((prev) => [...prev, { uri: result.assets[0]!.uri, status: 'pending' }]);
             }
           },
         },
@@ -88,7 +92,7 @@ export default function ReportScreen() {
               selectionLimit: 5,
             });
             if (!result.canceled) {
-              setPhotos((prev) => [...prev, ...result.assets.map((a) => a.uri)]);
+              setPhotos((prev) => [...prev, ...result.assets.map((a) => ({ uri: a.uri, status: 'pending' as const }))]);
             }
           },
         },
@@ -98,7 +102,7 @@ export default function ReportScreen() {
   }
 
   function removePhoto(uri: string) {
-    setPhotos((prev) => prev.filter((p) => p !== uri));
+    setPhotos((prev) => prev.filter((p) => p.uri !== uri));
   }
 
   async function handleSubmit() {
@@ -121,13 +125,21 @@ export default function ReportScreen() {
       Vibration.vibrate(200);
 
       // Upload photos — queue offline, upload online
-      let photosQueued = 0;
-      for (const uri of photos) {
+      for (let i = 0; i < photos.length; i++) {
+        const photo = photos[i]!;
+        setPhotos((prev) => prev.map((p, idx) =>
+          idx === i ? { ...p, status: 'uploading' } : p
+        ));
         try {
-          await incidentsApi.uploadPhoto(incidentId, uri);
+          await incidentsApi.uploadPhoto(incidentId, photo.uri);
+          setPhotos((prev) => prev.map((p, idx) =>
+            idx === i ? { ...p, status: 'done' } : p
+          ));
         } catch {
-          await enqueuePhoto(incidentId, uri);
-          photosQueued++;
+          await enqueuePhoto(incidentId, photo.uri);
+          setPhotos((prev) => prev.map((p, idx) =>
+            idx === i ? { ...p, status: 'queued' } : p
+          ));
         }
       }
 
@@ -138,13 +150,6 @@ export default function ReportScreen() {
       setDescription('');
       setCoords(null);
       setPhotos([]);
-
-      if (photosQueued > 0) {
-        Alert.alert(
-          'Incidente creado',
-          `${photosQueued} foto(s) se subirán cuando haya conexión.`,
-        );
-      }
 
       setTimeout(() => setSuccess(null), 4000);
     } catch {
@@ -270,16 +275,28 @@ export default function ReportScreen() {
 
       {photos.length > 0 && (
         <View style={styles.photoGrid}>
-          {photos.map((uri) => (
-            <View key={uri} style={styles.photoThumb}>
-              <Image source={{ uri }} style={styles.thumbImage} />
-              <TouchableOpacity
-                style={styles.thumbRemove}
-                onPress={() => removePhoto(uri)}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Text style={styles.thumbRemoveText}>✕</Text>
-              </TouchableOpacity>
+          {photos.map((photo) => (
+            <View key={photo.uri} style={styles.photoThumb}>
+              <Image source={{ uri: photo.uri }} style={styles.photoImage} />
+              <View style={styles.photoStatusOverlay}>
+                {photo.status === 'uploading' && (
+                  <ActivityIndicator size="small" color="#F8FAFC" />
+                )}
+                {photo.status === 'done' && (
+                  <Text style={styles.photoStatusDone}>✓</Text>
+                )}
+                {photo.status === 'queued' && (
+                  <Text style={styles.photoStatusQueued}>⏳</Text>
+                )}
+              </View>
+              {photo.status === 'pending' && !submitting && (
+                <TouchableOpacity
+                  style={styles.photoRemove}
+                  onPress={() => removePhoto(photo.uri)}
+                >
+                  <Text style={styles.photoRemoveText}>✕</Text>
+                </TouchableOpacity>
+              )}
             </View>
           ))}
         </View>
@@ -340,10 +357,13 @@ const styles = StyleSheet.create({
   photoButtonIcon: { fontSize: 22 },
   photoButtonText: { color: '#94A3B8', fontSize: 15, fontWeight: '600' },
   photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 },
-  photoThumb: { width: 88, height: 88, borderRadius: 10, overflow: 'hidden', position: 'relative' },
-  thumbImage: { width: '100%', height: '100%' },
-  thumbRemove: { position: 'absolute', top: 4, right: 4, backgroundColor: '#0F172A', borderRadius: 12, width: 22, height: 22, alignItems: 'center', justifyContent: 'center' },
-  thumbRemoveText: { color: '#EF4444', fontSize: 11, fontWeight: '700' },
+  photoThumb: { width: 80, height: 80, borderRadius: 10, overflow: 'hidden', position: 'relative', backgroundColor: '#1E293B' },
+  photoImage: { width: 80, height: 80 },
+  photoStatusOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.35)' },
+  photoStatusDone: { color: '#22C55E', fontSize: 24, fontWeight: '800' },
+  photoStatusQueued: { fontSize: 20 },
+  photoRemove: { position: 'absolute', top: 4, right: 4, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 10, width: 20, height: 20, alignItems: 'center', justifyContent: 'center' },
+  photoRemoveText: { color: '#F8FAFC', fontSize: 12, fontWeight: '700' },
 
   submitButton: { backgroundColor: '#3B82F6', borderRadius: 14, paddingVertical: 18, alignItems: 'center', marginTop: 28, minHeight: 60, justifyContent: 'center', shadowColor: '#3B82F6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6 },
   submitDisabled: { opacity: 0.4, shadowOpacity: 0 },
