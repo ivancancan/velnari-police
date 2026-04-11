@@ -22,7 +22,7 @@ export default function UnitsActiveDrilldown({ stats }: { stats: UnitStats }) {
               className="w-8 h-8 rounded-lg border flex items-center justify-center text-xs font-bold font-mono"
               style={{ backgroundColor: `${color}33`, borderColor: color, color }}
             >
-              {(stats as Record<string, number>)[key] ?? 0}
+              {(stats as unknown as Record<string, number>)[key] ?? 0}
             </div>
           ))}
         </div>
@@ -31,7 +31,7 @@ export default function UnitsActiveDrilldown({ stats }: { stats: UnitStats }) {
             <div key={key} className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
               <span className="text-[11px] text-slate-300 flex-1">{label}</span>
-              <span className="text-[11px] font-mono text-signal-white">{(stats as Record<string, number>)[key] ?? 0}</span>
+              <span className="text-[11px] font-mono text-signal-white">{(stats as unknown as Record<string, number>)[key] ?? 0}</span>
             </div>
           ))}
         </div>
