@@ -27,8 +27,10 @@ export default function LoginScreen() {
       await setItemAsync('accessToken', res.data.accessToken);
       const meRes = await authApi.me();
       await setAuth(res.data.accessToken, res.data.refreshToken, meRes.data);
-      // Register for push notifications (non-blocking)
-      registerForPushNotifications().catch(() => {});
+      // Register push token and send to backend (non-blocking)
+      registerForPushNotifications()
+        .then((token) => { if (token) return authApi.updatePushToken(token); })
+        .catch(() => {});
       router.replace('/(tabs)/home');
     } catch {
       setError('Credenciales incorrectas');

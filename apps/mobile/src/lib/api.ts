@@ -120,6 +120,8 @@ export const authApi = {
       '/auth/refresh',
       { refreshToken },
     ),
+  updatePushToken: (token: string) =>
+    api.patch('/auth/push-token', { token }),
 };
 
 export const unitsApi = {
