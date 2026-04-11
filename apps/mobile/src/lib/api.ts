@@ -170,6 +170,38 @@ export const incidentsApi = {
     api.post(`/incidents/${incidentId}/notes`, { text }),
   close: (incidentId: string, resolution: string, notes?: string) =>
     api.post(`/incidents/${incidentId}/close`, { resolution, ...(notes ? { notes } : {}) }),
+  presignAttachment: (incidentId: string, filename: string, mimeType: string) =>
+    api.post<{ presignedUrl: string | null; s3Key?: string }>(
+      `/incidents/${incidentId}/attachments/presign`,
+      { filename, mimeType },
+    ),
+  confirmAttachment: (incidentId: string, s3Key: string, mimeType: string, size: number) =>
+    api.post<{ id: string; url: string }>(
+      `/incidents/${incidentId}/attachments/confirm`,
+      { s3Key, mimeType, size },
+    ),
+  uploadPhotoPresigned: async (incidentId: string, uri: string): Promise<void> => {
+    const filename = uri.split('/').pop() ?? 'photo.jpg';
+    const mimeType = 'image/jpeg';
+
+    const presignRes = await incidentsApi.presignAttachment(incidentId, filename, mimeType);
+    const { presignedUrl, s3Key } = presignRes.data;
+
+    if (!presignedUrl || !s3Key) {
+      await incidentsApi.uploadPhoto(incidentId, uri);
+      return;
+    }
+
+    const fileContent = await fetch(uri).then((r) => r.blob());
+    const putRes = await fetch(presignedUrl, {
+      method: 'PUT',
+      body: fileContent,
+      headers: { 'Content-Type': mimeType },
+    });
+    if (!putRes.ok) throw new Error(`S3 PUT failed: ${putRes.status}`);
+
+    await incidentsApi.confirmAttachment(incidentId, s3Key, mimeType, fileContent.size);
+  },
   uploadPhoto: async (incidentId: string, uri: string) => {
     const formData = new FormData();
     const filename = uri.split('/').pop() ?? 'photo.jpg';
