@@ -1,0 +1,44 @@
+<h2>3 enfoques para construir Velnari Insights</h2>
+<p class="subtitle">Elige el que mejor se ajuste al tiempo y alcance que buscas</p>
+
+<div class="options">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Mejorar /admin/analytics existente</h3>
+      <p>La página ya existe con filtros y datos. Agregarle KPI cards arriba, presets de fecha (Hoy / Semana / Mes / Custom) y reemplazar las barras CSS con <strong>Recharts</strong> real. Misma URL, misma estructura.</p>
+      <div class="pros-cons" style="margin-top:8px;">
+        <div class="pros"><h4>Pros</h4><ul><li>Rápido (~1 día)</li><li>No duplica código</li><li>Ya tiene export CSV/PDF</li></ul></div>
+        <div class="cons"><h4>Contras</h4><ul><li>Página ya está llena</li><li>Sin drill-down ni role-gating</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>✦ Nueva ruta /insights (recomendado)</h3>
+      <p>Sección nueva dedicada. <strong>KPI cards</strong> en grid arriba — al hacer clic cada card se expande con gráficas Recharts completas. Selector de período con presets arriba. Roles: admin/commander ven todo, supervisor solo el día de hoy.</p>
+      <div class="pros-cons" style="margin-top:8px;">
+        <div class="pros"><h4>Pros</h4><ul><li>UX limpia desde cero</li><li>Drill-down por card</li><li>Role-gating correcto</li><li>Fácil de crecer</li></ul></div>
+        <div class="cons"><h4>Contras</h4><ul><li>2–3 días de trabajo</li><li>La API ya tiene todos los endpoints</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Plataforma analytics completa</h3>
+      <p>Todo lo anterior + actualizaciones en tiempo real por WebSocket, comparación período vs período (esta semana vs la pasada), detección de anomalías visible, reportes PDF automáticos por turno y exportación formato SESNSP para gobierno.</p>
+      <div class="pros-cons" style="margin-top:8px;">
+        <div class="pros"><h4>Pros</h4><ul><li>Nivel enterprise</li><li>Diferenciador fuerte</li><li>Reportes automáticos</li></ul></div>
+        <div class="cons"><h4>Contras</h4><ul><li>5+ días</li><li>Demasiado para el piloto</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:16px;">Mi recomendación es <strong>B</strong> — la API ya tiene todos los datos, solo falta la UI correcta.</p>

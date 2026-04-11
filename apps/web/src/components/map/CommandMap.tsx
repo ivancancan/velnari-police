@@ -13,6 +13,7 @@ import UnitTrail from './UnitTrail';
 import SectorLayer from './SectorLayer';
 import HeatmapLayer from './HeatmapLayer';
 import CoverageLayer from './CoverageLayer';
+import FleetBatteryPanel from './FleetBatteryPanel';
 import type { LocationHistoryPoint, SectorWithBoundary, HeatmapPoint } from '@/lib/types';
 
 const MAP_STYLES: Record<string, { label: string; url: string }> = {
@@ -31,11 +32,21 @@ const MAP_STYLES: Record<string, { label: string; url: string }> = {
 };
 const DEFAULT_VIEW = { latitude: 19.4326, longitude: -99.1332, zoom: 12 };
 
-const PRIORITY_COLORS: Record<string, string> = {
-  critical: '#EF4444',
-  high: '#F97316',
-  medium: '#F59E0B',
-  low: '#22C55E',
+const PRIORITY_CONFIG: Record<string, { color: string; glow: string; emoji: string; ring: string }> = {
+  critical: { color: '#EF4444', glow: '#EF444460', emoji: '🚨', ring: '#EF444480' },
+  high:     { color: '#F97316', glow: '#F9731640', emoji: '⚠️',  ring: '#F9731660' },
+  medium:   { color: '#F59E0B', glow: '#F59E0B40', emoji: '📋', ring: '#F59E0B50' },
+  low:      { color: '#22C55E', glow: '#22C55E30', emoji: '📝', ring: '#22C55E40' },
+};
+
+const TYPE_EMOJI: Record<string, string> = {
+  robbery:        '💰',
+  assault:        '🥊',
+  traffic:        '🚗',
+  noise:          '🔊',
+  domestic:       '🏠',
+  missing_person: '👤',
+  other:          '❓',
 };
 
 export interface CommandMapProps {
@@ -223,32 +234,76 @@ export default function CommandMap({
 
         {/* Incident markers — when one is selected, dim others */}
         {activeIncidents.map((incident) => {
-          const color = PRIORITY_COLORS[incident.priority] ?? '#F59E0B';
+          const cfg = PRIORITY_CONFIG[incident.priority] ?? PRIORITY_CONFIG['medium']!;
+          const typeEmoji = TYPE_EMOJI[incident.type] ?? '❗';
           const isSelected = incident.id === selectedId;
           const dimmed = selectedId != null && !isSelected;
-          if (dimmed) return null; // hide non-selected incidents when one is focused
+          if (dimmed) return null;
           return (
             <Marker
               key={incident.id}
               latitude={incident.lat}
               longitude={incident.lng}
+              anchor="bottom"
             >
               <button
                 onClick={() => selectIncident(incident.id)}
                 aria-label={`Incidente ${incident.folio}`}
-                title={`${incident.folio} — ${incident.priority}`}
-                className="flex items-center justify-center w-7 h-7 rounded-full border-2 border-white shadow-lg hover:scale-110 transition-transform"
-                style={{
-                  backgroundColor: color,
-                  boxShadow: isSelected ? `0 0 0 3px ${color}60` : undefined,
-                }}
+                title={`${incident.folio} — ${incident.priority} · ${incident.type}`}
+                className="group relative flex flex-col items-center hover:scale-110 transition-transform duration-200 cursor-pointer select-none"
               >
-                <span className="text-white text-[10px] font-bold">!</span>
+                {/* Critical pulse ring */}
+                {incident.priority === 'critical' && (
+                  <span
+                    className="absolute inset-0 rounded-xl animate-pulse-ring pointer-events-none"
+                    style={{ border: `2px solid ${cfg.color}`, borderRadius: '10px' }}
+                  />
+                )}
+
+                {/* Badge */}
+                <span
+                  className="flex items-center gap-1 px-2 py-1 rounded-xl border border-white/20 shadow-lg"
+                  style={{
+                    background: `linear-gradient(135deg, ${cfg.color}ee, ${cfg.color}aa)`,
+                    boxShadow: isSelected
+                      ? `0 0 0 3px ${cfg.ring}, 0 4px 14px ${cfg.glow}`
+                      : `0 2px 10px ${cfg.glow}`,
+                  }}
+                >
+                  <span className="text-sm leading-none" role="img" aria-hidden>
+                    {typeEmoji}
+                  </span>
+                  <span className="text-white text-[10px] font-bold font-mono leading-none">
+                    {incident.folio?.split('-').pop()}
+                  </span>
+                  <span className="text-[11px] leading-none" role="img" aria-hidden>
+                    {cfg.emoji}
+                  </span>
+                </span>
+
+                {/* Pointer pin */}
+                <span
+                  className="w-0 h-0"
+                  style={{
+                    borderLeft: '4px solid transparent',
+                    borderRight: '4px solid transparent',
+                    borderTop: `6px solid ${cfg.color}`,
+                    marginTop: '-1px',
+                  }}
+                />
+
+                {/* Tooltip */}
+                <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 whitespace-nowrap text-signal-white text-xs px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none border border-white/10 bg-slate-900/80 backdrop-blur-lg shadow-xl z-50">
+                  {typeEmoji} {incident.folio} · {incident.priority}
+                </span>
               </button>
             </Marker>
           );
         })}
       </Map>
+
+      {/* Fleet battery panel */}
+      <FleetBatteryPanel units={units} positions={positions} />
 
       {/* Map style selector */}
       <div className="absolute bottom-4 left-4 z-10 flex gap-1 bg-slate-900/90 rounded-lg p-1 backdrop-blur">

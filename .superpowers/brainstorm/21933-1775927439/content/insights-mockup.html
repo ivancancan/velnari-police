@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Velnari Insights — Mockup</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f172a; color: #f8fafc; font-family: 'Inter', system-ui, sans-serif; font-size: 13px; }
+
+  .shell { display: flex; height: 100vh; overflow: hidden; }
+
+  /* Sidebar */
+  .sidebar { width: 200px; background: #0f172a; border-right: 1px solid #1e293b; padding: 16px 0; flex-shrink: 0; }
+  .sidebar-logo { padding: 0 16px 16px; border-bottom: 1px solid #1e293b; margin-bottom: 8px; }
+  .sidebar-logo .brand { font-size: 15px; font-weight: 700; color: #f8fafc; letter-spacing: -0.3px; }
+  .sidebar-logo .sub { font-size: 10px; color: #64748b; }
+  .nav-item { display: flex; align-items: center; gap: 8px; padding: 8px 16px; color: #64748b; cursor: pointer; border-radius: 0; transition: all 0.15s; font-size: 12px; }
+  .nav-item:hover { color: #f8fafc; background: #1e293b; }
+  .nav-item.active { color: #f8fafc; background: #1e293b; border-right: 2px solid #3b82f6; }
+
+  /* Main */
+  .main { flex: 1; overflow-y: auto; background: #0f172a; }
+
+  /* Header */
+  .insights-header { padding: 20px 24px 0; border-bottom: 1px solid #1e293b; }
+  .insights-title { font-size: 18px; font-weight: 700; color: #f8fafc; margin-bottom: 4px; }
+  .insights-sub { font-size: 12px; color: #64748b; margin-bottom: 16px; }
+
+  /* Date range bar */
+  .date-bar { display: flex; align-items: center; gap: 8px; padding-bottom: 16px; }
+  .preset { padding: 5px 12px; border-radius: 6px; background: #1e293b; color: #94a3b8; font-size: 11px; cursor: pointer; border: 1px solid transparent; transition: all 0.15s; }
+  .preset:hover { color: #f8fafc; border-color: #334155; }
+  .preset.active { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+  .date-sep { color: #334155; font-size: 11px; }
+  .custom-range { display: flex; align-items: center; gap: 6px; padding: 5px 10px; background: #1e293b; border-radius: 6px; border: 1px solid #334155; color: #94a3b8; font-size: 11px; }
+  .custom-range input { background: transparent; border: none; outline: none; color: #f8fafc; font-size: 11px; width: 88px; }
+  .role-badge { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+  .badge { padding: 3px 8px; border-radius: 20px; font-size: 10px; font-weight: 600; }
+  .badge-admin { background: #7c3aed20; color: #a78bfa; border: 1px solid #7c3aed40; }
+  .badge-supervisor { background: #0284c720; color: #38bdf8; border: 1px solid #0284c740; }
+
+  /* KPI Grid */
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 20px 24px; }
+
+  .kpi-card { background: #1e293b; border-radius: 12px; padding: 16px; cursor: pointer; border: 1px solid #1e293b; transition: all 0.2s; position: relative; overflow: hidden; }
+  .kpi-card:hover { border-color: #334155; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+  .kpi-card.expanded { border-color: #3b82f6; background: #1e3a5f; grid-column: span 4; }
+
+  .kpi-label { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .kpi-value { font-size: 28px; font-weight: 700; font-family: 'JetBrains Mono', monospace; line-height: 1; }
+  .kpi-sub { font-size: 10px; color: #64748b; margin-top: 6px; }
+  .kpi-trend { font-size: 10px; margin-top: 4px; }
+  .trend-up { color: #ef4444; }
+  .trend-down { color: #22c55e; }
+  .trend-neutral { color: #64748b; }
+
+  /* Mini sparkline */
+  .sparkline { margin-top: 10px; height: 28px; display: flex; align-items: flex-end; gap: 2px; }
+  .spark-bar { border-radius: 2px 2px 0 0; flex: 1; min-width: 4px; }
+
+  /* Expanded card */
+  .expanded-content { padding-top: 20px; border-top: 1px solid #2d4a6e; margin-top: 16px; }
+  .chart-row { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 24px; align-items: start; }
+  .chart-block { }
+  .chart-title { font-size: 11px; color: #94a3b8; margin-bottom: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  /* Bar chart */
+  .bar-chart { display: flex; align-items: flex-end; gap: 4px; height: 120px; }
+  .bar-group { display: flex; flex-direction: column; align-items: center; flex: 1; gap: 3px; }
+  .bar { border-radius: 3px 3px 0 0; width: 100%; }
+  .bar-label { font-size: 8px; color: #64748b; }
+
+  /* Donut */
+  .donut-wrap { display: flex; align-items: center; gap: 12px; }
+  .donut { position: relative; width: 70px; height: 70px; }
+  .donut svg { transform: rotate(-90deg); }
+  .donut-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .donut-center .pct { font-size: 14px; font-weight: 700; color: #22c55e; }
+  .donut-center .lbl { font-size: 8px; color: #64748b; }
+  .legend { display: flex; flex-direction: column; gap: 4px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 10px; color: #94a3b8; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* Line chart */
+  .line-chart svg { width: 100%; height: 140px; }
+
+  /* Units table */
+  .units-mini { display: flex; flex-direction: column; gap: 6px; }
+  .unit-row { display: flex; align-items: center; gap: 8px; }
+  .unit-cs { font-family: monospace; font-size: 11px; font-weight: 600; color: #f8fafc; width: 32px; }
+  .unit-bar-wrap { flex: 1; height: 6px; background: #0f172a; border-radius: 3px; overflow: hidden; }
+  .unit-bar { height: 100%; border-radius: 3px; }
+  .unit-val { font-size: 10px; color: #64748b; width: 28px; text-align: right; }
+
+  /* Export button */
+  .export-row { padding: 0 24px 20px; display: flex; gap: 8px; }
+  .btn { padding: 7px 14px; border-radius: 8px; font-size: 11px; font-weight: 600; cursor: pointer; border: none; transition: all 0.15s; }
+  .btn-ghost { background: #1e293b; color: #94a3b8; border: 1px solid #334155; }
+  .btn-ghost:hover { color: #f8fafc; }
+  .btn-primary { background: #3b82f6; color: #fff; }
+  .btn-primary:hover { background: #2563eb; }
+
+  .expand-hint { position: absolute; top: 10px; right: 10px; font-size: 9px; color: #334155; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <div class="brand">Velnari</div>
+      <div class="sub">Centro de Mando</div>
+    </div>
+    <div class="nav-item">🗺 Comando</div>
+    <div class="nav-item">🚨 Despacho</div>
+    <div class="nav-item">🚔 Unidades</div>
+    <div class="nav-item active">📊 Insights</div>
+    <div class="nav-item">⚙️ Admin</div>
+  </nav>
+
+  <!-- Main -->
+  <div class="main">
+    <!-- Header -->
+    <div class="insights-header">
+      <div class="insights-title">📊 Velnari Insights</div>
+      <div class="insights-sub">Analítica operativa — acumulado por período</div>
+
+      <div class="date-bar">
+        <button class="preset">Hoy</button>
+        <button class="preset active">Esta semana</button>
+        <button class="preset">Este mes</button>
+        <button class="preset">Último trimestre</button>
+        <span class="date-sep">|</span>
+        <div class="custom-range">
+          📅 <input type="text" value="01 Abr 2025" readonly> → <input type="text" value="11 Abr 2025" readonly>
+        </div>
+        <div class="role-badge">
+          <span class="badge badge-admin">Commander</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- KPI Grid -->
+    <div class="kpi-grid">
+
+      <!-- 1. Incidentes -->
+      <div class="kpi-card">
+        <div class="kpi-label">📋 Total incidentes</div>
+        <div class="kpi-value" style="color:#3b82f6">247</div>
+        <div class="kpi-sub">Abiertos: 12 · Cerrados: 235</div>
+        <div class="kpi-trend trend-up">▲ 8% vs semana anterior</div>
+        <div class="sparkline">
+          <div class="spark-bar" style="height:40%;background:#3b82f630;"></div>
+          <div class="spark-bar" style="height:55%;background:#3b82f630;"></div>
+          <div class="spark-bar" style="height:70%;background:#3b82f630;"></div>
+          <div class="spark-bar" style="height:45%;background:#3b82f630;"></div>
+          <div class="spark-bar" style="height:90%;background:#3b82f6;"></div>
+          <div class="spark-bar" style="height:65%;background:#3b82f630;"></div>
+          <div class="spark-bar" style="height:80%;background:#3b82f630;"></div>
+        </div>
+        <div class="expand-hint">clic para expandir ↗</div>
+      </div>
+
+      <!-- 2. Tiempo despacho — EXPANDIDO -->
+      <div class="kpi-card expanded">
+        <div class="kpi-label">⏱ Tiempo de despacho promedio</div>
+        <div style="display:flex;align-items:baseline;gap:12px;">
+          <div class="kpi-value" style="color:#22c55e">3.8 min</div>
+          <div class="kpi-trend trend-down">▼ 34% vs baseline (5.8 min)</div>
+        </div>
+        <div class="kpi-sub">Meta piloto: &lt;2 min · Mejor día: 2.1 min (Lun)</div>
+
+        <div class="expanded-content">
+          <div class="chart-row">
+
+            <!-- Tendencia por día -->
+            <div class="chart-block">
+              <div class="chart-title">Tiempo despacho por día (min)</div>
+              <div class="line-chart">
+                <svg viewBox="0 0 300 80" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="lg" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#22c55e" stop-opacity="0.3"/>
+                      <stop offset="100%" stop-color="#22c55e" stop-opacity="0"/>
+                    </linearGradient>
+                  </defs>
+                  <!-- baseline reference -->
+                  <line x1="0" y1="16" x2="300" y2="16" stroke="#ef444420" stroke-width="1" stroke-dasharray="4,4"/>
+                  <text x="2" y="14" fill="#ef4444" font-size="7" opacity="0.6">baseline 5.8m</text>
+                  <!-- area -->
+                  <path d="M0,58 L42,52 L84,40 L126,34 L168,28 L210,24 L252,18 L300,22 L300,80 L0,80 Z" fill="url(#lg)"/>
+                  <!-- line -->
+                  <polyline points="0,58 42,52 84,40 126,34 168,28 210,24 252,18 300,22" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <!-- dots -->
+                  <circle cx="0" cy="58" r="3" fill="#22c55e"/>
+                  <circle cx="42" cy="52" r="3" fill="#22c55e"/>
+                  <circle cx="84" cy="40" r="3" fill="#22c55e"/>
+                  <circle cx="126" cy="34" r="3" fill="#22c55e"/>
+                  <circle cx="168" cy="28" r="3" fill="#22c55e"/>
+                  <circle cx="210" cy="24" r="3" fill="#22c55e"/>
+                  <circle cx="252" cy="18" r="3" fill="#22c55e"/>
+                  <circle cx="300" cy="22" r="3" fill="#f59e0b"/>
+                  <!-- x labels -->
+                  <text x="0"   y="78" fill="#64748b" font-size="7">Lun</text>
+                  <text x="38"  y="78" fill="#64748b" font-size="7">Mar</text>
+                  <text x="80"  y="78" fill="#64748b" font-size="7">Mié</text>
+                  <text x="122" y="78" fill="#64748b" font-size="7">Jue</text>
+                  <text x="164" y="78" fill="#64748b" font-size="7">Vie</text>
+                  <text x="206" y="78" fill="#64748b" font-size="7">Sáb</text>
+                  <text x="247" y="78" fill="#64748b" font-size="7">Dom</text>
+                  <text x="292" y="78" fill="#64748b" font-size="7">Hoy</text>
+                </svg>
+              </div>
+            </div>
+
+            <!-- Por prioridad -->
+            <div class="chart-block">
+              <div class="chart-title">Despacho por prioridad</div>
+              <div class="units-mini" style="gap:8px;">
+                <div class="unit-row">
+                  <div style="font-size:10px;color:#ef4444;width:44px;">🚨 Crítico</div>
+                  <div class="unit-bar-wrap"><div class="unit-bar" style="width:35%;background:#ef4444;"></div></div>
+                  <div class="unit-val">2.1m</div>
+                </div>
+                <div class="unit-row">
+                  <div style="font-size:10px;color:#f97316;width:44px;">🔴 Alto</div>
+                  <div class="unit-bar-wrap"><div class="unit-bar" style="width:52%;background:#f97316;"></div></div>
+                  <div class="unit-val">3.2m</div>
+                </div>
+                <div class="unit-row">
+                  <div style="font-size:10px;color:#f59e0b;width:44px;">🟡 Medio</div>
+                  <div class="unit-bar-wrap"><div class="unit-bar" style="width:70%;background:#f59e0b;"></div></div>
+                  <div class="unit-val">4.3m</div>
+                </div>
+                <div class="unit-row">
+                  <div style="font-size:10px;color:#22c55e;width:44px;">🟢 Bajo</div>
+                  <div class="unit-bar-wrap"><div class="unit-bar" style="width:90%;background:#22c55e;"></div></div>
+                  <div class="unit-val">5.5m</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Por unidad -->
+            <div class="chart-block">
+              <div class="chart-title">Mejor despacho por unidad</div>
+              <div class="units-mini">
+                <div class="unit-row">
+                  <div class="unit-cs">P-03</div>
+                  <div class="unit-bar-wrap"><div class="unit-bar" style="width:28%;background:#22c55e;"></div></div>
+                  <div class="unit-val">1.7m</div>
+                </div>
+                <div class="unit-row">
+                  <div class="unit-cs">P-01</div>
+                  <div class="unit-bar-wrap"><div class="unit-bar" style="width:40%;background:#22c55e;"></div></div>
+                  <div class="unit-val">2.4m</div>
+                </div>
+                <div class="unit-row">
+                  <div class="unit-cs">P-05</div>
+                  <div class="unit-bar-wrap"><div class="unit-bar" style="width:55%;background:#3b82f6;"></div></div>
+                  <div class="unit-val">3.3m</div>
+                </div>
+                <div class="unit-row">
+                  <div class="unit-cs">P-02</div>
+                  <div class="unit-bar-wrap"><div class="unit-bar" style="width:65%;background:#3b82f6;"></div></div>
+                  <div class="unit-val">3.9m</div>
+                </div>
+                <div class="unit-row">
+                  <div class="unit-cs">P-04</div>
+                  <div class="unit-bar-wrap"><div class="unit-bar" style="width:80%;background:#f59e0b;"></div></div>
+                  <div class="unit-val">4.8m</div>
+                </div>
+                <div class="unit-row">
+                  <div class="unit-cs">P-06</div>
+                  <div class="unit-bar-wrap"><div class="unit-bar" style="width:95%;background:#ef4444;"></div></div>
+                  <div class="unit-val">5.7m</div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Tiempo arribo -->
+      <div class="kpi-card">
+        <div class="kpi-label">🚔 Tiempo de arribo</div>
+        <div class="kpi-value" style="color:#3b82f6">7.2 min</div>
+        <div class="kpi-sub">Desde asignación hasta escena</div>
+        <div class="kpi-trend trend-down">▼ 18% vs semana anterior</div>
+        <div class="expand-hint">clic para expandir ↗</div>
+      </div>
+
+      <!-- 4. SLA -->
+      <div class="kpi-card">
+        <div class="kpi-label">✅ Cumplimiento SLA</div>
+        <div class="kpi-value" style="color:#a78bfa">91%</div>
+        <div class="kpi-sub">Meta: 85% · Crítico: 98%</div>
+        <div class="kpi-trend trend-down">▼ +6pp vs semana anterior</div>
+        <div class="sparkline">
+          <div class="spark-bar" style="height:75%;background:#a78bfa30;"></div>
+          <div class="spark-bar" style="height:82%;background:#a78bfa30;"></div>
+          <div class="spark-bar" style="height:88%;background:#a78bfa30;"></div>
+          <div class="spark-bar" style="height:85%;background:#a78bfa30;"></div>
+          <div class="spark-bar" style="height:92%;background:#a78bfa;"></div>
+          <div class="spark-bar" style="height:89%;background:#a78bfa30;"></div>
+          <div class="spark-bar" style="height:91%;background:#a78bfa30;"></div>
+        </div>
+        <div class="expand-hint">clic para expandir ↗</div>
+      </div>
+
+      <!-- 5. Unidades activas -->
+      <div class="kpi-card">
+        <div class="kpi-label">🟢 Unidades activas</div>
+        <div class="kpi-value" style="color:#22c55e">5/6</div>
+        <div class="kpi-sub">83% de adopción digital</div>
+        <div class="kpi-trend trend-neutral">→ Sin cambio</div>
+        <div class="expand-hint">clic para expandir ↗</div>
+      </div>
+
+      <!-- 6. Críticos -->
+      <div class="kpi-card">
+        <div class="kpi-label">🚨 Incidentes críticos</div>
+        <div class="kpi-value" style="color:#ef4444">14</div>
+        <div class="kpi-sub">Tiempo atención prom: 2.1 min</div>
+        <div class="kpi-trend trend-up">▲ 2 vs semana anterior</div>
+        <div class="expand-hint">clic para expandir ↗</div>
+      </div>
+
+      <!-- 7. Tasa cierre -->
+      <div class="kpi-card">
+        <div class="kpi-label">📊 Tasa de cierre</div>
+        <div class="kpi-value" style="color:#f59e0b">95%</div>
+        <div class="kpi-sub">235 cerrados / 247 total</div>
+        <div class="kpi-trend trend-down">▼ +3pp mejor</div>
+        <div class="expand-hint">clic para expandir ↗</div>
+      </div>
+
+      <!-- 8. Mejor unidad -->
+      <div class="kpi-card">
+        <div class="kpi-label">🏆 Mejor unidad</div>
+        <div class="kpi-value" style="color:#f59e0b;font-size:20px;margin-top:4px;">P-03</div>
+        <div class="kpi-sub">42 inc · 1.7m despacho · 100% SLA</div>
+        <div class="kpi-trend trend-neutral">Tlatelolco · Turno matutino</div>
+        <div class="expand-hint">clic para expandir ↗</div>
+      </div>
+
+      <!-- 9. Zona activa -->
+      <div class="kpi-card">
+        <div class="kpi-label">🗺 Zona más activa</div>
+        <div class="kpi-value" style="color:#f59e0b;font-size:18px;margin-top:4px;">Centro</div>
+        <div class="kpi-sub">67 incidentes esta semana</div>
+        <div class="kpi-trend trend-up">▲ 27% del total</div>
+        <div class="expand-hint">clic para expandir ↗</div>
+      </div>
+
+      <!-- 10. Cobertura patrullaje -->
+      <div class="kpi-card">
+        <div class="kpi-label">📍 Cobertura patrullaje</div>
+        <div class="kpi-value" style="color:#22c55e">78%</div>
+        <div class="kpi-sub">del sector cubierto en el período</div>
+        <div class="kpi-trend trend-down">▼ +12pp vs semana anterior</div>
+        <div class="expand-hint">clic para expandir ↗</div>
+      </div>
+
+    </div><!-- /kpi-grid -->
+
+    <!-- Export row -->
+    <div class="export-row">
+      <button class="btn btn-ghost">⬇ Exportar CSV</button>
+      <button class="btn btn-ghost">📄 Exportar PDF</button>
+      <button class="btn btn-primary">📤 Reporte SESNSP</button>
+    </div>
+
+  </div><!-- /main -->
+</div>
+<script>
+// inject the helper
+</script>
+</body>
+</html>

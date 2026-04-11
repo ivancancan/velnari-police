@@ -1,0 +1,88 @@
+<h2>¿Cuáles KPIs quieres en las tarjetas principales?</h2>
+<p class="subtitle">Selecciona todos los que deben aparecer en la pantalla de inicio de Insights (multi-select)</p>
+
+<div class="options" data-multiselect>
+
+  <div class="option" data-choice="dispatch-time" onclick="toggleSelect(this)">
+    <div class="letter">⏱</div>
+    <div class="content">
+      <h3>Tiempo de despacho promedio</h3>
+      <p>Minutos desde que se crea el incidente hasta que se asigna una unidad. La métrica más crítica del piloto.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="response-time" onclick="toggleSelect(this)">
+    <div class="letter">🚔</div>
+    <div class="content">
+      <h3>Tiempo de arribo promedio</h3>
+      <p>Minutos desde la asignación hasta que la unidad llega a escena (arrived_at). Mide velocidad real en campo.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="incidents-total" onclick="toggleSelect(this)">
+    <div class="letter">📋</div>
+    <div class="content">
+      <h3>Total de incidentes</h3>
+      <p>Conteo total del período, desglosado abiertos / cerrados / asignados.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="sla" onclick="toggleSelect(this)">
+    <div class="letter">✅</div>
+    <div class="content">
+      <h3>Cumplimiento SLA</h3>
+      <p>% de incidentes atendidos dentro del tiempo objetivo por prioridad (crítico &lt;5min, alto &lt;10min, etc.).</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="units-active" onclick="toggleSelect(this)">
+    <div class="letter">🟢</div>
+    <div class="content">
+      <h3>Unidades activas</h3>
+      <p>Cuántas unidades estuvieron conectadas en el período vs. total de flota. Adopción digital.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="top-unit" onclick="toggleSelect(this)">
+    <div class="letter">🏆</div>
+    <div class="content">
+      <h3>Mejor unidad del período</h3>
+      <p>La unidad con mejor combinación de incidentes atendidos + tiempo de respuesta.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="hotspot" onclick="toggleSelect(this)">
+    <div class="letter">🗺</div>
+    <div class="content">
+      <h3>Zona / sector más activo</h3>
+      <p>Qué sector concentró más incidentes en el período.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="critical-count" onclick="toggleSelect(this)">
+    <div class="letter">🚨</div>
+    <div class="content">
+      <h3>Incidentes críticos</h3>
+      <p>Conteo de incidentes con prioridad crítica y su tiempo de atención promedio.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="patrol-coverage" onclick="toggleSelect(this)">
+    <div class="letter">📍</div>
+    <div class="content">
+      <h3>Cobertura de patrullaje</h3>
+      <p>Km recorridos y % del sector cubierto por las unidades en el turno.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="closure-rate" onclick="toggleSelect(this)">
+    <div class="letter">📊</div>
+    <div class="content">
+      <h3>Tasa de cierre</h3>
+      <p>% de incidentes cerrados vs. abiertos al final del período. Indica capacidad operativa.</p>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:16px;">Selecciona todos los que apliquen — después priorizamos cuáles van primero.</p>

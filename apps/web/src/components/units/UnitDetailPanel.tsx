@@ -53,7 +53,10 @@ const STATUS_OPTIONS = [
 ];
 
 export default function UnitDetailPanel({ unit, onTrailChange }: UnitDetailPanelProps) {
-  const { selectUnit, updateUnit } = useUnitsStore();
+  const { selectUnit, updateUnit, positions } = useUnitsStore();
+  const batteryLevel = positions[unit.id]?.batteryLevel ?? null;
+  const batteryPct   = batteryLevel != null ? Math.round(batteryLevel * 100) : null;
+  const batteryColor = batteryPct == null ? '#475569' : batteryPct > 50 ? '#22C55E' : batteryPct > 20 ? '#F59E0B' : '#EF4444';
   const [date, setDate] = useState<string>(toDateString(new Date()));
   const [history, setHistory] = useState<LocationHistoryPoint[]>([]);
   const [incidents, setIncidents] = useState<Incident[]>([]);
@@ -154,6 +157,40 @@ export default function UnitDetailPanel({ unit, onTrailChange }: UnitDetailPanel
             <p className="text-sm font-semibold text-signal-white">{unit.shift}</p>
             <p className="text-xs text-slate-gray">Turno</p>
           </div>
+        )}
+      </div>
+
+      {/* Battery row */}
+      <div className="px-4 py-3 border-b border-slate-800 shrink-0">
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-xs text-slate-gray flex items-center gap-1">
+            🔋 Batería del dispositivo
+          </span>
+          <span
+            className="text-sm font-bold font-mono"
+            style={{ color: batteryColor }}
+          >
+            {batteryPct != null ? `${batteryPct}%` : '—'}
+          </span>
+        </div>
+        <div className="w-full h-2.5 rounded-full bg-slate-700 overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-500"
+            style={{
+              width: batteryPct != null ? `${batteryPct}%` : '0%',
+              backgroundColor: batteryColor,
+            }}
+          />
+        </div>
+        {batteryPct != null && batteryPct <= 20 && (
+          <p className="text-[11px] text-red-400 mt-1 animate-pulse">
+            ⚡ Batería crítica — solicitar recarga
+          </p>
+        )}
+        {batteryPct == null && (
+          <p className="text-[11px] text-slate-500 mt-1">
+            Sin datos de batería aún
+          </p>
         )}
       </div>
 
