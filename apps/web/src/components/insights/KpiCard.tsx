@@ -25,7 +25,7 @@ export default function KpiCard({
   const trendPositive = trend == null ? null : (trendInvert ? trend < 0 : trend > 0);
   const trendColor = trendPositive == null ? 'text-slate-500'
     : trendPositive ? 'text-green-400' : 'text-red-400';
-  const trendArrow = trend == null ? '' : trend > 0 ? '▲' : '▼';
+  const trendArrow = trend == null ? '' : trend > 0 ? '▲' : trend < 0 ? '▼' : '→';
 
   return (
     <div

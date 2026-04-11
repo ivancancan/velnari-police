@@ -17,10 +17,9 @@ import PatrolCoverageDrilldown from './drilldown/PatrolCoverageDrilldown';
 
 interface Props {
   data: InsightsData;
-  isAdmin: boolean;
 }
 
-export default function KpiGrid({ data, isAdmin }: Props) {
+export default function KpiGrid({ data }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const toggle = (id: string) => setExpandedId((cur) => (cur === id ? null : id));
 
@@ -67,7 +66,7 @@ export default function KpiGrid({ data, isAdmin }: Props) {
       subtitle: 'Meta piloto: < 2 min',
       trend: trendPct(cur?.summary.avgResponseMinutes ?? null, prev?.summary.avgResponseMinutes ?? null),
       trendInvert: true,
-      sparkline: cur?.byDay.map((d) => d.count),
+      sparkline: cur?.byDay.map((d) => d.count), // volume trend — no per-day response time in API
       drilldown: cur ? <DispatchTimeDrilldown data={cur} prevData={prev ?? null} /> : null,
     },
     {
