@@ -38,6 +38,9 @@ export class UserEntity {
   @Column({ nullable: true })
   shift?: string;
 
+  @Column({ name: 'expo_push_token', nullable: true, length: 512 })
+  expoPushToken?: string;
+
   @Column({ name: 'is_active', default: true })
   isActive!: boolean;
 
