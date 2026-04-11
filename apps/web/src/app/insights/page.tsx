@@ -81,7 +81,7 @@ export default function InsightsPage() {
 
       {/* Content */}
       {!data.loading && !data.error && (
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto" data-pdf-target="">
           <KpiGrid data={data} />
           <AnalyticsSection data={data} />
           {isAdmin && <ExportBar range={isSupervisor ? presetToRange('today') : range} />}
