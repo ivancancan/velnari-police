@@ -35,6 +35,7 @@ export default function RealtimeProvider({ children }: { children: React.ReactNo
   const addIncident = useIncidentsStore((s) => s.addIncident);
   const updateIncident = useIncidentsStore((s) => s.updateIncident);
   const addAlert = useAlertsStore((s) => s.addAlert);
+  const setSocketConnected = useAlertsStore((s) => s.setSocketConnected);
 
   // Track last movement time per unit
   const lastMoveRef = useRef<Record<string, number>>({});
@@ -54,6 +55,13 @@ export default function RealtimeProvider({ children }: { children: React.ReactNo
     if (!accessToken) return;
 
     const socket = connectSocket(accessToken);
+
+    // Track connection state
+    setSocketConnected(socket.connected);
+    socket.on('connect', () => setSocketConnected(true));
+    socket.on('disconnect', () => setSocketConnected(false));
+    socket.on('connect_error', () => setSocketConnected(false));
+
     socket.emit('join:command');
 
     // Unit location changed
@@ -140,6 +148,9 @@ export default function RealtimeProvider({ children }: { children: React.ReactNo
     );
 
     return () => {
+      socket.off('connect');
+      socket.off('disconnect');
+      socket.off('connect_error');
       socket.off('unit:location:changed');
       socket.off('unit:status:changed');
       socket.off('incident:created');
@@ -147,8 +158,9 @@ export default function RealtimeProvider({ children }: { children: React.ReactNo
       socket.off('geofence:entered');
       socket.off('geofence:exited');
       disconnectSocket();
+      setSocketConnected(false);
     };
-  }, [accessToken, updatePosition, updateUnit, addIncident, updateIncident, handleAlert]);
+  }, [accessToken, updatePosition, updateUnit, addIncident, updateIncident, handleAlert, setSocketConnected]);
 
   // Stale unit detection — check every minute
   useEffect(() => {

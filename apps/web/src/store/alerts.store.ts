@@ -14,15 +14,18 @@ interface AlertsState {
   alerts: Alert[];
   history: Alert[];
   unreadCount: number;
+  socketConnected: boolean;
   addAlert: (alert: Omit<Alert, 'id' | 'createdAt'>) => void;
   dismissAlert: (id: string) => void;
   markAllRead: () => void;
+  setSocketConnected: (v: boolean) => void;
 }
 
 export const useAlertsStore = create<AlertsState>()((set) => ({
   alerts: [],
   history: [],
   unreadCount: 0,
+  socketConnected: false,
 
   addAlert: (alert) =>
     set((state) => {
@@ -38,4 +41,6 @@ export const useAlertsStore = create<AlertsState>()((set) => ({
     set((state) => ({ alerts: state.alerts.filter((a) => a.id !== id) })),
 
   markAllRead: () => set({ unreadCount: 0 }),
+
+  setSocketConnected: (v) => set({ socketConnected: v }),
 }));
