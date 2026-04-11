@@ -47,16 +47,34 @@ export function useInsightsData(range: DateRange): InsightsData {
     const toISO = (d: string, eod = false) =>
       `${d}T${eod ? '23:59:59.999' : '00:00:00.000'}Z`;
     try {
-      const [curRes, prevRes, slaRes, statsRes] = await Promise.all([
+      const [curRes, prevRes, statsRes] = await Promise.all([
         incidentsApi.getAnalytics({ from: toISO(range.from), to: toISO(range.to, true) }),
         incidentsApi.getAnalytics({ from: toISO(prev.from), to: toISO(prev.to, true) }),
-        incidentsApi.getSlaCompliance(toISO(range.from), toISO(range.to, true)),
         unitsApi.getStats(),
       ]);
       setCurrent(curRes.data);
       setPrevious(prevRes.data);
-      setSla(slaRes.data as unknown as SlaCompliance);
       setUnitStats(statsRes.data);
+
+      // SLA fetch is best-effort — map API shape to our SlaCompliance type
+      try {
+        const slaRes = await incidentsApi.getSlaCompliance(toISO(range.from), toISO(range.to, true));
+        const raw = slaRes.data;
+        const mapped: SlaCompliance = {
+          overallPct: Math.round((raw.overall.complianceRate ?? 0) * 100),
+          byPriority: raw.byPriority.map((r) => ({
+            priority: r.priority as never,
+            targetMinutes: r.targetMinutes,
+            avgMinutes: r.avgResponseMinutes,
+            compliantCount: r.withinSla,
+            totalCount: r.totalIncidents,
+            compliancePct: Math.round((r.complianceRate ?? 0) * 100),
+          })),
+        };
+        setSla(mapped);
+      } catch {
+        setSla(null);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al cargar datos');
     } finally {
