@@ -54,6 +54,7 @@ export default function HomeScreen() {
   const [gpsCount, setGpsCount] = useState(0);
   const [noteText, setNoteText] = useState('');
   const [sendingNote, setSendingNote] = useState(false);
+  const [closingIncident, setClosingIncident] = useState(false);
 
   // Patrol state
   interface PatrolInfo {
@@ -180,6 +181,40 @@ export default function HomeScreen() {
     } finally {
       setSendingNote(false);
     }
+  }
+
+  const RESOLUTION_OPTIONS = [
+    { label: 'Resuelto', value: 'resolved' },
+    { label: 'Falsa alarma', value: 'false_alarm' },
+    { label: 'Transferido a otra unidad', value: 'transferred' },
+  ];
+
+  async function handleCloseIncident() {
+    if (!assignedIncident) return;
+
+    Alert.alert(
+      'Cerrar incidente',
+      `¿Cómo se resolvió ${assignedIncident.folio}?`,
+      [
+        ...RESOLUTION_OPTIONS.map((opt) => ({
+          text: opt.label,
+          onPress: async () => {
+            setClosingIncident(true);
+            try {
+              await incidentsApi.close(assignedIncident.id, opt.value);
+              setAssignedIncident(null);
+              Vibration.vibrate(100);
+              Alert.alert('Incidente cerrado', `${assignedIncident.folio} marcado como "${opt.label}".`);
+            } catch {
+              Alert.alert('Error', 'No se pudo cerrar el incidente. Intenta de nuevo.');
+            } finally {
+              setClosingIncident(false);
+            }
+          },
+        })),
+        { text: 'Cancelar', style: 'cancel' },
+      ],
+    );
   }
 
   async function handleAcceptPatrol(patrolId: string) {
@@ -503,6 +538,20 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Close incident button */}
+        {(assignedIncident.status === 'assigned' || assignedIncident.status === 'on_scene') && (
+          <TouchableOpacity
+            style={[styles.closeIncidentButton, closingIncident && styles.closeIncidentButtonDisabled]}
+            onPress={handleCloseIncident}
+            disabled={closingIncident}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.closeIncidentButtonText}>
+              {closingIncident ? 'Cerrando...' : '✓ Cerrar incidente'}
+            </Text>
+          </TouchableOpacity>
+        )}
         </>
       ) : (
         <View style={styles.emptyCard}>
@@ -619,6 +668,27 @@ const styles = StyleSheet.create({
   acceptButton: { backgroundColor: '#F59E0B', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 12, minHeight: 48 },
   acceptButtonDisabled: { opacity: 0.4 },
   acceptButtonText: { color: '#0F172A', fontWeight: '800', fontSize: 16, letterSpacing: 0.5 },
+
+  // Close incident button
+  closeIncidentButton: {
+    backgroundColor: '#134E4A',
+    borderWidth: 1.5,
+    borderColor: '#22C55E',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 10,
+    minHeight: 52,
+  },
+  closeIncidentButtonDisabled: {
+    opacity: 0.5,
+  },
+  closeIncidentButtonText: {
+    color: '#22C55E',
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
 
   // Panic button — larger with animated pulsing glow
   panicContainer: {
