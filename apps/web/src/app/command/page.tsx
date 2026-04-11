@@ -233,6 +233,14 @@ export default function CommandPage() {
               Ayuda
             </Link>
             <span className="text-sm text-slate-gray">{user?.name}</span>
+            {(user?.role === 'admin' || user?.role === 'commander' || user?.role === 'supervisor') && (
+              <Link
+                href="/insights"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs text-slate-300 hover:text-signal-white transition-all"
+              >
+                📊 Insights
+              </Link>
+            )}
             <button
               onClick={clearAuth}
               className="text-xs text-slate-gray hover:text-signal-white transition-colors duration-200"
