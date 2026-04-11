@@ -9,17 +9,23 @@ import RealtimeProvider from '@/providers/RealtimeProvider';
 import BiometricGate from '@/components/BiometricGate';
 import OfflineBanner from '@/components/OfflineBanner';
 import PrivacyConsentModal, { CONSENT_KEY } from '@/components/PrivacyConsentModal';
+import OnboardingModal, { ONBOARDING_KEY } from '@/components/OnboardingModal';
 
 export default function RootLayout() {
   const { loadStoredAuth } = useAuthStore();
   const [consentChecked, setConsentChecked] = useState(false);
   const [consentGiven, setConsentGiven] = useState(false);
+  const [onboardingDone, setOnboardingDone] = useState(false);
 
   useEffect(() => {
     loadStoredAuth();
-    SecureStore.getItemAsync(CONSENT_KEY)
-      .then((value) => {
-        setConsentGiven(!!value);
+    Promise.all([
+      SecureStore.getItemAsync(CONSENT_KEY),
+      SecureStore.getItemAsync(ONBOARDING_KEY),
+    ])
+      .then(([consent, onboarding]) => {
+        setConsentGiven(!!consent);
+        setOnboardingDone(!!onboarding);
         setConsentChecked(true);
       })
       .catch(() => {
@@ -50,6 +56,9 @@ export default function RootLayout() {
       <OfflineBanner />
       {!consentGiven && (
         <PrivacyConsentModal onAccept={() => setConsentGiven(true)} />
+      )}
+      {consentGiven && !onboardingDone && (
+        <OnboardingModal onDone={() => setOnboardingDone(true)} />
       )}
     </View>
   );
