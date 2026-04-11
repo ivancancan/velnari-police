@@ -1,12 +1,19 @@
 // apps/mobile/app/(tabs)/map.tsx
 import { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { unitsApi, incidentsApi } from '@/lib/api';
 import { useUnitStore } from '@/store/unit.store';
 
 const CDMX = { latitude: 19.4326, longitude: -99.1332, latitudeDelta: 0.03, longitudeDelta: 0.03 };
+
+const FILTER_OPTIONS = [
+  { value: null as string | null, label: 'Todas' },
+  { value: 'available', label: 'Disponibles' },
+  { value: 'en_route', label: 'En ruta' },
+  { value: 'on_scene', label: 'En escena' },
+];
 
 const STATUS_MARKER_COLORS: Record<string, string> = {
   available: '#22C55E',
@@ -38,6 +45,7 @@ export default function MapScreen() {
   const [speedKmh, setSpeedKmh] = useState(0);
   const [openIncidents, setOpenIncidents] = useState<{ id: string; folio: string; type: string; priority: string; lat: number; lng: number; address?: string }[]>([]);
   const [showOverlay, setShowOverlay] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
 
   // Watch position
   useEffect(() => {
@@ -115,8 +123,42 @@ export default function MapScreen() {
   const mins = Math.floor(elapsedSecs / 60);
   const secs = elapsedSecs % 60;
 
+  const filteredUnits = statusFilter
+    ? nearbyUnits.filter((u) => u.status === statusFilter)
+    : nearbyUnits;
+
   return (
     <View style={styles.container}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.filterRow}
+        contentContainerStyle={styles.filterRowContent}
+      >
+        {FILTER_OPTIONS.map((opt) => {
+          const isActive = statusFilter === opt.value;
+          const chipColor = opt.value
+            ? STATUS_MARKER_COLORS[opt.value] ?? '#64748B'
+            : '#3B82F6';
+          return (
+            <TouchableOpacity
+              key={opt.label}
+              style={[
+                styles.filterChip,
+                isActive && { backgroundColor: chipColor + '33', borderColor: chipColor },
+              ]}
+              onPress={() => setStatusFilter(isActive ? null : opt.value)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.filterChipText, isActive && { color: chipColor }]}>
+                {opt.label}
+                {opt.value && isActive ? ` (${filteredUnits.length})` : ''}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+
       <MapView
         ref={mapRef}
         style={styles.map}
@@ -158,7 +200,7 @@ export default function MapScreen() {
         )}
 
         {/* Nearby unit markers */}
-        {showOverlay && nearbyUnits.map((unit) => (
+        {showOverlay && filteredUnits.map((unit) => (
           <Marker
             key={`unit-${unit.id}`}
             coordinate={{ latitude: unit.lat, longitude: unit.lng }}
@@ -341,6 +383,35 @@ const styles = StyleSheet.create({
   },
   overlayToggleActive: { borderColor: '#3B82F6' },
   overlayToggleText: { fontSize: 20 },
+
+  // Filter chips row
+  filterRow: {
+    position: 'absolute',
+    top: 56,
+    left: 0,
+    right: 0,
+    zIndex: 20,
+    maxHeight: 48,
+  },
+  filterRowContent: {
+    paddingHorizontal: 12,
+    gap: 8,
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  filterChip: {
+    borderWidth: 1.5,
+    borderColor: '#334155',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(15,23,42,0.85)',
+  },
+  filterChipText: {
+    color: '#94A3B8',
+    fontSize: 12,
+    fontWeight: '600',
+  },
 
   // Clear button
   clearButton: {
