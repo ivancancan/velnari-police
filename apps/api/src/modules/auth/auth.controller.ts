@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Patch,
   Post,
   UnauthorizedException,
   UseGuards,
@@ -61,5 +62,16 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   async me(@CurrentUser() user: JwtPayload): Promise<UserEntity | null> {
     return this.authService.getProfile(user.sub);
+  }
+
+  @Patch('push-token')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async updatePushToken(
+    @CurrentUser() user: JwtPayload,
+    @Body('token') token: string,
+  ): Promise<void> {
+    if (!token || typeof token !== 'string') return;
+    await this.authService.updatePushToken(user.sub, token);
   }
 }

@@ -73,4 +73,8 @@ export class AuthService {
 
     return { accessToken, expiresIn: 900 };
   }
+
+  async updatePushToken(userId: string, token: string): Promise<void> {
+    await this.userRepo.update(userId, { expoPushToken: token });
+  }
 }
