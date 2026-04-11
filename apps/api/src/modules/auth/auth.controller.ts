@@ -6,17 +6,21 @@ import {
   HttpStatus,
   Patch,
   Post,
+  Req,
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { createHash } from 'crypto';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { CurrentUser, type JwtPayload } from '../../shared/decorators/current-user.decorator';
+import { RedisCacheService } from '../../shared/services/redis-cache.service';
 import { LoginDto, type TokenResponseDto } from '@velnari/shared-types';
 import type { UserEntity } from '../../entities/user.entity';
+import type { Request } from 'express';
 
 @Controller('auth')
 export class AuthController {
@@ -24,6 +28,7 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly redis: RedisCacheService,
   ) {}
 
   @Post('login')
@@ -62,6 +67,17 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   async me(@CurrentUser() user: JwtPayload): Promise<UserEntity | null> {
     return this.authService.getProfile(user.sub);
+  }
+
+  @Post('logout')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async logout(@Req() req: Request): Promise<void> {
+    const token = (req.headers.authorization ?? '').replace('Bearer ', '');
+    if (!token) return;
+    const jti = createHash('sha256').update(token).digest('hex').slice(0, 32);
+    // Blacklist for 15 minutes (access token lifetime)
+    await this.redis.blacklistToken(jti, 900);
   }
 
   @Patch('push-token')

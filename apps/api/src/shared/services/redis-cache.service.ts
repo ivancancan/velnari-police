@@ -47,6 +47,17 @@ export class RedisCacheService implements OnModuleDestroy {
     await this.client.del(key);
   }
 
+  /** Blacklist a JWT token ID until its original expiry */
+  async blacklistToken(jti: string, ttlSeconds: number): Promise<void> {
+    await this.client.set(`blacklist:${jti}`, '1', 'EX', ttlSeconds);
+  }
+
+  /** Check if a token ID has been blacklisted */
+  async isTokenBlacklisted(jti: string): Promise<boolean> {
+    const val = await this.client.get(`blacklist:${jti}`);
+    return val !== null;
+  }
+
   async onModuleDestroy(): Promise<void> {
     await this.client.quit();
   }
