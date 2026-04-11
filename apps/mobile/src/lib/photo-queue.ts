@@ -4,11 +4,26 @@ import * as FileSystem from 'expo-file-system';
 const QUEUE_KEY = 'velnari_photo_queue';
 const PHOTOS_DIR = `${FileSystem.documentDirectory}velnari_photos/`;
 
+const BASE_DELAY_MS = 30_000;
+const MAX_DELAY_MS = 30 * 60_000;
+const MAX_RETRIES = 8;
+const TTL_MS = 24 * 60 * 60_000;
+
 interface QueuedPhoto {
   id: string;
   incidentId: string;
   localUri: string;
   capturedAt: string;
+  retryCount: number;
+  nextRetryAt: number;
+}
+
+function jitter(): number {
+  return Math.random() * 5_000;
+}
+
+function nextRetryDelay(retryCount: number): number {
+  return Math.min(BASE_DELAY_MS * Math.pow(2, retryCount), MAX_DELAY_MS) + jitter();
 }
 
 async function loadQueue(): Promise<QueuedPhoto[]> {
@@ -22,64 +37,69 @@ async function saveQueue(queue: QueuedPhoto[]): Promise<void> {
   await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
 }
 
-/**
- * Copies a temp image URI to permanent app storage and queues it for upload.
- * Call this when the network is unavailable or after incident creation completes.
- */
 export async function enqueuePhoto(incidentId: string, tempUri: string): Promise<void> {
   const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const ext = tempUri.split('.').pop()?.toLowerCase() ?? 'jpg';
   const destUri = `${PHOTOS_DIR}${id}.${ext}`;
 
-  // Ensure permanent directory exists
   await FileSystem.makeDirectoryAsync(PHOTOS_DIR, { intermediates: true });
-  // Copy from temp location (picker URI) to permanent storage
   await FileSystem.copyAsync({ from: tempUri, to: destUri });
 
   const queue = await loadQueue();
-  queue.push({ id, incidentId, localUri: destUri, capturedAt: new Date().toISOString() });
+  queue.push({
+    id,
+    incidentId,
+    localUri: destUri,
+    capturedAt: new Date().toISOString(),
+    retryCount: 0,
+    nextRetryAt: 0,
+  });
   await saveQueue(queue);
 }
 
-/**
- * Uploads all queued photos. Returns counts.
- * Stops on first network failure (still offline) to avoid hammering the server.
- */
 export async function flushPhotoQueue(): Promise<{ success: number; failed: number }> {
   const queue = await loadQueue();
   if (queue.length === 0) return { success: 0, failed: 0 };
 
-  // Lazy import to break circular dep (api -> photo-queue -> api)
   const { incidentsApi } = require('./api') as typeof import('./api');
-
+  const now = Date.now();
   let success = 0;
   let failed = 0;
+  const remaining: QueuedPhoto[] = [];
 
-  for (let i = 0; i < queue.length; i++) {
-    const photo = queue[i]!;
+  for (const photo of queue) {
+    const createdMs = new Date(photo.capturedAt).getTime();
 
-    // Verify file still exists (could have been cleared by OS)
+    if (now - createdMs > TTL_MS || photo.retryCount >= MAX_RETRIES) {
+      await FileSystem.deleteAsync(photo.localUri, { idempotent: true });
+      continue;
+    }
+
+    if (photo.nextRetryAt > now) {
+      remaining.push(photo);
+      continue;
+    }
+
     const info = await FileSystem.getInfoAsync(photo.localUri);
     if (!info.exists) {
-      // File gone — drop from queue silently, continue to next
       continue;
     }
 
     try {
       await incidentsApi.uploadPhoto(photo.incidentId, photo.localUri);
-      // Delete local copy after successful upload
       await FileSystem.deleteAsync(photo.localUri, { idempotent: true });
       success++;
     } catch {
       failed++;
-      // Still offline — keep this photo and all remaining ones
-      await saveQueue(queue.slice(i));
-      return { success, failed };
+      remaining.push({
+        ...photo,
+        retryCount: photo.retryCount + 1,
+        nextRetryAt: now + nextRetryDelay(photo.retryCount),
+      });
     }
   }
 
-  // All photos processed (uploaded or file-gone) — clear queue
-  await saveQueue([]);
+  await saveQueue(remaining);
   return { success, failed };
 }
 
