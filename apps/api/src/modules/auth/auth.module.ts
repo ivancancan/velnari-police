@@ -7,12 +7,14 @@ import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 import { UserEntity } from '../../entities/user.entity';
+import { SharedModule } from '../../shared/shared.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([UserEntity]),
     PassportModule,
     JwtModule.register({}),
+    SharedModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, JwtRefreshStrategy],
