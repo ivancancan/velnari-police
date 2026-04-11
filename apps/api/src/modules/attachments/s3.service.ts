@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import * as fs from 'fs';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
@@ -30,6 +31,32 @@ export class S3Service {
 
   isStoringInS3(): boolean {
     return this.s3 !== null;
+  }
+
+  /**
+   * Create a presigned PUT URL for direct client-to-S3 upload.
+   * Returns null when S3 is not configured (disk fallback mode).
+   */
+  async createPresignedUrl(
+    s3Key: string,
+    mimeType: string,
+    expiresInSeconds = 300,
+  ): Promise<{ presignedUrl: string; s3Key: string; publicUrl: string } | null> {
+    if (!this.s3 || !this.bucket) {
+      return null;
+    }
+    const command = new PutObjectCommand({
+      Bucket: this.bucket,
+      Key: s3Key,
+      ContentType: mimeType,
+    });
+    const presignedUrl = await getSignedUrl(this.s3, command, { expiresIn: expiresInSeconds });
+    const publicUrl = `https://${this.bucket}.s3.amazonaws.com/${s3Key}`;
+    return { presignedUrl, s3Key, publicUrl };
+  }
+
+  getPublicUrl(s3Key: string): string {
+    return `https://${this.bucket}.s3.amazonaws.com/${s3Key}`;
   }
 
   /**

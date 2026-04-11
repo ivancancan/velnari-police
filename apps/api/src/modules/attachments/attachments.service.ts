@@ -20,6 +20,15 @@ interface CreateAttachmentInput {
   capturedAt?: string;
 }
 
+interface CreateFromPresignedInput {
+  incidentId: string;
+  s3Key: string;
+  url: string;
+  mimeType: string;
+  size: number;
+  uploadedBy: string;
+}
+
 @Injectable()
 export class AttachmentsService {
   constructor(
@@ -58,6 +67,21 @@ export class AttachmentsService {
       gpsLat: input.gpsLat,
       gpsLng: input.gpsLng,
       capturedAt: input.capturedAt ? new Date(input.capturedAt) : undefined,
+    });
+    return this.repo.save(attachment);
+  }
+
+  async createFromPresigned(input: CreateFromPresignedInput): Promise<IncidentAttachmentEntity> {
+    const filename = input.s3Key.split('/').pop() ?? input.s3Key;
+    const attachment = this.repo.create({
+      incidentId: input.incidentId,
+      filename,
+      originalName: filename,
+      mimetype: input.mimeType,
+      size: input.size,
+      url: input.url,
+      uploadedBy: input.uploadedBy,
+      // sha256Hash is nullable — not computed for presigned uploads
     });
     return this.repo.save(attachment);
   }

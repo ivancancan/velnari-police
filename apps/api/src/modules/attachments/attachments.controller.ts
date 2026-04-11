@@ -14,10 +14,10 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
-import { randomUUID } from 'crypto';
 import * as fs from 'fs';
 import { AttachmentsService } from './attachments.service';
 import { S3Service } from './s3.service';
@@ -79,6 +79,38 @@ export class AttachmentsController {
     }
 
     return result;
+  }
+
+  @Post('presign')
+  async presign(
+    @Param('incidentId', ParseUUIDPipe) _incidentId: string,
+    @Body() body: { filename: string; mimeType: string },
+  ): Promise<{ presignedUrl: string | null; s3Key?: string }> {
+    const ext = body.filename.includes('.') ? `.${body.filename.split('.').pop()}` : '';
+    const s3Key = `incidents/${randomUUID()}${ext}`;
+    const result = await this.s3.createPresignedUrl(s3Key, body.mimeType);
+    if (!result) {
+      return { presignedUrl: null };
+    }
+    return { presignedUrl: result.presignedUrl, s3Key: result.s3Key };
+  }
+
+  @Post('confirm')
+  async confirm(
+    @Param('incidentId', ParseUUIDPipe) incidentId: string,
+    @Req() req: Request & { user: { sub: string } },
+    @Body() body: { s3Key: string; mimeType: string; size: number },
+  ): Promise<{ id: string; url: string }> {
+    const url = this.s3.getPublicUrl(body.s3Key);
+    const attachment = await this.service.createFromPresigned({
+      incidentId,
+      s3Key: body.s3Key,
+      url,
+      mimeType: body.mimeType,
+      size: body.size,
+      uploadedBy: req.user.sub,
+    });
+    return { id: attachment.id, url: attachment.url };
   }
 
   @Delete(':id')
