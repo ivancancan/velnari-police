@@ -13,6 +13,7 @@ interface Props {
   trendInvert?: boolean;
   sparklineValues?: number[];
   sparklineColor?: string;
+  prevValue?: string | number;
   isExpanded: boolean;
   onToggle: (id: string) => void;
   children?: React.ReactNode;
@@ -20,7 +21,7 @@ interface Props {
 
 export default function KpiCard({
   id, emoji, label, value, valueColor, subtitle, trend, trendInvert,
-  sparklineValues, sparklineColor, isExpanded, onToggle, children,
+  sparklineValues, sparklineColor, prevValue, isExpanded, onToggle, children,
 }: Props) {
   const trendPositive = trend == null ? null : (trendInvert ? trend < 0 : trend > 0);
   const trendColor = trendPositive == null ? 'text-slate-500'
@@ -51,6 +52,10 @@ export default function KpiCard({
             </span>
           )}
         </div>
+
+        {prevValue != null && !isExpanded && (
+          <p className="text-[10px] text-slate-500 mt-0.5">ant. {prevValue}</p>
+        )}
 
         {subtitle && <p className="text-[11px] text-slate-500 mt-1">{subtitle}</p>}
 

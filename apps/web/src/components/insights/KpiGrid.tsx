@@ -46,7 +46,8 @@ export default function KpiGrid({ data }: Props) {
   const cards: {
     id: string; emoji: string; label: string; value: string | number;
     valueColor: string; subtitle?: string; trend?: number | null;
-    trendInvert?: boolean; sparkline?: number[]; drilldown: React.ReactNode;
+    trendInvert?: boolean; sparkline?: number[]; prevValue?: string | number;
+    drilldown: React.ReactNode;
   }[] = [
     {
       id: 'incidents',
@@ -55,6 +56,7 @@ export default function KpiGrid({ data }: Props) {
       valueColor: '#3b82f6',
       subtitle: cur ? `Abiertos: ${cur.summary.openIncidents} · Cerrados: ${cur.summary.closedIncidents}` : undefined,
       trend: trendPct(cur?.summary.totalIncidents ?? null, prev?.summary.totalIncidents ?? null),
+      prevValue: prev?.summary.totalIncidents ?? undefined,
       sparkline: cur?.byDay.map((d) => d.count),
       drilldown: cur ? <IncidentsTotalDrilldown data={cur} prevData={prev ?? null} /> : null,
     },
@@ -65,6 +67,7 @@ export default function KpiGrid({ data }: Props) {
       valueColor: '#22c55e',
       subtitle: 'Meta piloto: < 2 min',
       trend: trendPct(cur?.summary.avgResponseMinutes ?? null, prev?.summary.avgResponseMinutes ?? null),
+      prevValue: prev?.summary.avgResponseMinutes != null ? `${prev.summary.avgResponseMinutes.toFixed(1)} min` : undefined,
       trendInvert: true,
       sparkline: cur?.byDay.map((d) => d.count), // volume trend — no per-day response time in API
       drilldown: cur ? <DispatchTimeDrilldown data={cur} prevData={prev ?? null} /> : null,
@@ -76,6 +79,7 @@ export default function KpiGrid({ data }: Props) {
       valueColor: '#3b82f6',
       subtitle: 'Desde asignación hasta escena',
       trend: trendPct(cur?.summary.avgCloseMinutes ?? null, prev?.summary.avgCloseMinutes ?? null),
+      prevValue: prev?.summary.avgCloseMinutes != null ? `${prev.summary.avgCloseMinutes.toFixed(1)} min` : undefined,
       trendInvert: true,
       drilldown: cur ? <ArrivalTimeDrilldown data={cur} prevData={prev ?? null} /> : null,
     },
@@ -103,6 +107,7 @@ export default function KpiGrid({ data }: Props) {
       value: cur?.byPriority['critical'] ?? 0,
       valueColor: '#ef4444',
       trend: trendPct(cur?.byPriority['critical'] ?? null, prev?.byPriority['critical'] ?? null),
+      prevValue: prev?.byPriority['critical'] ?? undefined,
       trendInvert: true,
       drilldown: cur ? <CriticalsDrilldown data={cur} /> : null,
     },
@@ -113,6 +118,7 @@ export default function KpiGrid({ data }: Props) {
       valueColor: '#f59e0b',
       subtitle: cur ? `${cur.summary.closedIncidents} cerrados / ${cur.summary.totalIncidents} total` : undefined,
       trend: trendPct(closureRate, prevClosureRate),
+      prevValue: prevClosureRate != null ? `${prevClosureRate}%` : undefined,
       drilldown: cur ? <ClosureRateDrilldown data={cur} prevData={prev ?? null} /> : null,
     },
     {
@@ -154,6 +160,7 @@ export default function KpiGrid({ data }: Props) {
           subtitle={c.subtitle}
           trend={c.trend}
           trendInvert={c.trendInvert}
+          prevValue={c.prevValue}
           sparklineValues={c.sparkline}
           sparklineColor={c.valueColor}
           isExpanded={expandedId === c.id}
