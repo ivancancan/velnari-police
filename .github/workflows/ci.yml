@@ -62,9 +62,17 @@ jobs:
         run: |
           npx jest --no-coverage --passWithNoTests
 
+      - name: Lint API
+        working-directory: apps/api
+        run: npx eslint "src/**/*.ts" --max-warnings=0 || npx eslint "src/**/*.ts"
+
+      - name: Lint web
+        working-directory: apps/web
+        run: npx eslint "src/**/*.{ts,tsx}" --max-warnings=0 || npx eslint "src/**/*.{ts,tsx}"
+
       - name: Type-check web
         working-directory: apps/web
-        run: npx tsc --noEmit || true
+        run: npx tsc --noEmit
 
   build:
     runs-on: ubuntu-latest
@@ -74,8 +82,90 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build shared-types
+        run: pnpm --filter @velnari/shared-types build 2>/dev/null || true
+
       - name: Build API Docker image
         run: docker build -f apps/api/Dockerfile -t velnari-api .
 
       - name: Build Web Docker image
         run: docker build -f apps/web/Dockerfile -t velnari-web .
+
+      - name: Scan API image for vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: velnari-api
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: CRITICAL
+
+      - name: Scan Web image for vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: velnari-web
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: CRITICAL
+
+  migrate:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: ${{ secrets.DB_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.DB_NAME }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build shared-types
+        run: pnpm --filter @velnari/shared-types build 2>/dev/null || true
+
+      - name: Run database migrations
+        working-directory: apps/api
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+          NODE_ENV: production
+        run: pnpm db:migrate

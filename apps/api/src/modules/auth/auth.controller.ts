@@ -14,6 +14,7 @@ import { Throttle } from '@nestjs/throttler';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { createHash } from 'crypto';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { CurrentUser, type JwtPayload } from '../../shared/decorators/current-user.decorator';
@@ -22,6 +23,7 @@ import { LoginDto, type TokenResponseDto } from '@velnari/shared-types';
 import type { UserEntity } from '../../entities/user.entity';
 import type { Request } from 'express';
 
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -34,6 +36,10 @@ export class AuthController {
   @Post('login')
   @Throttle({ default: { ttl: 60000, limit: 5 } })
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Iniciar sesión y obtener tokens JWT' })
+  @ApiBody({ type: LoginDto })
+  @ApiResponse({ status: 200, description: 'Login exitoso — devuelve accessToken, refreshToken, expiresIn' })
+  @ApiResponse({ status: 401, description: 'Credenciales incorrectas' })
   async login(@Body() dto: LoginDto): Promise<TokenResponseDto> {
     const user = await this.authService.validateUser(dto.email, dto.password);
     if (!user) {
@@ -44,6 +50,9 @@ export class AuthController {
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Renovar access token usando refresh token' })
+  @ApiResponse({ status: 200, description: 'Nuevo accessToken' })
+  @ApiResponse({ status: 401, description: 'Refresh token inválido o expirado' })
   async refresh(
     @Body('refreshToken') refreshToken: string,
   ): Promise<{ accessToken: string; expiresIn: number }> {
@@ -65,6 +74,9 @@ export class AuthController {
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Perfil del usuario autenticado' })
+  @ApiResponse({ status: 200, description: 'Usuario autenticado' })
   async me(@CurrentUser() user: JwtPayload): Promise<UserEntity | null> {
     return this.authService.getProfile(user.sub);
   }
@@ -72,6 +84,9 @@ export class AuthController {
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Cerrar sesión e invalidar access token' })
+  @ApiResponse({ status: 204, description: 'Sesión cerrada' })
   async logout(@Req() req: Request): Promise<void> {
     const token = (req.headers.authorization ?? '').replace('Bearer ', '');
     if (!token) return;

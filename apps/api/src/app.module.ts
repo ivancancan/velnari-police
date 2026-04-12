@@ -5,6 +5,7 @@ import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ServeStaticModule } from '@nestjs/serve-static';
+import { LoggerModule } from 'nestjs-pino';
 import { join } from 'path';
 import configuration from './config/configuration';
 import { AuthModule } from './modules/auth/auth.module';
@@ -31,6 +32,22 @@ import { RedisCacheService } from './shared/services/redis-cache.service';
     ConfigModule.forRoot({
       isGlobal: true,
       load: [configuration],
+    }),
+    LoggerModule.forRoot({
+      pinoHttp: {
+        level: process.env['NODE_ENV'] === 'production' ? 'info' : 'debug',
+        // Structured JSON in production; pretty-print in development
+        transport: process.env['NODE_ENV'] !== 'production'
+          ? { target: 'pino-pretty', options: { colorize: true, singleLine: true } }
+          : undefined,
+        redact: ['req.headers.authorization', 'req.headers.cookie'],
+        customProps: (_req, _res) => ({ service: 'velnari-api' }),
+        serializers: {
+          req(req: { method: string; url: string }) {
+            return { method: req.method, url: req.url };
+          },
+        },
+      },
     }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],

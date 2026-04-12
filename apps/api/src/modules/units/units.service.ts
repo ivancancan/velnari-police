@@ -1,7 +1,8 @@
 // apps/api/src/modules/units/units.service.ts
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, MoreThanOrEqual, Repository } from 'typeorm';
+import { Between, LessThan, MoreThanOrEqual, Repository } from 'typeorm';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { UnitEntity } from '../../entities/unit.entity';
 import { UnitLocationHistoryEntity } from '../../entities/unit-location-history.entity';
 import { IncidentEntity } from '../../entities/incident.entity';
@@ -22,8 +23,11 @@ interface NearbyPoint {
   radiusKm?: number;
 }
 
+const GPS_STALE_MINUTES = 2;
+
 @Injectable()
 export class UnitsService {
+  private readonly logger = new Logger(UnitsService.name);
   private readonly unitSectorCache = new Map<string, string[]>();
 
   constructor(
@@ -36,6 +40,37 @@ export class UnitsService {
     private readonly sectorsService: SectorsService,
     private readonly realtime: RealtimeGateway,
   ) {}
+
+  /**
+   * Every 60 seconds: find active units whose last GPS ping is older than
+   * GPS_STALE_MINUTES and broadcast a unit:gps:stale event to the command room.
+   */
+  @Cron(CronExpression.EVERY_MINUTE)
+  async checkStaleGps(): Promise<void> {
+    const threshold = new Date(Date.now() - GPS_STALE_MINUTES * 60_000);
+    const staleUnits = await this.repo.find({
+      where: {
+        isActive: true,
+        lastLocationAt: LessThan(threshold),
+      },
+    });
+
+    for (const unit of staleUnits) {
+      if (unit.status === UnitStatus.OUT_OF_SERVICE) continue;
+      const minutesSince = unit.lastLocationAt
+        ? Math.round((Date.now() - unit.lastLocationAt.getTime()) / 60_000)
+        : null;
+      this.realtime.emitUnitGpsStale({
+        unitId: unit.id,
+        callSign: unit.callSign,
+        minutesSinceLastPing: minutesSince,
+      });
+    }
+
+    if (staleUnits.length > 0) {
+      this.logger.warn(`GPS stale check: ${staleUnits.length} unit(s) without ping >${GPS_STALE_MINUTES}min`);
+    }
+  }
 
   async findAll(filters: FindAllFilters): Promise<(UnitEntity & { lat: number | null; lng: number | null })[]> {
     const qb = this.repo

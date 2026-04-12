@@ -47,6 +47,7 @@ export default function IncidentDetail({ incident, onBack }: IncidentDetailProps
   const [addingNote, setAddingNote] = useState(false);
   const [localEvents, setLocalEvents] = useState<IncidentEvent[]>(incident.events ?? []);
   const [showCloseForm, setShowCloseForm] = useState(false);
+  const [showReassignConfirm, setShowReassignConfirm] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [resolution, setResolution] = useState('');
   const [closing, setClosing] = useState(false);
@@ -248,7 +249,7 @@ export default function IncidentDetail({ incident, onBack }: IncidentDetailProps
             <div className="flex gap-2">
               {canAssign && (
                 <button
-                  onClick={() => setShowAssign(true)}
+                  onClick={() => hasUnit ? setShowReassignConfirm(true) : setShowAssign(true)}
                   className="flex-1 bg-tactical-blue hover:bg-blue-600 text-white text-sm font-semibold py-2 rounded transition-colors"
                   aria-label={hasUnit ? 'Reasignar unidad' : 'Asignar unidad'}
                 >
@@ -272,6 +273,29 @@ export default function IncidentDetail({ incident, onBack }: IncidentDetailProps
                 Llenar reporte
               </button>
             </div>
+            {showReassignConfirm && (
+              <div className="flex flex-col gap-2 bg-slate-800 rounded p-3">
+                <p className="text-xs text-slate-300">
+                  La unidad <span className="font-mono font-bold text-signal-white">{incident.assignedUnitId}</span> ya está asignada. ¿Confirmas la reasignación?
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setShowReassignConfirm(false); setShowAssign(true); }}
+                    className="flex-1 bg-tactical-blue hover:bg-blue-600 text-white text-xs font-semibold py-1.5 rounded transition-colors"
+                  >
+                    Sí, reasignar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowReassignConfirm(false)}
+                    className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs font-medium rounded transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
             {showCloseForm && (
               <form onSubmit={handleClose} className="flex flex-col gap-2 bg-slate-800 rounded p-3">
                 <label className="text-xs text-slate-gray font-semibold uppercase tracking-wider">

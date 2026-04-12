@@ -7,24 +7,31 @@ const STATUS_CONFIG: Record<string, { color: string; glow: string; label: string
   out_of_service:  { color: '#475569', glow: '#47556940', label: 'Fuera de servicio',  emoji: '⛔', pulse: false },
 };
 
+const STALE_THRESHOLD_MS = 2 * 60 * 1000; // 2 minutes
+
 interface UnitMarkerProps {
   callSign: string;
   status: UnitStatus;
   batteryLevel?: number;
+  lastSeenAt?: string;
   onClick?: () => void;
 }
 
-export default function UnitMarker({ callSign, status, batteryLevel, onClick }: UnitMarkerProps) {
+export default function UnitMarker({ callSign, status, batteryLevel, lastSeenAt, onClick }: UnitMarkerProps) {
   const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG['out_of_service']!;
   const batteryLow = batteryLevel != null && batteryLevel < 0.15;
   const batteryPct = batteryLevel != null ? Math.round(batteryLevel * 100) : null;
   const unitNum = callSign.replace(/^P-0?/, '');
+  const isStale = lastSeenAt != null && Date.now() - new Date(lastSeenAt).getTime() > STALE_THRESHOLD_MS;
+  const lastSeenLabel = lastSeenAt
+    ? new Date(lastSeenAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
+    : null;
 
   return (
     <button
       onClick={onClick}
-      title={`${callSign} — ${cfg.label}${batteryPct != null ? ` · ${batteryPct}%` : ''}`}
-      aria-label={`Unidad ${callSign}`}
+      title={`${callSign} — ${cfg.label}${batteryPct != null ? ` · ${batteryPct}%` : ''}${isStale ? ' · GPS sin señal' : ''}`}
+      aria-label={`Unidad ${callSign}${isStale ? ' — GPS inactivo' : ''}`}
       className="group relative flex flex-col items-center cursor-pointer hover:scale-110 transition-transform duration-200 select-none"
     >
       {/* Outer glow ring — pulses for active units */}
@@ -35,12 +42,27 @@ export default function UnitMarker({ callSign, status, batteryLevel, onClick }: 
         />
       )}
 
+      {/* Stale GPS badge */}
+      {isStale && (
+        <span
+          className="absolute -top-2 left-1/2 -translate-x-1/2 flex items-center gap-0.5 bg-slate-700 border border-slate-500 text-slate-300 text-[8px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap z-10"
+          title={`Sin GPS desde ${lastSeenLabel}`}
+        >
+          ⚡ sin GPS
+        </span>
+      )}
+
       {/* Main badge */}
       <span
         className="relative flex items-center gap-1 px-2 py-1 rounded-xl border border-white/20 shadow-lg"
         style={{
-          background: `linear-gradient(135deg, ${cfg.color}ee, ${cfg.color}bb)`,
-          boxShadow: `0 2px 12px ${cfg.glow}, inset 0 1px 0 rgba(255,255,255,0.2)`,
+          background: isStale
+            ? 'linear-gradient(135deg, #47556999, #47556977)'
+            : `linear-gradient(135deg, ${cfg.color}ee, ${cfg.color}bb)`,
+          boxShadow: isStale
+            ? '0 2px 8px rgba(71,85,105,0.4)'
+            : `0 2px 12px ${cfg.glow}, inset 0 1px 0 rgba(255,255,255,0.2)`,
+          opacity: isStale ? 0.7 : 1,
         }}
       >
         {/* Emoji icon */}
@@ -91,7 +113,9 @@ export default function UnitMarker({ callSign, status, batteryLevel, onClick }: 
 
       {/* Glassmorphism tooltip */}
       <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 whitespace-nowrap text-signal-white text-xs px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none border border-white/10 bg-slate-900/80 backdrop-blur-lg shadow-xl z-50">
-        {cfg.emoji} {callSign} · {cfg.label}{batteryPct != null ? ` · 🔋${batteryPct}%` : ''}
+        {cfg.emoji} {callSign} · {cfg.label}
+        {batteryPct != null ? ` · 🔋${batteryPct}%` : ''}
+        {isStale && lastSeenLabel ? ` · ⚡ GPS ${lastSeenLabel}` : ''}
       </span>
     </button>
   );

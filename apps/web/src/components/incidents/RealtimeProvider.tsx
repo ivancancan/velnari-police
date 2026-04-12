@@ -58,9 +58,17 @@ export default function RealtimeProvider({ children }: { children: React.ReactNo
 
     // Track connection state
     setSocketConnected(socket.connected);
-    socket.on('connect', () => setSocketConnected(true));
+    socket.on('connect', () => {
+      setSocketConnected(true);
+      // Re-join command room after reconnect
+      socket.emit('join:command');
+    });
     socket.on('disconnect', () => setSocketConnected(false));
     socket.on('connect_error', () => setSocketConnected(false));
+    socket.on('reconnect_attempt', (attempt: number) => {
+      const delaySec = Math.min(Math.pow(2, attempt - 1), 30);
+      console.warn(`[socket] reconnect attempt #${attempt}, next in ~${delaySec}s`);
+    });
 
     socket.emit('join:command');
 
@@ -118,6 +126,17 @@ export default function RealtimeProvider({ children }: { children: React.ReactNo
       },
     );
 
+    // Server-side GPS stale alert
+    socket.on(
+      'unit:gps:stale',
+      (payload: { unitId: string; callSign: string; minutesSinceLastPing: number | null }) => {
+        const label = payload.minutesSinceLastPing != null
+          ? `Sin GPS hace ${payload.minutesSinceLastPing} min`
+          : 'Sin señal GPS';
+        addAlert({ folio: payload.callSign, message: label, priority: 'stale' });
+      },
+    );
+
     // Geofence entered
     socket.on(
       'geofence:entered',
@@ -151,6 +170,8 @@ export default function RealtimeProvider({ children }: { children: React.ReactNo
       socket.off('connect');
       socket.off('disconnect');
       socket.off('connect_error');
+      socket.off('reconnect_attempt');
+      socket.off('unit:gps:stale');
       socket.off('unit:location:changed');
       socket.off('unit:status:changed');
       socket.off('incident:created');

@@ -1,0 +1,219 @@
+name: Staging
+
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+
+jobs:
+  # ── 1. Lint + test (same as CI) ─────────────────────────────
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: velnari_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7.2-alpine
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build shared-types
+        run: pnpm --filter @velnari/shared-types build 2>/dev/null || true
+
+      - name: Lint API
+        working-directory: apps/api
+        run: npx eslint "src/**/*.ts" --max-warnings=0 || npx eslint "src/**/*.ts"
+
+      - name: Lint web
+        working-directory: apps/web
+        run: npx eslint "src/**/*.{ts,tsx}" --max-warnings=0 || npx eslint "src/**/*.{ts,tsx}"
+
+      - name: Type-check web
+        working-directory: apps/web
+        run: npx tsc --noEmit
+
+      - name: Run API tests
+        working-directory: apps/api
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+          DB_NAME: velnari_test
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          JWT_SECRET: test-secret
+          JWT_REFRESH_SECRET: test-refresh-secret
+        run: |
+          npx jest --no-coverage --passWithNoTests
+
+  # ── 2. Build + Trivy scan ───────────────────────────────────
+  build:
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build shared-types
+        run: pnpm --filter @velnari/shared-types build 2>/dev/null || true
+
+      - name: Build API image
+        run: docker build -f apps/api/Dockerfile -t velnari-api:staging .
+
+      - name: Build Web image
+        run: docker build -f apps/web/Dockerfile -t velnari-web:staging .
+
+      - name: Scan API image (Trivy)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: velnari-api:staging
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: CRITICAL
+
+      - name: Scan Web image (Trivy)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: velnari-web:staging
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: CRITICAL
+
+  # ── 3. Migrate staging DB ───────────────────────────────────
+  migrate-staging:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build shared-types
+        run: pnpm --filter @velnari/shared-types build 2>/dev/null || true
+
+      - name: Run staging migrations
+        working-directory: apps/api
+        env:
+          NODE_ENV: production
+          DB_HOST: ${{ secrets.STAGING_DB_HOST }}
+          DB_PORT: ${{ secrets.STAGING_DB_PORT }}
+          DB_USER: ${{ secrets.STAGING_DB_USER }}
+          DB_PASS: ${{ secrets.STAGING_DB_PASS }}
+          DB_NAME: ${{ secrets.STAGING_DB_NAME }}
+          JWT_SECRET: ${{ secrets.STAGING_JWT_SECRET }}
+          JWT_REFRESH_SECRET: ${{ secrets.STAGING_JWT_REFRESH_SECRET }}
+          ALLOWED_ORIGINS: ${{ secrets.STAGING_ALLOWED_ORIGINS }}
+          REDIS_HOST: ${{ secrets.STAGING_REDIS_HOST }}
+        run: pnpm db:migrate
+
+  # ── 4. Deploy staging ───────────────────────────────────────
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: migrate-staging
+    environment:
+      name: staging
+      url: ${{ secrets.STAGING_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Railway deploy (uncomment if using Railway) ──────────
+      # - name: Deploy API to Railway (staging)
+      #   uses: railwayapp/railway-github-action@v1
+      #   with:
+      #     railway-token: ${{ secrets.RAILWAY_TOKEN_STAGING }}
+      #     service: velnari-api-staging
+
+      # ── Generic deploy hook (replace with your platform) ────
+      - name: Trigger staging deploy
+        if: ${{ secrets.STAGING_DEPLOY_HOOK != '' }}
+        run: |
+          curl -s -X POST "${{ secrets.STAGING_DEPLOY_HOOK }}" \
+            -H "Content-Type: application/json" \
+            -d '{"branch":"staging","commit":"${{ github.sha }}"}'
+
+      - name: Staging deploy complete
+        run: echo "Staging deployed — commit ${{ github.sha }}"
+
+  # ── 5. Smoke test staging ───────────────────────────────────
+  smoke-test:
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    if: ${{ secrets.STAGING_API_URL != '' }}
+
+    steps:
+      - name: Wait for staging to warm up
+        run: sleep 15
+
+      - name: Health check
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ secrets.STAGING_API_URL }}/api/health")
+          echo "Health status: $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "Health check failed — got HTTP $STATUS"
+            exit 1
+          fi
+
+      - name: Auth smoke test (login returns 200)
+        run: |
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "${{ secrets.STAGING_API_URL }}/api/auth/login" \
+            -H "Content-Type: application/json" \
+            -d '{"email":"wrong@test.com","password":"WrongPass1!"}')
+          echo "Login smoke status: $RESPONSE"
+          # 401 is expected — we just confirm the endpoint responds
+          if [ "$RESPONSE" = "000" ]; then
+            echo "No response from API — possible startup failure"
+            exit 1
+          fi

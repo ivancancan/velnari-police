@@ -26,12 +26,39 @@ import { RolesGuard } from '../../shared/guards/roles.guard';
 import type { Request } from 'express';
 import type { IncidentAttachmentEntity } from '../../entities/incident-attachment.entity';
 
+const ALLOWED_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'text/plain',
+]);
+
+const ALLOWED_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf', '.doc', '.docx', '.txt']);
+
 const storage = diskStorage({
   destination: './uploads',
   filename: (_req, file, cb) => {
-    cb(null, `${randomUUID()}${extname(file.originalname)}`);
+    const ext = extname(file.originalname).toLowerCase();
+    cb(null, `${randomUUID()}${ext}`);
   },
 });
+
+function mimeTypeFilter(
+  _req: unknown,
+  file: Express.Multer.File,
+  cb: (error: Error | null, accept: boolean) => void,
+) {
+  const ext = extname(file.originalname).toLowerCase();
+  if (ALLOWED_MIME_TYPES.has(file.mimetype) && ALLOWED_EXTENSIONS.has(ext)) {
+    cb(null, true);
+  } else {
+    cb(new Error(`Tipo de archivo no permitido: ${file.mimetype}`), false);
+  }
+}
 
 @Controller('incidents/:incidentId/attachments')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -49,7 +76,7 @@ export class AttachmentsController {
   }
 
   @Post()
-  @UseInterceptors(FileInterceptor('file', { storage, limits: { fileSize: 10 * 1024 * 1024 } }))
+  @UseInterceptors(FileInterceptor('file', { storage, fileFilter: mimeTypeFilter, limits: { fileSize: 10 * 1024 * 1024 } }))
   async upload(
     @Param('incidentId', ParseUUIDPipe) incidentId: string,
     @UploadedFile() file: Express.Multer.File,

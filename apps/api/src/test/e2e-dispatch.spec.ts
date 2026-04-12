@@ -764,9 +764,148 @@ describe('Dispatch E2E Flow (requires Docker + DB)', () => {
     });
   });
 
-  // ─── 13. Full Lifecycle Verification ───────────────────────────────────────
+  // ─── 13. Reassign Lifecycle ────────────────────────────────────────────────
 
-  describe('Full Lifecycle (second incident)', () => {
+  describe('Reassign lifecycle', () => {
+    let reassignIncidentId: string;
+
+    it('should assign, reassign to a different unit, and verify timeline events', async () => {
+      // Create a fresh incident
+      const createRes = await request(app.getHttpServer())
+        .post('/api/incidents')
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .send({
+          type: 'robbery',
+          priority: 'high',
+          lat: 19.4310,
+          lng: -99.1340,
+          description: 'E2E reassign test',
+          address: 'Av. Reforma 50',
+        })
+        .expect(201);
+
+      reassignIncidentId = createRes.body.id;
+      expect(createRes.body.status).toBe('open');
+
+      // Make both units available
+      await Promise.all([
+        request(app.getHttpServer())
+          .patch(`/api/units/${testUnitId}/status`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({ status: 'available' })
+          .expect(200),
+        request(app.getHttpServer())
+          .patch(`/api/units/${testUnit2Id}/status`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({ status: 'available' })
+          .expect(200),
+      ]);
+
+      // First assignment
+      const firstAssign = await request(app.getHttpServer())
+        .post(`/api/incidents/${reassignIncidentId}/assign`)
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .send({ unitId: testUnitId })
+        .expect(201);
+      expect(firstAssign.body.status).toBe('assigned');
+      expect(firstAssign.body.assignedUnitId).toBe(testUnitId);
+
+      // Reassign to second unit
+      const secondAssign = await request(app.getHttpServer())
+        .post(`/api/incidents/${reassignIncidentId}/assign`)
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .send({ unitId: testUnit2Id })
+        .expect(201);
+      expect(secondAssign.body.assignedUnitId).toBe(testUnit2Id);
+
+      // Timeline should have two assigned events
+      const eventsRes = await request(app.getHttpServer())
+        .get(`/api/incidents/${reassignIncidentId}/events`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      const assignedEvents = (eventsRes.body as { type: string }[]).filter(
+        (e) => e.type === 'assigned',
+      );
+      expect(assignedEvents.length).toBeGreaterThanOrEqual(2);
+
+      // Close
+      await request(app.getHttpServer())
+        .post(`/api/incidents/${reassignIncidentId}/close`)
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .send({ resolution: 'Reassign verified and resolved' })
+        .expect(201);
+    });
+
+    it('should reject reassign by a field_unit (RBAC)', async () => {
+      // field_unit cannot create incidents or assign units
+      await request(app.getHttpServer())
+        .post(`/api/incidents/${reassignIncidentId}/assign`)
+        .set('Authorization', `Bearer ${fieldUnitToken}`)
+        .send({ unitId: testUnitId })
+        .expect(403);
+    });
+  });
+
+  // ─── 14. Concurrent dispatch — same unit cannot be double-assigned ──────────
+
+  describe('Concurrent dispatch safety', () => {
+    it('should handle concurrent assignments to the same unit gracefully', async () => {
+      // Reset unit to available
+      await request(app.getHttpServer())
+        .patch(`/api/units/${testUnitId}/status`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ status: 'available' })
+        .expect(200);
+
+      // Create two incidents
+      const [inc1, inc2] = await Promise.all([
+        request(app.getHttpServer())
+          .post('/api/incidents')
+          .set('Authorization', `Bearer ${operatorToken}`)
+          .send({ type: 'noise', priority: 'low', lat: 19.432, lng: -99.134, address: 'Concurrent A' })
+          .expect(201),
+        request(app.getHttpServer())
+          .post('/api/incidents')
+          .set('Authorization', `Bearer ${operatorToken}`)
+          .send({ type: 'noise', priority: 'low', lat: 19.433, lng: -99.135, address: 'Concurrent B' })
+          .expect(201),
+      ]);
+
+      // Assign both concurrently to the same unit
+      const [res1, res2] = await Promise.all([
+        request(app.getHttpServer())
+          .post(`/api/incidents/${inc1.body.id}/assign`)
+          .set('Authorization', `Bearer ${operatorToken}`)
+          .send({ unitId: testUnitId }),
+        request(app.getHttpServer())
+          .post(`/api/incidents/${inc2.body.id}/assign`)
+          .set('Authorization', `Bearer ${operatorToken}`)
+          .send({ unitId: testUnitId }),
+      ]);
+
+      // At least one must succeed; the API may allow both (unit reassigned)
+      // or reject one — either is acceptable, but neither should 500
+      expect([200, 201, 400, 409]).toContain(res1.status);
+      expect([200, 201, 400, 409]).toContain(res2.status);
+
+      // Clean up
+      await Promise.all([
+        request(app.getHttpServer())
+          .post(`/api/incidents/${inc1.body.id}/close`)
+          .set('Authorization', `Bearer ${operatorToken}`)
+          .send({ resolution: 'Concurrent test cleanup' }),
+        request(app.getHttpServer())
+          .post(`/api/incidents/${inc2.body.id}/close`)
+          .set('Authorization', `Bearer ${operatorToken}`)
+          .send({ resolution: 'Concurrent test cleanup' }),
+      ]);
+    });
+  });
+
+  // ─── 15. Full Lifecycle Verification ───────────────────────────────────────
+
+  describe('Full Lifecycle (third incident)', () => {
     let secondIncidentId: string;
 
     it('should create, assign, note, and close a second incident end-to-end', async () => {

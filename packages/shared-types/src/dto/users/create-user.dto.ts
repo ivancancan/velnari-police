@@ -5,6 +5,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
   MinLength,
 } from 'class-validator';
 import { UserRole } from '../../enums/role.enum';
@@ -18,6 +19,9 @@ export class CreateUserDto {
 
   @IsString()
   @MinLength(8)
+  @Matches(/^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/, {
+    message: 'La contraseña debe tener al menos una mayúscula, un número y un carácter especial',
+  })
   password!: string;
 
   @IsEnum(UserRole)

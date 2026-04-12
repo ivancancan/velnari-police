@@ -98,3 +98,7 @@ export async function getQueueSize(): Promise<number> {
   const queue = await loadQueue();
   return queue.length;
 }
+
+export async function clearQueue(): Promise<void> {
+  await SecureStore.deleteItemAsync(QUEUE_KEY);
+}

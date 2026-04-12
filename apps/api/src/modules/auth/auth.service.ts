@@ -48,8 +48,18 @@ export class AuthService {
     return {
       accessToken,
       refreshToken,
-      expiresIn: 900,
+      expiresIn: this.parseExpiresInSeconds(this.config.get<string>('jwt.expiresIn') ?? '15m'),
     };
+  }
+
+  /** Convert a JWT duration string (e.g. "15m", "1h", "900") to seconds. */
+  private parseExpiresInSeconds(value: string): number {
+    const num = parseInt(value, 10);
+    if (!isNaN(num) && String(num) === value) return num;
+    if (value.endsWith('m')) return parseInt(value, 10) * 60;
+    if (value.endsWith('h')) return parseInt(value, 10) * 3600;
+    if (value.endsWith('d')) return parseInt(value, 10) * 86400;
+    return 900; // fallback
   }
 
   async getProfile(userId: string): Promise<UserEntity | null> {
@@ -71,7 +81,10 @@ export class AuthService {
       expiresIn: this.config.get<string>('jwt.expiresIn'),
     });
 
-    return { accessToken, expiresIn: 900 };
+    return {
+      accessToken,
+      expiresIn: this.parseExpiresInSeconds(this.config.get<string>('jwt.expiresIn') ?? '15m'),
+    };
   }
 
   async updatePushToken(userId: string, token: string): Promise<void> {

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
+import { clearQueue } from '../lib/offline-queue';
 
 interface AuthUser {
   id: string;
@@ -37,6 +38,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     await SecureStore.deleteItemAsync('accessToken');
     await SecureStore.deleteItemAsync('refreshToken');
     await SecureStore.deleteItemAsync('authUser');
+    await clearQueue();
     set({ accessToken: null, refreshToken: null, user: null, isAuthenticated: false });
   },
 

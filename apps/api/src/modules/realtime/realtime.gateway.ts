@@ -225,6 +225,14 @@ export class RealtimeGateway {
     this.server.to('command').emit('geofence:exited', payload);
   }
 
+  emitUnitGpsStale(payload: {
+    unitId: string;
+    callSign: string;
+    minutesSinceLastPing: number | null;
+  }): void {
+    this.server.to('command').emit('unit:gps:stale', payload);
+  }
+
   emitChatMessage(roomId: string, message: Record<string, unknown>): void {
     this.server.to(roomId).emit('chat:message', message);
     // Also emit to command room so operators always see chat

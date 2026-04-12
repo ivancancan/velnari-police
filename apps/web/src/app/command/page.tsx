@@ -27,8 +27,12 @@ const NotificationBell = dynamic(() => import('@/components/ui/NotificationBell'
 const CommandMap = dynamic(() => import('@/components/map/CommandMap'), {
   ssr: false,
   loading: () => (
-    <div className="flex-1 flex items-center justify-center bg-slate-900">
-      <p className="text-slate-gray">Cargando mapa...</p>
+    <div className="flex-1 flex flex-col items-center justify-center bg-slate-900 gap-4 animate-pulse">
+      <div className="w-12 h-12 rounded-full bg-slate-800 border-2 border-slate-700" />
+      <div className="flex flex-col items-center gap-2">
+        <div className="h-3 w-32 bg-slate-800 rounded" />
+        <div className="h-2 w-20 bg-slate-800 rounded" />
+      </div>
     </div>
   ),
 });

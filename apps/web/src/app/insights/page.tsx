@@ -62,12 +62,22 @@ export default function InsightsPage() {
         </div>
       </header>
 
-      {/* Loading */}
+      {/* Loading skeleton */}
       {data.loading && (
-        <div className="flex items-center justify-center flex-1">
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-6 h-6 border-2 border-tactical-blue border-t-transparent rounded-full animate-spin" />
-            <p className="text-slate-400 text-sm">Cargando métricas…</p>
+        <div className="flex-1 p-6 animate-pulse">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="bg-slate-800 rounded-xl p-4 flex flex-col gap-3">
+                <div className="h-3 w-20 bg-slate-700 rounded" />
+                <div className="h-8 w-16 bg-slate-700 rounded" />
+                <div className="h-2 w-24 bg-slate-700 rounded" />
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="bg-slate-800 rounded-xl p-4 h-48" />
+            ))}
           </div>
         </div>
       )}

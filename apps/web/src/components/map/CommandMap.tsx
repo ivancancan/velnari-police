@@ -225,6 +225,7 @@ export default function CommandMap({
                   callSign={unit.callSign}
                   status={unit.status}
                   batteryLevel={pos.batteryLevel}
+                  lastSeenAt={pos.timestamp}
                   onClick={() => selectUnit(unit.id === selectedUnitId ? null : unit.id)}
                 />
               </div>
