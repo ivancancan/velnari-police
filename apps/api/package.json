@@ -14,8 +14,8 @@
     "test:cov": "TS_NODE_PROJECT=tsconfig.jest.json jest --coverage",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "typecheck": "tsc --noEmit",
-    "db:migrate": "node_modules/.bin/typeorm-ts-node-commonjs migration:run -d src/database/data-source.ts",
-    "db:migrate:revert": "node_modules/.bin/typeorm-ts-node-commonjs migration:revert -d src/database/data-source.ts",
+    "db:migrate": "typeorm-ts-node-commonjs migration:run -d src/database/data-source.ts",
+    "db:migrate:revert": "typeorm-ts-node-commonjs migration:revert -d src/database/data-source.ts",
     "db:seed": "ts-node -r tsconfig-paths/register src/database/seed.ts"
   },
   "dependencies": {
