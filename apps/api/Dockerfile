@@ -15,18 +15,22 @@ FROM deps AS builder
 COPY apps/api ./apps/api
 COPY packages ./packages
 RUN pnpm --filter @velnari/api build
+# Verify dist was produced
+RUN ls -la /app/apps/api/dist/
 
 # ---------- runtime ----------
 FROM node:20-alpine AS runner
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 WORKDIR /app
 ENV NODE_ENV=production
+ENV CACHE_BUST=2026-04-12-v4
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json ./apps/api/package.json
 COPY packages/ ./packages/
 RUN pnpm install --frozen-lockfile --filter @velnari/api... --prod
 
+# Copy built output from builder (cache busted: v2)
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 
 # Create uploads dir for local dev fallback
@@ -45,4 +49,4 @@ EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD curl -f http://localhost:3001/api/health || exit 1
 
-CMD ["node", "apps/api/dist/main.js"]
+CMD ["node", "apps/api/dist/apps/api/src/main.js"]
