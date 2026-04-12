@@ -32,14 +32,15 @@ COPY --from=builder /app/apps/api/dist ./apps/api/dist
 # Create uploads dir for local dev fallback
 RUN mkdir -p /app/apps/api/uploads
 
+# Install curl for healthcheck (must run as root before user switch)
+RUN apk add --no-cache curl
+
 # Run as non-root user
 RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
 RUN chown -R nodejs:nodejs /app/apps/api/uploads
 USER nodejs
 
 EXPOSE 3001
-
-RUN apk add --no-cache curl
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD curl -f http://localhost:3001/api/health || exit 1
