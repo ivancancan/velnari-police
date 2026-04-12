@@ -54,8 +54,13 @@ export class RedisCacheService implements OnModuleDestroy {
 
   /** Check if a token ID has been blacklisted */
   async isTokenBlacklisted(jti: string): Promise<boolean> {
-    const val = await this.client.get(`blacklist:${jti}`);
-    return val !== null;
+    try {
+      const val = await this.client.get(`blacklist:${jti}`);
+      return val !== null;
+    } catch (err) {
+      this.logger.warn(`Redis blacklist check failed, failing open: ${(err as Error).message}`);
+      return false;
+    }
   }
 
   async onModuleDestroy(): Promise<void> {

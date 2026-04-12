@@ -33,3 +33,5 @@ ios/build/
 # Misc
 *.swp
 *.swo
+.vercel
+.env*.local
