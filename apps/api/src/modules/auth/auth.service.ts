@@ -17,7 +17,7 @@ export class AuthService {
   ) {}
 
   async validateUser(email: string, password: string): Promise<UserEntity | null> {
-    const user = await this.userRepo.findOne({ where: { email } });
+    const user = await this.userRepo.findOne({ where: { email: email.trim().toLowerCase() } });
 
     if (!user || !user.isActive) {
       return null;

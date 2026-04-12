@@ -38,7 +38,7 @@ export default function LoginForm() {
 
   const onSubmit = async (data: LoginFormData) => {
     try {
-      const loginRes = await authApi.login(data.email, data.password);
+      const loginRes = await authApi.login(data.email.trim().toLowerCase(), data.password);
       const { accessToken, refreshToken } = loginRes.data;
 
       // Store token before /me so the interceptor can attach it
@@ -73,6 +73,9 @@ export default function LoginForm() {
           id="email"
           type="text"
           inputMode="email"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
           autoComplete="email"
           placeholder="operador@velnari.mx"
           {...register('email')}
