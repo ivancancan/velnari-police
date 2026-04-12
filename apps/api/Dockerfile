@@ -23,7 +23,7 @@ FROM node:20-alpine AS runner
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 WORKDIR /app
 ENV NODE_ENV=production
-ENV CACHE_BUST=2026-04-12-v4
+ENV CACHE_BUST=2026-04-12-v5
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json ./apps/api/package.json
@@ -33,15 +33,12 @@ RUN pnpm install --frozen-lockfile --filter @velnari/api... --prod
 # Copy built output from builder (cache busted: v2)
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 
-# Create uploads dir for local dev fallback
-RUN mkdir -p /app/apps/api/uploads
-
 # Install curl for healthcheck (must run as root before user switch)
 RUN apk add --no-cache curl
 
-# Run as non-root user
+# Create uploads dir and set permissions before switching user
 RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
-RUN chown -R nodejs:nodejs /app/apps/api/uploads
+RUN mkdir -p /app/apps/api/uploads && chown -R nodejs:nodejs /app/apps/api/uploads
 USER nodejs
 
 EXPOSE 3001

@@ -17,7 +17,7 @@ import {
 import { randomUUID } from 'crypto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { extname, join } from 'path';
 import * as fs from 'fs';
 import { AttachmentsService } from './attachments.service';
 import { S3Service } from './s3.service';
@@ -39,8 +39,10 @@ const ALLOWED_MIME_TYPES = new Set([
 
 const ALLOWED_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf', '.doc', '.docx', '.txt']);
 
+const UPLOADS_DIR = process.env['UPLOADS_DIR'] ?? join(__dirname, '..', '..', '..', 'uploads');
+
 const storage = diskStorage({
-  destination: './uploads',
+  destination: UPLOADS_DIR,
   filename: (_req, file, cb) => {
     const ext = extname(file.originalname).toLowerCase();
     cb(null, `${randomUUID()}${ext}`);
