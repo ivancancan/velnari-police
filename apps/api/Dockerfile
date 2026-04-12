@@ -23,7 +23,7 @@ FROM node:20-alpine AS runner
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 WORKDIR /app
 ENV NODE_ENV=production
-ENV CACHE_BUST=2026-04-12-v5
+ENV CACHE_BUST=2026-04-12-v6
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json ./apps/api/package.json
