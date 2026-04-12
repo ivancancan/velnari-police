@@ -1,3 +1,4 @@
+# cache-bust: 2026-04-12-v1
 FROM node:20-alpine AS base
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 WORKDIR /app
