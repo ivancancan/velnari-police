@@ -102,14 +102,28 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Cerrar sesión e invalidar access token' })
+  @ApiOperation({ summary: 'Cerrar sesión e invalidar access + refresh tokens' })
+  @ApiBody({
+    required: false,
+    schema: { type: 'object', properties: { refreshToken: { type: 'string' } } },
+  })
   @ApiResponse({ status: 204, description: 'Sesión cerrada' })
-  async logout(@Req() req: Request): Promise<void> {
-    const token = (req.headers.authorization ?? '').replace('Bearer ', '');
-    if (!token) return;
-    const jti = createHash('sha256').update(token).digest('hex').slice(0, 32);
-    // Blacklist for 15 minutes (access token lifetime)
-    await this.redis.blacklistToken(jti, 900);
+  async logout(
+    @Req() req: Request,
+    @Body('refreshToken') refreshToken?: string,
+  ): Promise<void> {
+    const accessToken = (req.headers.authorization ?? '').replace('Bearer ', '');
+    if (accessToken) {
+      const jti = createHash('sha256').update(accessToken).digest('hex').slice(0, 32);
+      // Blacklist access token for its lifetime (15 min).
+      await this.redis.blacklistToken(jti, 900);
+    }
+    // Also revoke the refresh token so the session cannot be resurrected from a
+    // stolen refresh. We blacklist for 7 days (refresh token lifetime).
+    if (refreshToken && typeof refreshToken === 'string') {
+      const refreshJti = createHash('sha256').update(refreshToken).digest('hex').slice(0, 32);
+      await this.redis.blacklistToken(`refresh:${refreshJti}`, 7 * 24 * 3600);
+    }
   }
 
   @Patch('push-token')

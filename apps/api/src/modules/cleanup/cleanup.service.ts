@@ -31,11 +31,15 @@ export class CleanupService {
     this.logger.log(`Purged ${result.affected ?? 0} location history records older than 30 days`);
   }
 
-  // Run weekly on Sunday at 4 AM — purge audit logs older than 90 days
+  // Run weekly on Sunday at 4 AM — purge audit logs older than retention window.
+  // LFPDPPP (Mexico privacy law) requires retention proportional to purpose;
+  // we keep 365 days so a yearly audit can review all operational actions.
+  // Configurable via AUDIT_RETENTION_DAYS env; defaults to 365.
   @Cron('0 4 * * 0')
   async purgeOldAuditLogs(): Promise<void> {
+    const retentionDays = parseInt(process.env['AUDIT_RETENTION_DAYS'] ?? '365', 10);
     const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 90);
+    cutoff.setDate(cutoff.getDate() - retentionDays);
 
     const result = await this.auditLogRepo
       .createQueryBuilder()
@@ -43,6 +47,8 @@ export class CleanupService {
       .where('created_at < :cutoff', { cutoff })
       .execute();
 
-    this.logger.log(`Purged ${result.affected ?? 0} audit logs older than 90 days`);
+    this.logger.log(
+      `Purged ${result.affected ?? 0} audit logs older than ${retentionDays} days`,
+    );
   }
 }
