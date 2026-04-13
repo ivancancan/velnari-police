@@ -14,7 +14,11 @@
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Velnari necesita tu ubicación para el despacho.",
         "NSLocationWhenInUseUsageDescription": "Velnari necesita tu ubicación para el despacho.",
         "NSCameraUsageDescription": "Velnari necesita la cámara para adjuntar fotos a incidentes.",
-        "NSFaceIDUsageDescription": "Velnari usa Face ID para proteger el acceso a datos operativos."
+        "NSMicrophoneUsageDescription": "Velnari necesita el micrófono para notas de voz en incidentes.",
+        "NSPhotoLibraryUsageDescription": "Velnari necesita acceso a tu galería para adjuntar evidencia a incidentes.",
+        "NSPhotoLibraryAddUsageDescription": "Velnari guardará fotos del servicio en tu dispositivo.",
+        "NSFaceIDUsageDescription": "Velnari usa Face ID para proteger el acceso a datos operativos.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {

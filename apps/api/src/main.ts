@@ -17,6 +17,10 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   app.useLogger(app.get(Logger));
 
+  // Enable graceful shutdown hooks (calls onModuleDestroy/onApplicationShutdown on SIGTERM/SIGINT).
+  // Railway/containers send SIGTERM on deploy; without this, in-flight requests get killed.
+  app.enableShutdownHooks();
+
   app.use(helmet({
     // Allow swagger UI to load its assets
     contentSecurityPolicy: process.env['NODE_ENV'] === 'production' ? undefined : false,
@@ -68,6 +72,22 @@ async function bootstrap() {
   if (process.env['NODE_ENV'] !== 'production') {
     logger.log(`Swagger docs: http://localhost:${port}/api/docs`);
   }
+
+  // Explicit signal handlers — Railway/Docker send SIGTERM; Nest's shutdown hooks
+  // will drain connections and close DB pools before the process exits.
+  const shutdown = async (signal: string): Promise<void> => {
+    logger.log(`Received ${signal} — shutting down gracefully...`);
+    try {
+      await app.close();
+      logger.log('HTTP server closed. Exiting.');
+      process.exit(0);
+    } catch (err) {
+      logger.error(`Shutdown failed: ${(err as Error).message}`);
+      process.exit(1);
+    }
+  };
+  process.on('SIGTERM', () => void shutdown('SIGTERM'));
+  process.on('SIGINT', () => void shutdown('SIGINT'));
 }
 
 void bootstrap();

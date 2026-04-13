@@ -118,8 +118,20 @@ export class RealtimeGateway {
 
   // ─── Client events (received from client) ───────────────────────────────
 
+  private getUser(client: Socket): { sub?: string; id?: string; role?: string } | null {
+    return (client as unknown as { user?: { sub?: string; id?: string; role?: string } }).user ?? null;
+  }
+
+  /** Command room is operator/supervisor/commander/admin only — never field units. */
   @SubscribeMessage('join:command')
   handleJoinCommand(@ConnectedSocket() client: Socket): void {
+    const user = this.getUser(client);
+    const allowedRoles = new Set(['admin', 'operator', 'supervisor', 'commander']);
+    if (!user?.role || !allowedRoles.has(user.role)) {
+      this.logger.warn(`Client ${client.id} (role=${user?.role ?? 'none'}) denied join:command`);
+      client.emit('error', { code: 'forbidden', room: 'command' });
+      return;
+    }
     void client.join('command');
     this.logger.log(`Client ${client.id} joined room: command`);
   }
@@ -129,6 +141,16 @@ export class RealtimeGateway {
     @ConnectedSocket() client: Socket,
     @MessageBody() data: { sectorId: string },
   ): void {
+    const user = this.getUser(client);
+    const allowedRoles = new Set(['admin', 'operator', 'supervisor', 'commander', 'field_unit']);
+    if (!user?.role || !allowedRoles.has(user.role)) {
+      client.emit('error', { code: 'forbidden', room: `sector:${data.sectorId}` });
+      return;
+    }
+    if (!data?.sectorId || typeof data.sectorId !== 'string') {
+      client.emit('error', { code: 'bad_request', room: 'sector' });
+      return;
+    }
     const room = `sector:${data.sectorId}`;
     void client.join(room);
     this.logger.log(`Client ${client.id} joined room: ${room}`);
@@ -139,16 +161,44 @@ export class RealtimeGateway {
     @ConnectedSocket() client: Socket,
     @MessageBody() data: { incidentId: string },
   ): void {
+    const user = this.getUser(client);
+    if (!user?.role) {
+      client.emit('error', { code: 'forbidden', room: 'incident' });
+      return;
+    }
+    if (!data?.incidentId || typeof data.incidentId !== 'string') {
+      client.emit('error', { code: 'bad_request', room: 'incident' });
+      return;
+    }
     const room = `incident:${data.incidentId}`;
     void client.join(room);
     this.logger.log(`Client ${client.id} joined room: ${room}`);
   }
 
+  /** Unit rooms: field units may only join their OWN unit room; operators can join any. */
   @SubscribeMessage('join:unit')
   handleJoinUnit(
     @ConnectedSocket() client: Socket,
     @MessageBody() data: { unitId: string },
   ): void {
+    const user = this.getUser(client);
+    if (!user?.role) {
+      client.emit('error', { code: 'forbidden', room: 'unit' });
+      return;
+    }
+    if (!data?.unitId || typeof data.unitId !== 'string') {
+      client.emit('error', { code: 'bad_request', room: 'unit' });
+      return;
+    }
+    // For field_unit role, enforce ownership by payload claim (set at assignment time).
+    // Operators/supervisors/admins may join any unit room for monitoring.
+    const isFieldUnit = user.role === 'field_unit';
+    const claimedUnitId = (user as unknown as { unitId?: string }).unitId;
+    if (isFieldUnit && claimedUnitId && claimedUnitId !== data.unitId) {
+      this.logger.warn(`Field user ${user.sub} attempted cross-unit join: ${data.unitId}`);
+      client.emit('error', { code: 'forbidden', room: `unit:${data.unitId}` });
+      return;
+    }
     const room = `unit:${data.unitId}`;
     void client.join(room);
     this.logger.log(`Client ${client.id} joined room: ${room}`);

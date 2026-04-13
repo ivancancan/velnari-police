@@ -56,6 +56,8 @@ export default function HomeScreen() {
   const [noteText, setNoteText] = useState('');
   const [sendingNote, setSendingNote] = useState(false);
   const [closingIncident, setClosingIncident] = useState(false);
+  const [sendingPanic, setSendingPanic] = useState(false);
+  const [takingPhoto, setTakingPhoto] = useState(false);
   const [detailIncidentId, setDetailIncidentId] = useState<string | null>(null);
 
   // Patrol state
@@ -256,33 +258,42 @@ export default function HomeScreen() {
   const currentStatusOption = STATUS_OPTIONS.find((s) => s.value === status);
 
   async function handleTakePhoto() {
-    if (!assignedIncident) return;
-    const { status: camStatus } = await ImagePicker.requestCameraPermissionsAsync();
-    if (camStatus !== 'granted') {
-      Alert.alert('Permiso denegado', 'Se necesita acceso a la cámara.');
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({
-      quality: 0.7,
-      allowsEditing: false,
-    });
-    if (result.canceled || !result.assets[0]) return;
-    const uri = result.assets[0].uri;
+    if (!assignedIncident || takingPhoto) return;
+    setTakingPhoto(true);
     try {
-      await incidentsApi.uploadPhotoPresigned(assignedIncident.id, uri);
-      Vibration.vibrate(100);
-      Alert.alert('Foto enviada', 'La foto fue adjuntada al incidente.');
-    } catch {
-      try {
-        await enqueuePhoto(assignedIncident.id, uri);
-        Alert.alert('Sin conexión', 'La foto se guardó y se enviará cuando haya red.');
-      } catch {
-        Alert.alert('Error', 'No se pudo guardar la foto. Intenta de nuevo.');
+      const { status: camStatus } = await ImagePicker.requestCameraPermissionsAsync();
+      if (camStatus !== 'granted') {
+        Alert.alert('Permiso denegado', 'Se necesita acceso a la cámara.');
+        return;
       }
+      const result = await ImagePicker.launchCameraAsync({
+        quality: 0.7,
+        allowsEditing: false,
+      });
+      if (result.canceled || !result.assets[0]) return;
+      const uri = result.assets[0].uri;
+      try {
+        await incidentsApi.uploadPhotoPresigned(assignedIncident.id, uri);
+        Vibration.vibrate(100);
+        Alert.alert('Foto enviada', 'La foto fue adjuntada al incidente.');
+      } catch {
+        try {
+          await enqueuePhoto(assignedIncident.id, uri);
+          Alert.alert('Sin conexión', 'La foto se guardó y se enviará cuando haya red.');
+        } catch {
+          Alert.alert('Error', 'No se pudo guardar la foto. Intenta de nuevo.');
+        }
+      }
+    } finally {
+      setTakingPhoto(false);
     }
   }
 
   async function handlePanic() {
+    // Guard: ignore if an alert is already in flight (prevents double-submit when
+    // the long-press retriggers or the user releases and re-presses quickly).
+    if (sendingPanic) return;
+    setSendingPanic(true);
     Vibration.vibrate([0, 500, 200, 500]);
     try {
       const { status: locStatus } = await Location.requestForegroundPermissionsAsync();
@@ -303,26 +314,38 @@ export default function HomeScreen() {
     } catch (err: unknown) {
       const isNetworkError = !(err as { response?: unknown }).response;
       if (isNetworkError) {
+        // Try fresh GPS → fallback to last known → refuse to enqueue without coords
+        let lat: number | null = null;
+        let lng: number | null = null;
         try {
           const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-          await enqueue('post', '/incidents', {
-            type: 'other',
-            priority: 'critical',
-            lat: loc.coords.latitude,
-            lng: loc.coords.longitude,
-            description: `🚨 ALERTA DE PÁNICO — ${callSign ?? 'Unidad'} en peligro. Requiere apoyo inmediato.`,
-            address: `GPS: ${loc.coords.latitude.toFixed(5)}, ${loc.coords.longitude.toFixed(5)}`,
-          });
+          lat = loc.coords.latitude;
+          lng = loc.coords.longitude;
         } catch {
-          await enqueue('post', '/incidents', {
-            type: 'other',
-            priority: 'critical',
-            lat: 0,
-            lng: 0,
-            description: `🚨 ALERTA DE PÁNICO — ${callSign ?? 'Unidad'} en peligro. Sin GPS disponible.`,
-            address: 'Sin GPS',
-          });
+          try {
+            const last = await Location.getLastKnownPositionAsync({ maxAge: 5 * 60_000 });
+            if (last) { lat = last.coords.latitude; lng = last.coords.longitude; }
+          } catch { /* no-op */ }
         }
+
+        if (lat == null || lng == null) {
+          // Critical: do NOT queue a panic alert without coordinates — operators need location.
+          Alert.alert(
+            '⚠️ Sin GPS',
+            'No se pudo obtener tu ubicación. Activa el GPS y vuelve a intentar. Si estás en peligro, usa radio.',
+            [{ text: 'Entendido', style: 'default' }],
+          );
+          return;
+        }
+
+        await enqueue('post', '/incidents', {
+          type: 'other',
+          priority: 'critical',
+          lat,
+          lng,
+          description: `🚨 ALERTA DE PÁNICO — ${callSign ?? 'Unidad'} en peligro. Requiere apoyo inmediato.`,
+          address: `GPS: ${lat.toFixed(5)}, ${lng.toFixed(5)}`,
+        });
         Vibration.vibrate([0, 200, 100, 200]);
         Alert.alert(
           '🚨 Alerta guardada',
@@ -332,6 +355,8 @@ export default function HomeScreen() {
       } else {
         Alert.alert('Error', 'No se pudo enviar la alerta. Intenta de nuevo.');
       }
+    } finally {
+      setSendingPanic(false);
     }
   }
 
@@ -370,6 +395,9 @@ export default function HomeScreen() {
         style={[styles.gpsButton, trackingActive && styles.gpsButtonActive]}
         onPress={toggleTracking}
         activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={trackingActive ? 'Detener rastreo GPS' : 'Iniciar rastreo GPS'}
+        accessibilityHint="Activa o desactiva el envío de tu ubicación al centro de mando"
       >
         <Text style={styles.gpsIcon}>{trackingActive ? '📡' : '📍'}</Text>
         <View>
@@ -529,11 +557,15 @@ export default function HomeScreen() {
           </View>
           <View style={styles.noteActions}>
             <TouchableOpacity
-              style={styles.cameraButton}
+              style={[styles.cameraButton, takingPhoto && { opacity: 0.6 }]}
               onPress={handleTakePhoto}
+              disabled={takingPhoto}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Adjuntar foto al incidente"
+              accessibilityHint="Abre la cámara para tomar una foto y adjuntarla al incidente actual"
             >
-              <Text style={styles.cameraButtonText}>📷</Text>
+              <Text style={styles.cameraButtonText}>{takingPhoto ? '⏳' : '📷'}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.noteButton, styles.noteButtonFlex, (!noteText.trim() || sendingNote) && styles.noteButtonDisabled]}
@@ -584,13 +616,17 @@ export default function HomeScreen() {
           ]}
         />
         <TouchableOpacity
-          style={styles.panicButton}
+          style={[styles.panicButton, sendingPanic && { opacity: 0.6 }]}
           onLongPress={handlePanic}
           delayLongPress={1000}
           activeOpacity={0.8}
+          disabled={sendingPanic}
+          accessibilityRole="button"
+          accessibilityLabel="Botón de pánico SOS"
+          accessibilityHint="Mantén presionado un segundo para enviar alerta de emergencia al centro de mando"
         >
-          <Text style={styles.panicText}>SOS</Text>
-          <Text style={styles.panicHint}>Mantener presionado</Text>
+          <Text style={styles.panicText}>{sendingPanic ? '···' : 'SOS'}</Text>
+          <Text style={styles.panicHint}>{sendingPanic ? 'Enviando...' : 'Mantener presionado'}</Text>
         </TouchableOpacity>
       </View>
     )}

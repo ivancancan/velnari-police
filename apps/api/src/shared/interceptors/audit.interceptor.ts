@@ -13,10 +13,47 @@ import { AuditLogEntity } from '../../entities/audit-log.entity';
 
 const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
+// Fields redacted before persisting to audit log — never store credentials or tokens.
+const REDACTED_FIELDS = new Set([
+  'password',
+  'passwordHash',
+  'password_hash',
+  'token',
+  'accessToken',
+  'refreshToken',
+  'access_token',
+  'refresh_token',
+  'authorization',
+  'cookie',
+  'secret',
+  'apiKey',
+  'api_key',
+]);
+
+const MAX_BODY_BYTES = 4_000; // cap audit payload size
+
+function redact(value: unknown, depth = 0): unknown {
+  if (depth > 4 || value == null) return value;
+  if (Array.isArray(value)) return value.slice(0, 20).map((v) => redact(v, depth + 1));
+  if (typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (REDACTED_FIELDS.has(k) || REDACTED_FIELDS.has(k.toLowerCase())) {
+        out[k] = '[REDACTED]';
+      } else {
+        out[k] = redact(v, depth + 1);
+      }
+    }
+    return out;
+  }
+  return value;
+}
+
 interface RequestWithUser {
   method: string;
   url: string;
   ip: string;
+  body?: unknown;
   user?: { sub: string };
 }
 
@@ -36,6 +73,14 @@ export class AuditInterceptor implements NestInterceptor {
     const handlerName = context.getHandler().name;
     const controllerName = context.getClass().name;
     const actorId = request.user?.sub;
+    const redactedBody = redact(request.body);
+    let serializedBody: string | null = null;
+    try {
+      const s = JSON.stringify(redactedBody);
+      serializedBody = s.length > MAX_BODY_BYTES ? s.slice(0, MAX_BODY_BYTES) + '…' : s;
+    } catch {
+      serializedBody = null;
+    }
 
     return next.handle().pipe(
       tap({
@@ -55,6 +100,9 @@ export class AuditInterceptor implements NestInterceptor {
             action: handlerName,
             actorId,
             ipAddress: request.ip,
+            changes: serializedBody
+              ? { body: serializedBody, method: request.method, path: request.url }
+              : { method: request.method, path: request.url },
           });
 
           this.dataSource

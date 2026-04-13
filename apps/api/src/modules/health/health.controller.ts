@@ -22,6 +22,8 @@ export class HealthController {
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
       database: dbOk ? 'connected' : 'unreachable',
+      version: process.env['GIT_SHA'] ?? 'dev',
+      buildTime: process.env['BUILD_TIME'] ?? null,
     };
 
     if (!dbOk) {

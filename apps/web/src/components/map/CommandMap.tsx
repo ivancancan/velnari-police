@@ -119,8 +119,13 @@ export default function CommandMap({
         await sectorsApi.setBoundary(drawMode.sectorId, coordinates);
         setDrawMode(null);
         onBoundarySet?.();
-      } catch {
+      } catch (err) {
         setDrawMode(null);
+        // Surface the error so operators know the boundary wasn't saved.
+        const msg = err instanceof Error ? err.message : 'Error desconocido';
+        if (typeof window !== 'undefined') {
+          window.alert(`No se pudo guardar el sector: ${msg}. Intenta de nuevo.`);
+        }
       }
     },
     [drawMode, onBoundarySet],

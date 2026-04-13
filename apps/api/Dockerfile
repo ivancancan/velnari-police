@@ -23,7 +23,13 @@ FROM node:20-alpine AS runner
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 WORKDIR /app
 ENV NODE_ENV=production
-ENV CACHE_BUST=2026-04-12-v6
+
+# GIT_SHA injected at build time (CI passes --build-arg GIT_SHA=${{ github.sha }}).
+# Exposed as env for health endpoint / logs / Sentry release tagging.
+ARG GIT_SHA=unknown
+ENV GIT_SHA=${GIT_SHA}
+ARG BUILD_TIME=unknown
+ENV BUILD_TIME=${BUILD_TIME}
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json ./apps/api/package.json

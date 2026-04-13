@@ -80,9 +80,10 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
-        // Refresh failed — force logout
+        // Refresh failed — soft logout: clears tokens but preserves offline queue so
+        // pending writes (incidents, photos) survive until next login.
         const { useAuthStore } = require('../store/auth.store');
-        await useAuthStore.getState().clearAuth();
+        await useAuthStore.getState().clearSession();
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

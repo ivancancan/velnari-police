@@ -16,7 +16,10 @@ interface AuthState {
   user: AuthUser | null;
   isAuthenticated: boolean;
   setAuth: (accessToken: string, refreshToken: string, user: AuthUser) => Promise<void>;
+  /** Full logout: wipes tokens AND offline queue. Use only for explicit user logout. */
   clearAuth: () => Promise<void>;
+  /** Soft clear: wipes tokens but keeps offline queue (for token-refresh failures). */
+  clearSession: () => Promise<void>;
   loadStoredAuth: () => Promise<void>;
   setAccessToken: (token: string) => Promise<void>;
 }
@@ -39,6 +42,14 @@ export const useAuthStore = create<AuthState>((set) => ({
     await SecureStore.deleteItemAsync('refreshToken');
     await SecureStore.deleteItemAsync('authUser');
     await clearQueue();
+    set({ accessToken: null, refreshToken: null, user: null, isAuthenticated: false });
+  },
+
+  clearSession: async () => {
+    await SecureStore.deleteItemAsync('accessToken');
+    await SecureStore.deleteItemAsync('refreshToken');
+    await SecureStore.deleteItemAsync('authUser');
+    // Keep offline queue intact — pending writes (photos, incidents) survive until next login.
     set({ accessToken: null, refreshToken: null, user: null, isAuthenticated: false });
   },
 

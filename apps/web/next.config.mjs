@@ -13,12 +13,58 @@ if (process.env.NODE_ENV === 'production') {
   }
 }
 
+// Compose CSP from allowed endpoints. Mapbox needs specific hosts; API + WS need the Railway origin.
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? '';
+const SENTRY_DSN = process.env.NEXT_PUBLIC_SENTRY_DSN ?? '';
+
+const apiOrigin = (() => { try { return new URL(API_URL).origin; } catch { return ''; } })();
+const wsOrigin = (() => {
+  try {
+    const u = new URL(WS_URL);
+    return `${u.protocol === 'https:' ? 'wss:' : 'ws:'}//${u.host}`;
+  } catch { return ''; }
+})();
+const sentryOrigin = (() => { try { return new URL(SENTRY_DSN).origin; } catch { return ''; } })();
+
+const cspDirectives = [
+  `default-src 'self'`,
+  // Next.js inline scripts + mapbox worker-src; no eval outside dev.
+  `script-src 'self' 'unsafe-inline' ${process.env.NODE_ENV !== 'production' ? "'unsafe-eval'" : ''} https://api.mapbox.com https://events.mapbox.com`,
+  `style-src 'self' 'unsafe-inline' https://api.mapbox.com`,
+  `img-src 'self' data: blob: https://*.mapbox.com https://*.tile.openstreetmap.org https://*.amazonaws.com`,
+  `font-src 'self' data:`,
+  `connect-src 'self' ${apiOrigin} ${wsOrigin} ${sentryOrigin} https://api.mapbox.com https://events.mapbox.com https://*.tiles.mapbox.com`,
+  `worker-src 'self' blob:`,
+  `frame-ancestors 'none'`,
+  `base-uri 'self'`,
+  `form-action 'self'`,
+].join('; ');
+
+const securityHeaders = [
+  { key: 'Content-Security-Policy', value: cspDirectives },
+  { key: 'X-Frame-Options', value: 'DENY' },
+  { key: 'X-Content-Type-Options', value: 'nosniff' },
+  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(self)' },
+  { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
+];
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
   transpilePackages: ['@velnari/shared-types'],
   experimental: {
     instrumentationHook: true,
+  },
+  async headers() {
+    return [
+      {
+        // Apply to all routes
+        source: '/(.*)',
+        headers: securityHeaders,
+      },
+    ];
   },
   webpack: (config, { isServer }) => {
     // Ensure reflect-metadata is available before shared-types decorators run

@@ -52,6 +52,41 @@ export class RedisCacheService implements OnModuleDestroy {
     await this.client.set(`blacklist:${jti}`, '1', 'EX', ttlSeconds);
   }
 
+  // ─── Login failure tracking (account lockout) ─────────────────────────────
+  private loginFailKey(identifier: string): string {
+    // normalize: lower-case email OR IP
+    return `login:fail:${identifier.trim().toLowerCase()}`;
+  }
+
+  /** Returns the current failure count for an identifier (email or IP). */
+  async getLoginFailCount(identifier: string): Promise<number> {
+    try {
+      const v = await this.client.get(this.loginFailKey(identifier));
+      return v ? parseInt(v, 10) : 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  /** Increment failure counter and return the new count. TTL resets to window on each fail. */
+  async incrementLoginFail(identifier: string, windowSeconds = 900): Promise<number> {
+    try {
+      const key = this.loginFailKey(identifier);
+      const count = await this.client.incr(key);
+      await this.client.expire(key, windowSeconds);
+      return count;
+    } catch {
+      return 0;
+    }
+  }
+
+  /** Reset failure counter after a successful login. */
+  async resetLoginFails(identifier: string): Promise<void> {
+    try {
+      await this.client.del(this.loginFailKey(identifier));
+    } catch { /* noop */ }
+  }
+
   /** Check if a token ID has been blacklisted */
   async isTokenBlacklisted(jti: string): Promise<boolean> {
     try {

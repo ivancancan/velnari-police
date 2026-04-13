@@ -1,6 +1,6 @@
 import { BadRequestException, Inject, Injectable, forwardRef } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { IncidentsService } from '../incidents/incidents.service';
 import { UnitsService } from '../units/units.service';
 import { IncidentEventEntity } from '../../entities/incident-event.entity';
@@ -38,6 +38,8 @@ export class DispatchService {
     @InjectRepository(UserEntity)
     private readonly userRepo: Repository<UserEntity>,
     private readonly notifications: NotificationsService,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
   ) {}
 
   async assignUnit(
@@ -45,62 +47,74 @@ export class DispatchService {
     unitId: string,
     actorId: string,
   ): Promise<IncidentEntity> {
-    const [incident, unit] = await Promise.all([
-      this.incidentsService.findOne(incidentId),
-      this.unitsService.findOne(unitId),
-    ]);
+    // All writes in ONE transaction — if any fails, the whole assignment rolls back.
+    const { savedIncident, unit, etaMinutes } = await this.dataSource.transaction(
+      async (manager) => {
+        const incident = await manager.findOne(IncidentEntity, { where: { id: incidentId } });
+        if (!incident) throw new BadRequestException('Incidente no encontrado.');
+        const unit = await manager.findOne(UnitEntity, { where: { id: unitId } });
+        if (!unit) throw new BadRequestException('Unidad no encontrada.');
 
-    if (incident.status === IncidentStatus.CLOSED) {
-      throw new BadRequestException('No se puede asignar una unidad a un incidente cerrado.');
-    }
+        if (incident.status === IncidentStatus.CLOSED) {
+          throw new BadRequestException('No se puede asignar una unidad a un incidente cerrado.');
+        }
+        if (unit.status !== UnitStatus.AVAILABLE) {
+          throw new BadRequestException(
+            `La unidad ${unit.callSign} no está disponible (estado: ${unit.status}).`,
+          );
+        }
 
-    if (unit.status !== UnitStatus.AVAILABLE) {
-      throw new BadRequestException(
-        `La unidad ${unit.callSign} no está disponible (estado: ${unit.status}).`,
-      );
-    }
+        incident.assignedUnitId = unitId;
+        incident.status = IncidentStatus.ASSIGNED;
+        incident.assignedAt = new Date();
+        unit.status = UnitStatus.EN_ROUTE;
 
-    incident.assignedUnitId = unitId;
-    incident.status = IncidentStatus.ASSIGNED;
-    incident.assignedAt = new Date();
+        const savedIncident = await manager.save(IncidentEntity, incident);
+        await manager.save(UnitEntity, unit);
 
-    await this.unitsService.updateStatus(unitId, UnitStatus.EN_ROUTE);
-    const savedIncident = await this.incidentsService.saveIncident(incident);
+        await manager
+          .createQueryBuilder()
+          .insert()
+          .into(IncidentUnitAssignmentEntity)
+          .values({ incidentId, unitId, assignedBy: actorId, assignedAt: new Date() })
+          .orUpdate(['assigned_by', 'assigned_at'], ['incident_id', 'unit_id'])
+          .execute();
 
-    // Record in assignments table
-    await this.assignmentRepo.upsert(
-      { incidentId, unitId, assignedBy: actorId, assignedAt: new Date() },
-      ['incidentId', 'unitId'],
+        // ETA calc inside the transaction (read-only, safe)
+        let etaMinutes: number | null = null;
+        if (unit.currentLocation) {
+          const distResult = await manager.query(
+            `SELECT ST_Distance(u.current_location::geography, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography) / 1000 AS distance_km
+             FROM units u WHERE u.id = $3 LIMIT 1`,
+            [Number(incident.lng), Number(incident.lat), unitId],
+          );
+          const distKm = distResult?.[0]?.distance_km;
+          if (distKm) {
+            etaMinutes = Math.max(1, Math.round((Number(distKm) / 30) * 60));
+          }
+        }
+
+        await manager.save(IncidentEventEntity, manager.create(IncidentEventEntity, {
+          incidentId,
+          type: 'assigned',
+          description: `Unidad ${unit.callSign} asignada al incidente${etaMinutes ? ` · ETA: ~${etaMinutes} min` : ''}`,
+          actorId,
+          metadata: { unitId, callSign: unit.callSign },
+        }));
+
+        return { savedIncident, unit, etaMinutes };
+      },
     );
 
-    // Calculate ETA based on distance
-    let etaMinutes: number | null = null;
-    if (unit.currentLocation) {
-      const distResult = await this.unitRepo
-        .createQueryBuilder('u')
-        .select('ST_Distance(u.current_location::geography, ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography) / 1000', 'distance_km')
-        .where('u.id = :id', { id: unitId })
-        .setParameters({ lat: Number(incident.lat), lng: Number(incident.lng) })
-        .getRawOne();
-
-      if (distResult?.distance_km) {
-        // Assume avg speed 30 km/h in urban area
-        etaMinutes = Math.round((Number(distResult.distance_km) / 30) * 60);
-        if (etaMinutes < 1) etaMinutes = 1;
-      }
-    }
-
-    const event = this.eventRepo.create({
-      incidentId,
-      type: 'assigned',
-      description: `Unidad ${unit.callSign} asignada al incidente${etaMinutes ? ` · ETA: ~${etaMinutes} min` : ''}`,
-      actorId,
-      metadata: { unitId, callSign: unit.callSign },
-    });
-    await this.eventRepo.save(event);
-
+    // Side effects AFTER commit (if realtime/notifications fail, DB state is still consistent)
     this.realtime.emitIncidentAssigned(incidentId, unitId, etaMinutes);
     void this.sendAssignmentNotification(unitId, savedIncident.folio ?? incidentId, etaMinutes);
+    // Emit unit status change so command map reflects EN_ROUTE
+    this.realtime.emitUnitStatusChanged({
+      unitId,
+      status: UnitStatus.EN_ROUTE,
+      previousStatus: UnitStatus.AVAILABLE,
+    });
 
     return savedIncident;
   }
@@ -110,64 +124,83 @@ export class DispatchService {
     newUnitId: string,
     actorId: string,
   ): Promise<IncidentEntity> {
-    const [incident, newUnit] = await Promise.all([
-      this.incidentsService.findOne(incidentId),
-      this.unitsService.findOne(newUnitId),
-    ]);
+    const { saved, newUnit, previousUnitId, etaMinutes } = await this.dataSource.transaction(
+      async (manager) => {
+        const incident = await manager.findOne(IncidentEntity, { where: { id: incidentId } });
+        if (!incident) throw new BadRequestException('Incidente no encontrado.');
+        const newUnit = await manager.findOne(UnitEntity, { where: { id: newUnitId } });
+        if (!newUnit) throw new BadRequestException('Unidad no encontrada.');
 
-    if (incident.status === IncidentStatus.CLOSED) {
-      throw new BadRequestException('No se puede reasignar un incidente cerrado.');
-    }
+        if (incident.status === IncidentStatus.CLOSED) {
+          throw new BadRequestException('No se puede reasignar un incidente cerrado.');
+        }
+        if (newUnit.status !== UnitStatus.AVAILABLE) {
+          throw new BadRequestException(
+            `La unidad ${newUnit.callSign} no está disponible (estado: ${newUnit.status}).`,
+          );
+        }
 
-    if (newUnit.status !== UnitStatus.AVAILABLE) {
-      throw new BadRequestException(
-        `La unidad ${newUnit.callSign} no está disponible (estado: ${newUnit.status}).`,
-      );
-    }
+        const previousUnitId = incident.assignedUnitId;
+        if (previousUnitId) {
+          await manager.update(UnitEntity, { id: previousUnitId }, { status: UnitStatus.AVAILABLE });
+        }
 
-    // Release previous unit if assigned
-    const previousUnitId = incident.assignedUnitId;
-    if (previousUnitId) {
-      await this.unitsService.updateStatus(previousUnitId, UnitStatus.AVAILABLE);
-    }
+        incident.assignedUnitId = newUnitId;
+        incident.status = IncidentStatus.ASSIGNED;
+        incident.assignedAt = new Date();
+        newUnit.status = UnitStatus.EN_ROUTE;
 
-    incident.assignedUnitId = newUnitId;
-    incident.status = IncidentStatus.ASSIGNED;
-    incident.assignedAt = new Date();
+        const saved = await manager.save(IncidentEntity, incident);
+        await manager.save(UnitEntity, newUnit);
 
-    await this.unitsService.updateStatus(newUnitId, UnitStatus.EN_ROUTE);
-    const saved = await this.incidentsService.saveIncident(incident);
+        await manager
+          .createQueryBuilder()
+          .insert()
+          .into(IncidentUnitAssignmentEntity)
+          .values({ incidentId, unitId: newUnitId, assignedBy: actorId, assignedAt: new Date() })
+          .orUpdate(['assigned_by', 'assigned_at'], ['incident_id', 'unit_id'])
+          .execute();
 
-    await this.assignmentRepo.upsert(
-      { incidentId, unitId: newUnitId, assignedBy: actorId, assignedAt: new Date() },
-      ['incidentId', 'unitId'],
+        let etaMinutes: number | null = null;
+        if (newUnit.currentLocation) {
+          const distResult = await manager.query(
+            `SELECT ST_Distance(u.current_location::geography, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography) / 1000 AS distance_km
+             FROM units u WHERE u.id = $3 LIMIT 1`,
+            [Number(incident.lng), Number(incident.lat), newUnitId],
+          );
+          const distKm = distResult?.[0]?.distance_km;
+          if (distKm) etaMinutes = Math.max(1, Math.round((Number(distKm) / 30) * 60));
+        }
+
+        const prevCallSign = previousUnitId
+          ? (await manager.findOne(UnitEntity, { where: { id: previousUnitId } }))?.callSign ?? 'sin unidad'
+          : 'sin unidad';
+
+        await manager.save(IncidentEventEntity, manager.create(IncidentEventEntity, {
+          incidentId,
+          type: 'reassigned',
+          description: `Reasignado: ${prevCallSign} → ${newUnit.callSign}${etaMinutes ? ` · ETA: ~${etaMinutes} min` : ''}`,
+          actorId,
+          metadata: { previousUnitId, newUnitId, callSign: newUnit.callSign },
+        }));
+
+        return { saved, newUnit, previousUnitId, etaMinutes };
+      },
     );
 
-    let etaMinutes: number | null = null;
-    if (newUnit.currentLocation) {
-      const distResult = await this.unitRepo
-        .createQueryBuilder('u')
-        .select('ST_Distance(u.current_location::geography, ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography) / 1000', 'distance_km')
-        .where('u.id = :id', { id: newUnitId })
-        .setParameters({ lat: Number(incident.lat), lng: Number(incident.lng) })
-        .getRawOne();
-      if (distResult?.distance_km) {
-        etaMinutes = Math.max(1, Math.round((Number(distResult.distance_km) / 30) * 60));
-      }
-    }
-
-    const previousUnit = previousUnitId ? await this.unitsService.findOne(previousUnitId) : null;
-
-    const event = this.eventRepo.create({
-      incidentId,
-      type: 'reassigned',
-      description: `Reasignado: ${previousUnit?.callSign ?? 'sin unidad'} → ${newUnit.callSign}${etaMinutes ? ` · ETA: ~${etaMinutes} min` : ''}`,
-      actorId,
-      metadata: { previousUnitId, newUnitId, callSign: newUnit.callSign },
-    });
-    await this.eventRepo.save(event);
-
     this.realtime.emitIncidentAssigned(incidentId, newUnitId, etaMinutes);
+    this.realtime.emitUnitStatusChanged({
+      unitId: newUnitId,
+      status: UnitStatus.EN_ROUTE,
+      previousStatus: UnitStatus.AVAILABLE,
+    });
+    if (previousUnitId) {
+      this.realtime.emitUnitStatusChanged({
+        unitId: previousUnitId,
+        status: UnitStatus.AVAILABLE,
+        previousStatus: UnitStatus.EN_ROUTE,
+      });
+    }
     void this.sendAssignmentNotification(newUnitId, saved.folio ?? incidentId, etaMinutes);
 
     return saved;

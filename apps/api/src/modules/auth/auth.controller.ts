@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   HttpCode,
+  HttpException,
   HttpStatus,
   Patch,
   Post,
@@ -40,11 +41,27 @@ export class AuthController {
   @ApiBody({ type: LoginDto })
   @ApiResponse({ status: 200, description: 'Login exitoso — devuelve accessToken, refreshToken, expiresIn' })
   @ApiResponse({ status: 401, description: 'Credenciales incorrectas' })
+  @ApiResponse({ status: 423, description: 'Cuenta bloqueada por intentos fallidos' })
   async login(@Body() dto: LoginDto): Promise<TokenResponseDto> {
+    const MAX_FAILS = 10;
+    const LOCK_WINDOW_SECONDS = 900; // 15 min rolling window
+
+    // Check lockout BEFORE touching the DB — prevents timing attacks to enumerate emails.
+    const failCount = await this.redis.getLoginFailCount(dto.email);
+    if (failCount >= MAX_FAILS) {
+      // 423 Locked
+      throw new HttpException(
+        'Cuenta bloqueada temporalmente por múltiples intentos fallidos. Intenta de nuevo en 15 minutos.',
+        423,
+      );
+    }
+
     const user = await this.authService.validateUser(dto.email, dto.password);
     if (!user) {
+      await this.redis.incrementLoginFail(dto.email, LOCK_WINDOW_SECONDS);
       throw new UnauthorizedException('Credenciales incorrectas.');
     }
+    await this.redis.resetLoginFails(dto.email);
     return this.authService.login(user);
   }
 

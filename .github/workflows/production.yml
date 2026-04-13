@@ -1,0 +1,140 @@
+name: Production
+
+# Gated production deployment: runs tests, requires manual approval via the
+# "production" GitHub environment, then triggers deploy hooks and smoke-tests
+# the live API. Roll back by reverting the main branch and re-running.
+#
+# Secrets required (configure in repo Settings → Environments → production):
+#   RAILWAY_DEPLOY_HOOK_URL   — Railway webhook that redeploys prod API
+#   VERCEL_DEPLOY_HOOK_URL    — Vercel hook for prod web
+#   PRODUCTION_API_URL        — https://api.velnari.mx (used for smoke test)
+#   SLACK_WEBHOOK_URL         — optional, notification on success/failure
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      skip_tests:
+        description: 'Skip tests (emergency rollback only)'
+        required: false
+        default: 'false'
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  # ── 1. Verify tests pass on main ─────────────────────────────
+  verify:
+    if: github.event.inputs.skip_tests != 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: velnari_test
+        ports: [5432:5432]
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7.2-alpine
+        ports: [6379:6379]
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm }
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build shared-types
+        run: pnpm --filter @velnari/shared-types build 2>/dev/null || true
+
+      - name: Lint API
+        working-directory: apps/api
+        run: npx eslint "src/**/*.ts"
+
+      - name: Type-check web
+        working-directory: apps/web
+        run: npx tsc --noEmit
+
+      - name: API tests
+        working-directory: apps/api
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+          DB_NAME: velnari_test
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          JWT_SECRET: test-secret-min-32-chars-xxxxxxxxxxx
+          JWT_REFRESH_SECRET: test-refresh-secret-min-32-chars-xxxxx
+        run: npx jest --no-coverage --passWithNoTests
+
+  # ── 2. Deploy (gated by production environment approval) ──────
+  deploy:
+    needs: verify
+    if: ${{ always() && (needs.verify.result == 'success' || github.event.inputs.skip_tests == 'true') }}
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ secrets.PRODUCTION_API_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Record deploy SHA
+        run: echo "DEPLOY_SHA=${{ github.sha }}" >> $GITHUB_ENV
+
+      - name: Trigger Railway (API) redeploy
+        if: ${{ secrets.RAILWAY_DEPLOY_HOOK_URL != '' }}
+        run: |
+          curl -sS -X POST "${{ secrets.RAILWAY_DEPLOY_HOOK_URL }}" -o /tmp/rw.out
+          cat /tmp/rw.out
+
+      - name: Trigger Vercel (web) redeploy
+        if: ${{ secrets.VERCEL_DEPLOY_HOOK_URL != '' }}
+        run: |
+          curl -sS -X POST "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}" -o /tmp/vc.out
+          cat /tmp/vc.out
+
+      - name: Wait for Railway rollout
+        run: sleep 60
+
+      - name: Smoke test — API health
+        run: |
+          URL="${{ secrets.PRODUCTION_API_URL }}/api/health"
+          for i in 1 2 3 4 5 6 7 8; do
+            CODE=$(curl -sS -o /tmp/body -w "%{http_code}" "$URL" || echo "000")
+            echo "Attempt $i → $CODE"
+            if [ "$CODE" = "200" ]; then
+              echo "✅ API healthy"
+              cat /tmp/body
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "❌ API did not return 200 after rollout"
+          cat /tmp/body || true
+          exit 1
+
+      - name: Notify Slack (success)
+        if: success() && secrets.SLACK_WEBHOOK_URL != ''
+        run: |
+          curl -sS -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+            -H 'Content-Type: application/json' \
+            -d "{\"text\":\"✅ Velnari prod deploy OK · sha=${DEPLOY_SHA:0:7} · actor=${{ github.actor }}\"}" || true
+
+      - name: Notify Slack (failure)
+        if: failure() && secrets.SLACK_WEBHOOK_URL != ''
+        run: |
+          curl -sS -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+            -H 'Content-Type: application/json' \
+            -d "{\"text\":\"🚨 Velnari prod deploy FAILED · sha=${DEPLOY_SHA:0:7} · actor=${{ github.actor }} · ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" || true
