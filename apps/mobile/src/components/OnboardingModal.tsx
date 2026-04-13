@@ -1,7 +1,7 @@
 // apps/mobile/src/components/OnboardingModal.tsx
 import { useRef, useState } from 'react';
 import {
-  Modal, View, Text, TouchableOpacity, FlatList, StyleSheet,
+  View, Text, TouchableOpacity, FlatList, StyleSheet,
   Dimensions,
 } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
@@ -62,7 +62,7 @@ export default function OnboardingModal({ onDone }: { onDone: () => void }) {
   const isLast = currentStep === STEPS.length - 1;
 
   return (
-    <Modal visible animationType="fade" transparent={false} statusBarTranslucent>
+    <View style={styles.overlay}>
       <View style={styles.container}>
         {/* Skip button */}
         <TouchableOpacity style={styles.skipButton} onPress={handleDone}>
@@ -126,11 +126,12 @@ export default function OnboardingModal({ onDone }: { onDone: () => void }) {
           )}
         </View>
       </View>
-    </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999 },
   container: { flex: 1, backgroundColor: '#0F172A' },
   skipButton: { position: 'absolute', top: 56, right: 24, zIndex: 10, padding: 8 },
   skipText: { color: '#64748B', fontSize: 14, fontWeight: '600' },

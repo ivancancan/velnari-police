@@ -1,7 +1,7 @@
 // apps/mobile/src/components/PrivacyConsentModal.tsx
 import { useState } from 'react';
 import {
-  Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet, Linking,
+  View, Text, TouchableOpacity, ScrollView, StyleSheet, Linking,
 } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 
@@ -23,7 +23,7 @@ export default function PrivacyConsentModal({ onAccept }: { onAccept: () => void
   }
 
   return (
-    <Modal visible animationType="slide" transparent={false} statusBarTranslucent>
+    <View style={styles.overlay}>
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.logo}>Velnari Field</Text>
@@ -98,11 +98,12 @@ export default function PrivacyConsentModal({ onAccept }: { onAccept: () => void
           </Text>
         </View>
       </View>
-    </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999 },
   container: { flex: 1, backgroundColor: '#0F172A' },
   header: { paddingTop: 60, paddingHorizontal: 24, paddingBottom: 20, borderBottomWidth: 1, borderBottomColor: '#1E293B' },
   logo: { color: '#3B82F6', fontSize: 13, fontWeight: '700', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 },
