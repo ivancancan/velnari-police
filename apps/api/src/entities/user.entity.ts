@@ -1,6 +1,7 @@
 import {
   Column,
   CreateDateColumn,
+  DeleteDateColumn,
   Entity,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -52,4 +53,10 @@ export class UserEntity {
 
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt!: Date;
+
+  // Soft delete: TypeORM treats rows with non-null deletedAt as deleted and
+  // excludes them from find() automatically. Foreign-key references (audit
+  // logs, incident events) remain intact so the chain-of-custody is preserved.
+  @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz', nullable: true })
+  deletedAt?: Date | null;
 }

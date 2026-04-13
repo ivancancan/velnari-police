@@ -5,6 +5,7 @@ import {
   StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
 import { authApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
 import { registerForPushNotifications } from '@/lib/notifications';
@@ -22,9 +23,9 @@ export default function LoginScreen() {
     setError('');
     try {
       const res = await authApi.login(email, password);
-      // store token so the interceptor picks it up for the /auth/me call
-      const { setItemAsync } = await import('expo-secure-store');
-      await setItemAsync('accessToken', res.data.accessToken);
+      // Store token synchronously so the axios interceptor picks it up when
+      // we call /auth/me below. Static import keeps tsc happy (was dynamic).
+      await SecureStore.setItemAsync('accessToken', res.data.accessToken);
       const meRes = await authApi.me();
       await setAuth(res.data.accessToken, res.data.refreshToken, meRes.data);
       // Register push token and send to backend (non-blocking)

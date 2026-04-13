@@ -98,6 +98,16 @@ export class RedisCacheService implements OnModuleDestroy {
     }
   }
 
+  /** Liveness probe — returns true if Redis accepts commands. Used by /health. */
+  async ping(): Promise<boolean> {
+    try {
+      const res = await this.client.ping();
+      return res === 'PONG';
+    } catch {
+      return false;
+    }
+  }
+
   async onModuleDestroy(): Promise<void> {
     await this.client.quit();
   }

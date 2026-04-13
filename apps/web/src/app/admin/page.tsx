@@ -67,10 +67,18 @@ export default function AdminUsersPage() {
       setResetError('La contraseña debe tener al menos 8 caracteres');
       return;
     }
-    await usersApi.resetPassword(resetTarget.id, newPassword);
-    setResetTarget(null);
-    setNewPassword('');
-    setResetError('');
+    try {
+      await usersApi.resetPassword(resetTarget.id, newPassword);
+      setResetTarget(null);
+      setNewPassword('');
+      setResetError('');
+      if (typeof window !== 'undefined') {
+        window.alert('Contraseña actualizada. Comunícala al usuario por un canal seguro.');
+      }
+    } catch (err) {
+      reportError(err, { tag: 'admin.resetPassword' });
+      setResetError('No se pudo actualizar la contraseña. Intenta de nuevo.');
+    }
   }
 
   async function handleDeactivate(u: User) {

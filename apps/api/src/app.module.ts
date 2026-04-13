@@ -26,6 +26,7 @@ import { TenantsModule } from './modules/tenants/tenants.module';
 import { HealthController } from './modules/health/health.controller';
 import { AuditInterceptor } from './shared/interceptors/audit.interceptor';
 import { RedisCacheService } from './shared/services/redis-cache.service';
+import { SentryTypeOrmLogger } from './shared/typeorm-logger';
 
 @Module({
   imports: [
@@ -51,26 +52,34 @@ import { RedisCacheService } from './shared/services/redis-cache.service';
     }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        type: 'postgres',
-        host: config.get('database.host'),
-        port: config.get<number>('database.port'),
-        username: config.get('database.username'),
-        password: config.get('database.password'),
-        database: config.get('database.database'),
-        entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        migrations: [__dirname + '/database/migrations/*{.ts,.js}'],
-        synchronize: false,
-        logging: config.get('nodeEnv') === 'development',
-        connectTimeoutMS: 5_000,
-        maxQueryExecutionTime: 10_000,
-        extra: {
-          max: 20,
-          min: 2,
-          idleTimeoutMillis: 30_000,
-          connectionTimeoutMillis: 5_000,
-        },
-      }),
+      useFactory: (config: ConfigService) => {
+        const isDev = config.get('nodeEnv') === 'development';
+        return {
+          type: 'postgres',
+          host: config.get('database.host'),
+          port: config.get<number>('database.port'),
+          username: config.get('database.username'),
+          password: config.get('database.password'),
+          database: config.get('database.database'),
+          entities: [__dirname + '/**/*.entity{.ts,.js}'],
+          migrations: [__dirname + '/database/migrations/*{.ts,.js}'],
+          synchronize: false,
+          // In dev → log everything to stdout. In prod → use the Sentry logger
+          // which only forwards errors + slow queries, keeping Sentry signal high.
+          logging: isDev ? true : ['error', 'warn', 'migration'],
+          logger: isDev ? 'advanced-console' : new SentryTypeOrmLogger(['error', 'warn']),
+          // Queries slower than this are reported via logQuerySlow (the custom
+          // logger above batches to Sentry breadcrumbs + events).
+          maxQueryExecutionTime: 500,
+          connectTimeoutMS: 5_000,
+          extra: {
+            max: 20,
+            min: 2,
+            idleTimeoutMillis: 30_000,
+            connectionTimeoutMillis: 5_000,
+          },
+        };
+      },
     }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
     ScheduleModule.forRoot(),
