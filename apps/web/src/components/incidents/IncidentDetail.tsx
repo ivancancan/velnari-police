@@ -12,6 +12,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { useIncidentsStore } from '@/store/incidents.store';
 import { permissions } from '@/lib/permissions';
 import { exportToPdf } from '@/lib/pdf-export';
+import IncidentReplay from './IncidentReplay';
 import { reportError } from '@/lib/report-error';
 
 const TYPE_LABELS: Record<string, string> = {
@@ -50,6 +51,7 @@ export default function IncidentDetail({ incident, onBack }: IncidentDetailProps
   const [showCloseForm, setShowCloseForm] = useState(false);
   const [showReassignConfirm, setShowReassignConfirm] = useState(false);
   const [showReport, setShowReport] = useState(false);
+  const [showReplay, setShowReplay] = useState(false);
   const [resolution, setResolution] = useState('');
   const [closing, setClosing] = useState(false);
 
@@ -224,13 +226,22 @@ export default function IncidentDetail({ incident, onBack }: IncidentDetailProps
         <span className="font-mono text-sm text-signal-white">{incident.folio}</span>
         <Badge variant={incident.priority as IncidentPriority} />
         <Badge variant={incident.status as IncidentStatus} />
-        <button
-          onClick={handleExportPdf}
-          className="ml-auto text-xs text-slate-gray hover:text-signal-white transition-colors border border-slate-700 px-2.5 py-1 rounded"
-          aria-label="Exportar PDF"
-        >
-          Exportar PDF
-        </button>
+        <div className="ml-auto flex items-center gap-1.5">
+          <button
+            onClick={() => setShowReplay(true)}
+            className="text-xs text-slate-gray hover:text-signal-white transition-colors border border-slate-700 px-2.5 py-1 rounded"
+            aria-label="Reproducir incidente"
+          >
+            ▶ Replay
+          </button>
+          <button
+            onClick={handleExportPdf}
+            className="text-xs text-slate-gray hover:text-signal-white transition-colors border border-slate-700 px-2.5 py-1 rounded"
+            aria-label="Exportar PDF"
+          >
+            Exportar PDF
+          </button>
+        </div>
       </div>
 
       {/* Content */}
@@ -482,6 +493,14 @@ export default function IncidentDetail({ incident, onBack }: IncidentDetailProps
         <ReportFillModal
           incidentId={incident.id}
           onClose={() => setShowReport(false)}
+        />
+      )}
+
+      {/* Incident replay — GPS + events timelapse */}
+      {showReplay && (
+        <IncidentReplay
+          incidentId={incident.id}
+          onClose={() => setShowReplay(false)}
         />
       )}
     </div>

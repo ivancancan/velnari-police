@@ -187,6 +187,20 @@ export const incidentsApi = {
       reasoning: string;
       tacticalHints?: string[];
     }>('/incidents/classify', { description, ...(address ? { address } : {}) }),
+
+  getReplay: (id: string) =>
+    api.get<{
+      incident: { id: string; folio: string; lat: number; lng: number; createdAt: string; assignedAt?: string; closedAt?: string };
+      events: { at: string; type: string; description?: string | null }[];
+      units: { unitId: string; callSign: string; frames: { at: string; lat: number; lng: number }[] }[];
+    }>(`/incidents/${id}/replay`),
+
+  getTimeOfDayPatterns: (days = 90, sectorId?: string) =>
+    api.get<{
+      windowDays: number;
+      cells: { dayOfWeek: number; hour: number; count: number }[];
+      topTypeByCell: Record<string, string>;
+    }>('/incidents/patterns/time-of-day', { params: { days, ...(sectorId ? { sectorId } : {}) } }),
 };
 
 // ─── Dispatch ────────────────────────────────────────────────────────────────

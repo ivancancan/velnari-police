@@ -12,19 +12,37 @@ import { useAlertsStore } from '@/store/alerts.store';
 const STALE_THRESHOLD_MS = 5 * 60_000; // 5 minutes
 const STALE_CHECK_INTERVAL_MS = 60_000; // check every minute
 
-function playAlertSound() {
+// Per-priority alert tones so the operator can distinguish severity by ear
+// even if the screen isn't in view. Frequencies ascend with urgency.
+const PRIORITY_TONES: Record<string, { freq: number; decayMs: number; double?: boolean }> = {
+  critical: { freq: 1320, decayMs: 600, double: true },
+  high:     { freq: 880,  decayMs: 500 },
+  medium:   { freq: 660,  decayMs: 300 },
+  low:      { freq: 440,  decayMs: 250 },
+  geofence: { freq: 740,  decayMs: 400 },
+};
+
+function playAlertSound(priority: string = 'high') {
   try {
+    const cfg = PRIORITY_TONES[priority] ?? PRIORITY_TONES['high']!;
     const ctx = new AudioContext();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.frequency.value = 880;
-    osc.type = 'square';
-    gain.gain.value = 0.15;
-    osc.start();
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
-    osc.stop(ctx.currentTime + 0.5);
+
+    const fire = (delay: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = cfg.freq;
+      osc.type = 'square';
+      gain.gain.value = 0.15;
+      osc.start(ctx.currentTime + delay);
+      gain.gain.setValueAtTime(0.15, ctx.currentTime + delay);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + cfg.decayMs / 1000);
+      osc.stop(ctx.currentTime + delay + cfg.decayMs / 1000);
+    };
+
+    fire(0);
+    if (cfg.double) fire(0.25);
   } catch { /* no audio context available */ }
 }
 
@@ -46,8 +64,8 @@ export default function RealtimeProvider({ children }: { children: React.ReactNo
 
   const handleAlert = useCallback((priority: string, folio: string, message: string) => {
     addAlert({ folio, message, priority });
-    if (priority === 'critical' || priority === 'high' || priority === 'geofence') {
-      playAlertSound();
+    if (priority === 'critical' || priority === 'high' || priority === 'geofence' || priority === 'medium') {
+      playAlertSound(priority);
     }
   }, [addAlert]);
 

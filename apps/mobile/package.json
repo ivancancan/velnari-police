@@ -30,6 +30,7 @@
     "@react-native-community/netinfo": "11.4.1",
     "axios": "^1.6.0",
     "expo": "~52.0.0",
+    "expo-av": "~15.0.2",
     "expo-battery": "~9.0.2",
     "expo-constants": "~17.0.0",
     "expo-device": "^7.0.3",

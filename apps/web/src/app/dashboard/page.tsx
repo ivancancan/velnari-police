@@ -10,6 +10,7 @@ import type { IncidentStats, UnitStats, Incident, DailySummary } from '@/lib/typ
 import StatsCard from '@/components/dashboard/StatsCard';
 import MiniBarChart from '@/components/dashboard/MiniBarChart';
 import ResponseTimeHeadline from '@/components/dashboard/ResponseTimeHeadline';
+import PatternHeatmap from '@/components/dashboard/PatternHeatmap';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -233,6 +234,14 @@ export default function DashboardPage() {
             {dailySummary && (
               <ResponseTimeHeadline dailySummary={dailySummary} />
             )}
+
+            {/* Pattern heatmap — day-of-week × hour-of-day */}
+            <section className="mb-8">
+              <h2 className="text-xs text-slate-gray uppercase tracking-widest mb-3 font-semibold">
+                Patrones temporales
+              </h2>
+              <PatternHeatmap days={90} />
+            </section>
 
             {/* Incidents stats + Avg dispatch time */}
             <section className="mb-8">

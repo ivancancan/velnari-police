@@ -234,6 +234,23 @@ export const incidentsApi = {
 
     await incidentsApi.confirmAttachment(incidentId, s3Key, mimeType, fileContent.size);
   },
+  uploadVoiceNote: async (incidentId: string, uri: string): Promise<void> => {
+    // Uses the multipart attachments endpoint. S3 presigned PUT is not
+    // wired for audio yet — multipart is fine for the demo.
+    const formData = new FormData();
+    const ext = uri.split('.').pop()?.toLowerCase() ?? 'm4a';
+    const mime = ext === 'wav' ? 'audio/wav' : ext === 'mp3' ? 'audio/mpeg' : 'audio/m4a';
+    formData.append('file', {
+      uri,
+      name: `voice-note.${ext}`,
+      type: mime,
+    } as unknown as Blob);
+    formData.append('capturedAt', new Date().toISOString());
+    await api.post(`/incidents/${incidentId}/attachments`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+
   uploadPhoto: async (incidentId: string, uri: string) => {
     const formData = new FormData();
     const filename = uri.split('/').pop() ?? 'photo.jpg';

@@ -15,6 +15,7 @@ import { flushQueue, enqueue } from '@/lib/offline-queue';
 import { flushPhotoQueue, enqueuePhoto } from '@/lib/photo-queue';
 import { flushLocationQueue } from '@/lib/location-queue';
 import IncidentDetailModal from '@/components/IncidentDetailModal';
+import VoiceNoteButton from '@/components/VoiceNoteButton';
 
 const STATUS_OPTIONS = [
   { value: 'available', label: 'Disponible', color: '#22C55E', icon: '✓', iconLabel: 'Listo' },
@@ -575,6 +576,10 @@ export default function HomeScreen() {
             >
               <Text style={styles.noteButtonText}>{sendingNote ? 'Enviando...' : 'Enviar'}</Text>
             </TouchableOpacity>
+          </View>
+          {/* Voice note — push-and-hold record, release to upload */}
+          <View style={{ marginTop: 10 }}>
+            <VoiceNoteButton incidentId={assignedIncident.id} />
           </View>
         </View>
 

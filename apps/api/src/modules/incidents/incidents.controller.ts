@@ -185,6 +185,32 @@ export class IncidentsController {
     return this.service.getAssignments(id);
   }
 
+  @Get('patterns/time-of-day')
+  @Roles(UserRole.ADMIN, UserRole.OPERATOR, UserRole.SUPERVISOR, UserRole.COMMANDER)
+  async getTimeOfDayPatterns(
+    @Query('days') daysRaw?: string,
+    @Query('sectorId') sectorId?: string,
+  ): Promise<{
+    windowDays: number;
+    cells: { dayOfWeek: number; hour: number; count: number }[];
+    topTypeByCell: Record<string, string>;
+  }> {
+    const days = Math.min(180, Math.max(7, parseInt(daysRaw ?? '90', 10) || 90));
+    return this.service.getTimeOfDayPatterns(days, sectorId);
+  }
+
+  @Get(':id/replay')
+  @Roles(UserRole.ADMIN, UserRole.OPERATOR, UserRole.SUPERVISOR, UserRole.COMMANDER)
+  async getReplay(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<{
+    incident: { id: string; folio: string; lat: number; lng: number; createdAt: string; assignedAt?: string; closedAt?: string };
+    events: { at: string; type: string; description?: string | null }[];
+    units: { unitId: string; callSign: string; frames: { at: string; lat: number; lng: number }[] }[];
+  }> {
+    return this.service.getReplay(id);
+  }
+
   @Post()
   @Roles(UserRole.ADMIN, UserRole.OPERATOR, UserRole.SUPERVISOR)
   create(

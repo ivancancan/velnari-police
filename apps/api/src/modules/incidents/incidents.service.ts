@@ -874,6 +874,136 @@ export class IncidentsService {
     return token;
   }
 
+  // Pattern analysis: how incidents distribute across day-of-week × hour.
+  // Returns a 7×24 grid of counts plus the most common type in each cell.
+  // Used by the dashboard heatmap widget ("¿cuándo concentran robos?").
+  async getTimeOfDayPatterns(
+    days: number,
+    sectorId?: string,
+  ): Promise<{
+    windowDays: number;
+    cells: { dayOfWeek: number; hour: number; count: number }[];
+    topTypeByCell: Record<string, string>;
+  }> {
+    const from = new Date();
+    from.setDate(from.getDate() - days);
+    from.setHours(0, 0, 0, 0);
+
+    const params: unknown[] = [from];
+    let whereClause = 'created_at >= $1';
+    if (sectorId) {
+      params.push(sectorId);
+      whereClause += ' AND sector_id = $2';
+    }
+
+    const rows: { dow: string; hour: string; type: string; cnt: string }[] = await this.repo.query(
+      `SELECT
+         EXTRACT(DOW FROM created_at AT TIME ZONE 'America/Mexico_City')::int AS dow,
+         EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Mexico_City')::int AS hour,
+         type,
+         COUNT(*)::int AS cnt
+       FROM incidents
+       WHERE ${whereClause}
+       GROUP BY 1, 2, 3
+       ORDER BY 1, 2`,
+      params,
+    );
+
+    const cellMap = new Map<string, number>();
+    const typeByCell = new Map<string, { type: string; cnt: number }>();
+    for (const r of rows) {
+      const dow = Number(r.dow);
+      const hour = Number(r.hour);
+      const cnt = Number(r.cnt);
+      const key = `${dow}-${hour}`;
+      cellMap.set(key, (cellMap.get(key) ?? 0) + cnt);
+      const existing = typeByCell.get(key);
+      if (!existing || cnt > existing.cnt) {
+        typeByCell.set(key, { type: r.type, cnt });
+      }
+    }
+
+    const cells = Array.from(cellMap.entries()).map(([k, count]) => {
+      const [dow, hour] = k.split('-').map(Number);
+      return { dayOfWeek: dow ?? 0, hour: hour ?? 0, count };
+    });
+    const topTypeByCell: Record<string, string> = {};
+    for (const [k, v] of typeByCell.entries()) topTypeByCell[k] = v.type;
+
+    return { windowDays: days, cells, topTypeByCell };
+  }
+
+  // Returns everything needed to animate a replay of an incident: the
+  // incident anchor point, event timeline, and GPS frames of every assigned
+  // unit between incident creation and close (or now if still open).
+  // Intended to be consumed by the web IncidentReplay component.
+  async getReplay(incidentId: string): Promise<{
+    incident: { id: string; folio: string; lat: number; lng: number; createdAt: string; assignedAt?: string; closedAt?: string };
+    events: { at: string; type: string; description?: string | null }[];
+    units: { unitId: string; callSign: string; frames: { at: string; lat: number; lng: number }[] }[];
+  }> {
+    const incident = await this.repo.findOne({ where: { id: incidentId } });
+    if (!incident) throw new NotFoundException('Incidente no encontrado');
+
+    const rangeStart = incident.createdAt;
+    const rangeEnd = incident.closedAt ?? new Date();
+
+    const events = await this.eventRepo.find({
+      where: { incidentId },
+      order: { createdAt: 'ASC' },
+    });
+
+    // Find units that were ever assigned to this incident.
+    const assignedUnits: { unit_id: string; call_sign: string }[] = await this.repo.query(
+      `SELECT DISTINCT iua.unit_id, u.call_sign
+       FROM incident_unit_assignments iua
+       JOIN units u ON u.id = iua.unit_id
+       WHERE iua.incident_id = $1`,
+      [incidentId],
+    );
+
+    // Pull GPS frames per unit within the incident window.
+    const units = await Promise.all(
+      assignedUnits.map(async (a) => {
+        const frames: { recorded_at: string; lat: number; lng: number }[] = await this.repo.query(
+          `SELECT recorded_at, lat, lng
+           FROM unit_location_history
+           WHERE unit_id = $1 AND recorded_at BETWEEN $2 AND $3
+           ORDER BY recorded_at ASC
+           LIMIT 500`,
+          [a.unit_id, rangeStart, rangeEnd],
+        );
+        return {
+          unitId: a.unit_id,
+          callSign: a.call_sign,
+          frames: frames.map((f) => ({
+            at: new Date(f.recorded_at).toISOString(),
+            lat: Number(f.lat),
+            lng: Number(f.lng),
+          })),
+        };
+      }),
+    );
+
+    return {
+      incident: {
+        id: incident.id,
+        folio: incident.folio,
+        lat: Number(incident.lat),
+        lng: Number(incident.lng),
+        createdAt: incident.createdAt.toISOString(),
+        assignedAt: incident.assignedAt?.toISOString(),
+        closedAt: incident.closedAt?.toISOString(),
+      },
+      events: events.map((e) => ({
+        at: e.createdAt.toISOString(),
+        type: e.type,
+        description: e.description ?? null,
+      })),
+      units,
+    };
+  }
+
   async getByTrackingToken(token: string): Promise<{
     folio: string;
     status: string;
