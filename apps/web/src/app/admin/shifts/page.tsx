@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { unitsApi, usersApi } from '@/lib/api';
+import { reportError } from '@/lib/report-error';
 import type { Unit, User } from '@/lib/types';
 import { Clock, Truck, Users } from 'lucide-react';
 
@@ -31,7 +32,7 @@ export default function ShiftsPage() {
         setUnits(uRes.data);
         setUsers(usRes.data);
       })
-      .catch(console.error)
+      .catch((err) => reportError(err, { tag: 'admin.shifts' }))
       .finally(() => setLoading(false));
   }, []);
 

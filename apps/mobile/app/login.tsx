@@ -48,7 +48,11 @@ export default function LoginScreen() {
         <Text style={styles.title}>VELNARI</Text>
         <Text style={styles.subtitle}>Field Operations</Text>
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {error ? (
+          <Text style={styles.error} accessibilityRole="alert" accessibilityLiveRegion="assertive">
+            {error}
+          </Text>
+        ) : null}
 
         <TextInput
           style={styles.input}
@@ -58,6 +62,11 @@ export default function LoginScreen() {
           onChangeText={setEmail}
           keyboardType="email-address"
           autoCapitalize="none"
+          autoComplete="email"
+          textContentType="emailAddress"
+          accessibilityLabel="Correo electrónico"
+          accessibilityHint="Ingresa el email de tu cuenta de Velnari"
+          returnKeyType="next"
         />
 
         <TextInput
@@ -67,12 +76,21 @@ export default function LoginScreen() {
           value={password}
           onChangeText={setPassword}
           secureTextEntry
+          autoComplete="password"
+          textContentType="password"
+          accessibilityLabel="Contraseña"
+          accessibilityHint="Ingresa la contraseña de tu cuenta"
+          returnKeyType="go"
+          onSubmitEditing={handleLogin}
         />
 
         <TouchableOpacity
           style={[styles.button, loading && styles.buttonDisabled]}
           onPress={handleLogin}
           disabled={loading}
+          accessibilityRole="button"
+          accessibilityLabel="Ingresar a Velnari Field"
+          accessibilityState={{ disabled: loading, busy: loading }}
         >
           {loading ? (
             <ActivityIndicator color="#fff" />

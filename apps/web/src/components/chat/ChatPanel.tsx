@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { api } from '@/lib/api';
+import { reportError } from '@/lib/report-error';
 import { useAuthStore } from '@/store/auth.store';
 import { getSocket } from '@/lib/socket';
 
@@ -37,7 +38,7 @@ export default function ChatPanel({ roomId, title = 'Chat operativo' }: Props) {
   useEffect(() => {
     api.get<ChatMessage[]>(`/chat/${roomId}?limit=50`)
       .then((res) => setMessages(res.data.reverse()))
-      .catch(console.error);
+      .catch((err) => reportError(err, { tag: 'chat.loadMessages' }));
   }, [roomId]);
 
   useEffect(() => {

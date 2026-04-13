@@ -107,3 +107,18 @@ export async function getPhotoQueueSize(): Promise<number> {
   const queue = await loadQueue();
   return queue.length;
 }
+
+/** Called on explicit user logout — deletes all queued photos + metadata.
+ *  NOT called on token-refresh failure, so pending uploads survive re-login. */
+export async function clearPhotoQueue(): Promise<void> {
+  const queue = await loadQueue();
+  for (const photo of queue) {
+    try {
+      await FileSystem.deleteAsync(photo.localUri, { idempotent: true });
+    } catch { /* file already gone */ }
+  }
+  await AsyncStorage.removeItem(QUEUE_KEY);
+  try {
+    await FileSystem.deleteAsync(PHOTOS_DIR, { idempotent: true });
+  } catch { /* dir may not exist */ }
+}

@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useUnitsStore } from '@/store/units.store';
 import { unitsApi } from '@/lib/api';
+import { reportError } from '@/lib/report-error';
 import type { LocationHistoryPoint, Incident, Unit } from '@/lib/types';
 import { UnitStatus } from '@velnari/shared-types';
 
@@ -70,7 +71,10 @@ export default function UnitDetailPanel({ unit, onTrailChange }: UnitDetailPanel
       const res = await unitsApi.updateStatus(unit.id, newStatus);
       updateUnit(res.data);
     } catch (err) {
-      console.error(err);
+      reportError(err, { tag: 'unit.updateStatus' });
+      if (typeof window !== 'undefined') {
+        window.alert('No se pudo cambiar el estado de la unidad. Intenta de nuevo.');
+      }
     } finally {
       setChangingStatus(false);
     }
@@ -90,7 +94,7 @@ export default function UnitDetailPanel({ unit, onTrailChange }: UnitDetailPanel
         setIncidents(incRes.data);
         onTrailChange(histRes.data);
       })
-      .catch(console.error)
+      .catch((err) => reportError(err, { tag: 'unit.loadHistory' }))
       .finally(() => setLoading(false));
   }, [unit.id, date, onTrailChange]);
 

@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { unitsApi } from '@/lib/api';
+import { reportError } from '@/lib/report-error';
 import type { Unit, UnitReport } from '@/lib/types';
 import UnitReportPanel from '@/components/admin/UnitReportPanel';
 import { Search } from 'lucide-react';
@@ -19,7 +20,7 @@ export default function ReportsPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    unitsApi.getAll({}).then(res => setUnits(res.data)).catch(console.error);
+    unitsApi.getAll({}).then(res => setUnits(res.data)).catch((err) => reportError(err, { tag: 'admin.reports' }));
   }, []);
 
   const fetchReport = async () => {

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/store/auth.store';
 import { usersApi } from '@/lib/api';
+import { reportError } from '@/lib/report-error';
 import UserTable from '@/components/admin/UserTable';
 import UserFormModal from '@/components/admin/UserFormModal';
 import type { User } from '@/lib/types';
@@ -22,7 +23,7 @@ export default function AdminUsersPage() {
     setLoading(true);
     usersApi.getAll()
       .then(res => setUsers(res.data))
-      .catch(console.error)
+      .catch((err) => reportError(err, { tag: 'admin.loadUsers' }))
       .finally(() => setLoading(false));
   }
 

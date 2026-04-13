@@ -62,13 +62,17 @@ jobs:
         run: |
           npx jest --no-coverage --passWithNoTests
 
-      - name: Lint API
+      - name: Lint API (errors fail the build, warnings allowed)
         working-directory: apps/api
-        run: npx eslint "src/**/*.ts" --max-warnings=0 || npx eslint "src/**/*.ts"
+        run: npx eslint "src/**/*.ts"
 
-      - name: Lint web
+      - name: Lint web (errors fail the build, warnings allowed)
         working-directory: apps/web
-        run: npx eslint "src/**/*.{ts,tsx}" --max-warnings=0 || npx eslint "src/**/*.{ts,tsx}"
+        run: npx eslint "src/**/*.{ts,tsx}"
+
+      - name: Type-check API
+        working-directory: apps/api
+        run: npx tsc --noEmit
 
       - name: Type-check web
         working-directory: apps/web

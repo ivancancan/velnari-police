@@ -36,14 +36,23 @@ export async function startLocationTracking(unitId: string): Promise<boolean> {
   const { status } = await Location.requestForegroundPermissionsAsync();
   if (status !== 'granted') return false;
 
+  // Battery-conscious tuning:
+  // - Accuracy.Balanced (~100m) is plenty for dispatch maps; High drains ~2x.
+  // - timeInterval 30s upper bound; the OS still fires sooner if distanceInterval (25m)
+  //   is exceeded — so moving units update frequently, stationary ones stay quiet.
+  // - Operators viewing the command map get smooth tracks because the API
+  //   interpolates between points; officers get hours more runtime per shift.
   await Location.startLocationUpdatesAsync(LOCATION_TASK, {
-    accuracy: Location.Accuracy.High,
-    timeInterval: 10000,
-    distanceInterval: 10,
+    accuracy: Location.Accuracy.Balanced,
+    timeInterval: 30000,
+    distanceInterval: 25,
     foregroundService: {
       notificationTitle: 'Velnari Field activo',
       notificationBody: 'Enviando ubicación al centro de mando.',
     },
+    deferredUpdatesInterval: 15000,
+    activityType: Location.ActivityType.AutomotiveNavigation,
+    pausesUpdatesAutomatically: false,
   });
   return true;
 }

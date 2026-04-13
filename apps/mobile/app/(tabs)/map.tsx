@@ -151,6 +151,9 @@ export default function MapScreen() {
               ]}
               onPress={() => setStatusFilter(isActive ? null : opt.value)}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={`Filtro ${opt.label}`}
+              accessibilityState={{ selected: isActive }}
             >
               <Text style={[styles.filterChipText, isActive && { color: chipColor }]}>
                 {opt.label}
@@ -222,6 +225,8 @@ export default function MapScreen() {
             coordinate={{ latitude: incident.lat, longitude: incident.lng }}
             anchor={{ x: 0.5, y: 0.5 }}
             onPress={() => setDetailIncidentId(incident.id)}
+            accessibilityRole="button"
+            accessibilityLabel={`Incidente ${incident.folio}, prioridad ${incident.priority}`}
           >
             <View style={styles.incidentMarker}>
               <View style={[styles.incidentTriangle, { borderBottomColor: PRIORITY_COLORS[incident.priority] ?? '#F59E0B' }]} />

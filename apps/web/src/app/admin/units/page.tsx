@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { unitsApi, sectorsApi } from '@/lib/api';
+import { reportError } from '@/lib/report-error';
 import type { Unit, Sector } from '@/lib/types';
 import { Truck, Plus, Pencil, PowerOff } from 'lucide-react';
 import UnitFormModal from '@/components/admin/UnitFormModal';
@@ -32,7 +33,7 @@ export default function AdminUnitsPage() {
         setUnits(uRes.data);
         setSectors(sData);
       })
-      .catch(console.error)
+      .catch((err) => reportError(err, { tag: 'admin.units' }))
       .finally(() => setLoading(false));
   }
 

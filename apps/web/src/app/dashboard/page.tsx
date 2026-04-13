@@ -10,6 +10,7 @@ import type { IncidentStats, UnitStats, Incident, DailySummary } from '@/lib/typ
 import StatsCard from '@/components/dashboard/StatsCard';
 import MiniBarChart from '@/components/dashboard/MiniBarChart';
 import ResponseTimeHeadline from '@/components/dashboard/ResponseTimeHeadline';
+import { SkeletonCard } from '@/components/ui/Skeleton';
 
 const PRIORITY_COLORS: Record<string, string> = {
   critical: '#EF4444',
@@ -163,7 +164,20 @@ export default function DashboardPage() {
       {/* Content */}
       <main className="flex-1 px-4 sm:px-6 py-6 sm:py-8 max-w-6xl mx-auto w-full space-y-0">
         {loading && !incidentStats && (
-          <p className="text-slate-gray text-center py-20 text-sm">Cargando métricas...</p>
+          <section className="mb-8" aria-label="Cargando dashboard">
+            <div className="h-4 w-40 bg-slate-800 rounded animate-pulse mb-3" />
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              {[0, 1, 2, 3].map((i) => (
+                <SkeletonCard key={`u-${i}`} />
+              ))}
+            </div>
+            <div className="h-4 w-40 bg-slate-800 rounded animate-pulse mb-3" />
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {[0, 1, 2, 3].map((i) => (
+                <SkeletonCard key={`i-${i}`} />
+              ))}
+            </div>
+          </section>
         )}
 
         {incidentStats && unitStats && (

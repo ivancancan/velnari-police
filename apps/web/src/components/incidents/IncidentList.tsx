@@ -7,6 +7,7 @@ import { permissions } from '@/lib/permissions';
 import IncidentCard from './IncidentCard';
 import CreateIncidentModal from './CreateIncidentModal';
 import Spinner from '@/components/ui/Spinner';
+import { SkeletonList } from '@/components/ui/Skeleton';
 import type { Sector } from '@/lib/types';
 
 const STATUS_OPTIONS = [
@@ -106,8 +107,8 @@ export default function IncidentList({ sectors = [], crisisMode = false }: Incid
       {/* List */}
       <div className="flex-1 overflow-y-auto">
         {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Spinner />
+          <div className="px-2 py-2">
+            <SkeletonList count={5} />
           </div>
         ) : filtered.length === 0 ? (
           <p className="text-center text-slate-gray text-sm py-12">

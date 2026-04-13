@@ -1,6 +1,7 @@
 'use client';
 import { useState, useCallback } from 'react';
 import { api } from '@/lib/api';
+import { reportError } from '@/lib/report-error';
 import { Search, RefreshCw } from 'lucide-react';
 
 interface AuditLog {
@@ -59,7 +60,7 @@ export default function AuditLogPage() {
       setTotal(res.data.total);
       setFetched(true);
     } catch (err) {
-      console.error(err);
+      reportError(err, { tag: 'admin.audit.load' });
     } finally {
       setLoading(false);
     }
