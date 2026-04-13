@@ -99,6 +99,35 @@ Public URL for municipality during outages. Options:
 4. `eas build --platform ios --profile production`
 5. `eas submit -p ios --latest`
 
+## 🟠 P1.5 — Test infrastructure rehabilitation
+
+The API unit/integration test suite is in a broken state (predates the
+current CI pipeline). Failures observed in CI:
+
+- `incidents.service.spec.ts` / `units.service.spec.ts` →
+  `Cannot read properties of undefined (reading 'addSelect')` — the
+  TypeORM repo mock doesn't return a chainable QueryBuilder.
+- `attachments.service.spec.ts` →
+  `Cannot read properties of undefined (reading 'native')` — S3 client
+  mock missing.
+- E2E tests → `password authentication failed for user "postgres"` even
+  though Postgres is started in the CI job — likely missing migration run
+  before tests, or connection string mismatch.
+- `e2e-dispatch.spec.ts` → `column "lat" of relation "units" does not exist` —
+  schema drift; test seeds expect columns that were replaced with
+  `current_location` geometry.
+
+CI runs tests with `continue-on-error: true` so signal is visible but
+doesn't block merges. Plan:
+
+1. Re-scaffold the repo mocks to use TypeORM's native test utilities
+   (or factor mocks into a shared helper).
+2. Add a pre-test migration step in CI (`pnpm db:migrate` against the
+   CI postgres service before jest runs).
+3. Update `e2e-dispatch.spec.ts` seed to use `ST_MakePoint` instead of
+   `lat/lng` columns.
+4. Once green, flip `continue-on-error: false` in `.github/workflows/ci.yml`.
+
 ## 🟡 P2 — Nice to Have
 
 - Install `@sentry/react-native` (or `sentry-expo`) on mobile + wire in app.
