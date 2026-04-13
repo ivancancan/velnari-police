@@ -13,17 +13,18 @@ export class HealthController {
 
   @Get()
   async check() {
-    // Probe DB and Redis in parallel so slow dependencies don't serialize the check.
+    // Probe DB and Redis in parallel. Only DB failure is fatal for the API —
+    // Redis powers rate limiting, token blacklist, and GPS caching, but each
+    // of those is designed to fail-open. Losing Redis degrades security
+    // posture but doesn't stop dispatch, so we report it as "degraded" with
+    // 200 OK and let an external monitor alert on the degraded status.
     const [dbOk, redisOk] = await Promise.all([
       this.dataSource.query('SELECT 1').then(() => true).catch(() => false),
-      // Lightweight ping — incrementing a disposable key with a 1s TTL
-      // verifies Redis is reachable + accepts writes (not just reads).
       this.redis.ping().catch(() => false),
     ]);
 
-    const ok = dbOk && redisOk;
     const result = {
-      status: ok ? 'ok' : 'degraded',
+      status: !dbOk ? 'down' : redisOk ? 'ok' : 'degraded',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
       database: dbOk ? 'connected' : 'unreachable',
@@ -32,7 +33,7 @@ export class HealthController {
       buildTime: process.env['BUILD_TIME'] ?? null,
     };
 
-    if (!ok) {
+    if (!dbOk) {
       throw new ServiceUnavailableException(result);
     }
 
