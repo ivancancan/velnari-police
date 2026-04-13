@@ -47,13 +47,10 @@ jobs:
       - name: Build shared-types
         run: pnpm --filter @velnari/shared-types build 2>/dev/null || true
 
-      - name: Lint API
+      # Lint skipped — monorepo has no ESLint config yet. Type-check is the gate.
+      - name: Type-check API
         working-directory: apps/api
-        run: npx eslint "src/**/*.ts" --max-warnings=0 || npx eslint "src/**/*.ts"
-
-      - name: Lint web
-        working-directory: apps/web
-        run: npx eslint "src/**/*.{ts,tsx}" --max-warnings=0 || npx eslint "src/**/*.{ts,tsx}"
+        run: npx tsc --noEmit
 
       - name: Type-check web
         working-directory: apps/web

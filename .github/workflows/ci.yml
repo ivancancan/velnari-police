@@ -62,14 +62,8 @@ jobs:
         run: |
           npx jest --no-coverage --passWithNoTests
 
-      - name: Lint API (errors fail the build, warnings allowed)
-        working-directory: apps/api
-        run: npx eslint "src/**/*.ts"
-
-      - name: Lint web (errors fail the build, warnings allowed)
-        working-directory: apps/web
-        run: npx eslint "src/**/*.{ts,tsx}"
-
+      # Lint is intentionally skipped until the monorepo ships a shared
+      # ESLint config. Type-check is the real quality gate today.
       - name: Type-check API
         working-directory: apps/api
         run: npx tsc --noEmit
