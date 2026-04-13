@@ -30,9 +30,18 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Placeholder for push-triggered validation runs. When GitHub runs the
+  # workflow to validate its YAML after a file change, this job satisfies
+  # the "at least one job must run" rule so the run doesn't fail.
+  noop:
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Production workflow only runs on workflow_dispatch."
+
   # ── 1. Verify tests pass on main ─────────────────────────────
   verify:
-    if: github.event.inputs.skip_tests != 'true'
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.skip_tests != 'true'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -87,7 +96,7 @@ jobs:
   # ── 2. Deploy (gated by production environment approval) ──────
   deploy:
     needs: verify
-    if: ${{ always() && (needs.verify.result == 'success' || github.event.inputs.skip_tests == 'true') }}
+    if: ${{ github.event_name == 'workflow_dispatch' && always() && (needs.verify.result == 'success' || github.event.inputs.skip_tests == 'true') }}
     runs-on: ubuntu-latest
     environment:
       name: production

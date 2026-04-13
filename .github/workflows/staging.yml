@@ -1,16 +1,27 @@
 name: Staging
 
 on:
-  # Staging branch is not actively used yet. Run this workflow manually when
-  # you want to smoke-test a branch before promoting to main.
+  # Staging branch is not actively used yet. Run manually when needed:
   #   gh workflow run .github/workflows/staging.yml --ref <branch>
   workflow_dispatch:
-  # push:
-  #   branches: [staging]
+  # Accept pushes but only to the staging branch so main pushes don't
+  # register a "no jobs" failure. Jobs below also branch-guard.
+  push:
+    branches: [staging]
 
 jobs:
+  # Placeholder that always runs and always passes. Prevents GitHub from
+  # reporting "No jobs were run" as a failure when the workflow file itself
+  # changes in a push to main. Real jobs below only run on the staging branch.
+  noop:
+    if: github.ref_name != 'staging'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Staging workflow intentionally inert on non-staging pushes."
+
   # ── 1. Lint + test (same as CI) ─────────────────────────────
   lint-and-test:
+    if: github.ref_name == 'staging'
     runs-on: ubuntu-latest
 
     services:
