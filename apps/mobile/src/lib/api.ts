@@ -153,6 +153,34 @@ export const patrolsApi = {
     api.post<{ id: string; status: string; acceptedAt: string }>(`/patrols/${id}/accept`),
 };
 
+export interface IncidentDetail {
+  id: string; folio: string; type: string; priority: string;
+  status: string; address?: string; description?: string;
+  assignedUnitId?: string; lat: number; lng: number;
+  createdAt: string; updatedAt?: string; closedAt?: string;
+  resolution?: string;
+}
+
+export interface IncidentEvent {
+  id: string;
+  incidentId: string;
+  type: string;
+  payload?: Record<string, unknown> | null;
+  actorUserId?: string | null;
+  createdAt: string;
+}
+
+export interface IncidentAttachment {
+  id: string;
+  incidentId: string;
+  url?: string;
+  mimeType?: string;
+  size?: number;
+  createdAt: string;
+  gpsLat?: number | null;
+  gpsLng?: number | null;
+}
+
 export const incidentsApi = {
   getAll: () =>
     api.get<{
@@ -160,6 +188,9 @@ export const incidentsApi = {
       status: string; address?: string; description?: string;
       assignedUnitId?: string; lat: number; lng: number;
     }[]>('/incidents'),
+  getById: (id: string) => api.get<IncidentDetail>(`/incidents/${id}`),
+  getEvents: (id: string) => api.get<IncidentEvent[]>(`/incidents/${id}/events`),
+  getAttachments: (id: string) => api.get<IncidentAttachment[]>(`/incidents/${id}/attachments`),
   create: (data: {
     type: string; priority: string;
     lat: number; lng: number;

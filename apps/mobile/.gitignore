@@ -1,0 +1,20 @@
+# Expo prebuild output (regenerable via `npx expo prebuild`)
+ios/
+android/
+
+# Expo
+.expo/
+dist/
+web-build/
+
+# Native build artifacts
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# Local env
+.env
+.env.local

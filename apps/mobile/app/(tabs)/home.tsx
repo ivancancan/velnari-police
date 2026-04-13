@@ -14,6 +14,7 @@ import { startLocationTracking, stopLocationTracking } from '@/lib/location';
 import { flushQueue, enqueue } from '@/lib/offline-queue';
 import { flushPhotoQueue, enqueuePhoto } from '@/lib/photo-queue';
 import { flushLocationQueue } from '@/lib/location-queue';
+import IncidentDetailModal from '@/components/IncidentDetailModal';
 
 const STATUS_OPTIONS = [
   { value: 'available', label: 'Disponible', color: '#22C55E', icon: '✓', iconLabel: 'Listo' },
@@ -55,6 +56,7 @@ export default function HomeScreen() {
   const [noteText, setNoteText] = useState('');
   const [sendingNote, setSendingNote] = useState(false);
   const [closingIncident, setClosingIncident] = useState(false);
+  const [detailIncidentId, setDetailIncidentId] = useState<string | null>(null);
 
   // Patrol state
   interface PatrolInfo {
@@ -487,7 +489,11 @@ export default function HomeScreen() {
       <Text style={styles.sectionLabel}>Incidente asignado</Text>
       {assignedIncident ? (
         <>
-        <View style={[styles.incidentCard, { borderLeftColor: PRIORITY_COLORS[assignedIncident.priority] ?? '#F59E0B' }]}>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => setDetailIncidentId(assignedIncident.id)}
+          style={[styles.incidentCard, { borderLeftColor: PRIORITY_COLORS[assignedIncident.priority] ?? '#F59E0B' }]}
+        >
           <View style={styles.incidentHeader}>
             <Text style={styles.incidentFolio}>{assignedIncident.folio}</Text>
             <View style={[styles.priorityBadge, { backgroundColor: (PRIORITY_COLORS[assignedIncident.priority] ?? '#F59E0B') + '22' }]}>
@@ -505,7 +511,8 @@ export default function HomeScreen() {
           {assignedIncident.description ? (
             <Text style={styles.incidentDesc}>{assignedIncident.description}</Text>
           ) : null}
-        </View>
+          <Text style={styles.incidentTapHint}>Toca para ver detalle, línea de tiempo y adjuntos →</Text>
+        </TouchableOpacity>
 
         {/* Note input */}
         <View style={styles.noteContainer}>
@@ -587,6 +594,11 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
     )}
+
+    <IncidentDetailModal
+      incidentId={detailIncidentId}
+      onClose={() => setDetailIncidentId(null)}
+    />
     </View>
   );
 }
@@ -635,6 +647,7 @@ const styles = StyleSheet.create({
   incidentType: { color: '#F8FAFC', fontSize: 17, fontWeight: '600', marginBottom: 8 },
   incidentAddress: { color: '#94A3B8', fontSize: 15, marginBottom: 6 },
   incidentDesc: { color: '#64748B', fontSize: 14, marginTop: 6, lineHeight: 20 },
+  incidentTapHint: { color: '#475569', fontSize: 11, marginTop: 10, fontStyle: 'italic' },
 
   // Note input — larger touch targets for gloves
   noteContainer: { backgroundColor: '#1E293B', borderRadius: 14, padding: 16, marginTop: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 6, elevation: 4 },

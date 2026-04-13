@@ -5,6 +5,7 @@ import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { unitsApi, incidentsApi } from '@/lib/api';
 import { useUnitStore } from '@/store/unit.store';
+import IncidentDetailModal from '@/components/IncidentDetailModal';
 
 const CDMX = { latitude: 19.4326, longitude: -99.1332, latitudeDelta: 0.03, longitudeDelta: 0.03 };
 
@@ -46,6 +47,7 @@ export default function MapScreen() {
   const [openIncidents, setOpenIncidents] = useState<{ id: string; folio: string; type: string; priority: string; lat: number; lng: number; address?: string }[]>([]);
   const [showOverlay, setShowOverlay] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [detailIncidentId, setDetailIncidentId] = useState<string | null>(null);
 
   // Watch position
   useEffect(() => {
@@ -219,6 +221,7 @@ export default function MapScreen() {
             key={`inc-${incident.id}`}
             coordinate={{ latitude: incident.lat, longitude: incident.lng }}
             anchor={{ x: 0.5, y: 0.5 }}
+            onPress={() => setDetailIncidentId(incident.id)}
           >
             <View style={styles.incidentMarker}>
               <View style={[styles.incidentTriangle, { borderBottomColor: PRIORITY_COLORS[incident.priority] ?? '#F59E0B' }]} />
@@ -304,6 +307,11 @@ export default function MapScreen() {
           <Text style={styles.clearText}>Limpiar ruta</Text>
         </TouchableOpacity>
       )}
+
+      <IncidentDetailModal
+        incidentId={detailIncidentId}
+        onClose={() => setDetailIncidentId(null)}
+      />
     </View>
   );
 }
