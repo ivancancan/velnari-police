@@ -1,5 +1,6 @@
 import type { Incident } from '@/lib/types';
 import Badge from '@/components/ui/Badge';
+import SlaCountdown from './SlaCountdown';
 import type { IncidentPriority, IncidentStatus } from '@velnari/shared-types';
 
 interface IncidentCardProps {
@@ -76,6 +77,16 @@ export default function IncidentCard({ incident, isSelected, onClick }: Incident
           <span />
         )}
         <Badge variant={incident.status as IncidentStatus} />
+      </div>
+
+      {/* Row 4: live SLA countdown */}
+      <div className="mt-1.5">
+        <SlaCountdown
+          priority={incident.priority}
+          createdAt={incident.createdAt}
+          assignedAt={incident.assignedAt ?? null}
+          status={incident.status}
+        />
       </div>
     </button>
   );

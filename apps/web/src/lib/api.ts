@@ -178,6 +178,15 @@ export const incidentsApi = {
       byPriority: { priority: string; targetMinutes: number; totalIncidents: number; withinSla: number; complianceRate: number; avgResponseMinutes: number | null }[];
       overall: { total: number; withinSla: number; complianceRate: number };
     }>('/incidents/sla-compliance', { params: { from, to } }),
+
+  classify: (description: string, address?: string) =>
+    api.post<{
+      type: string;
+      priority: string;
+      confidence: 'high' | 'medium' | 'low';
+      reasoning: string;
+      tacticalHints?: string[];
+    }>('/incidents/classify', { description, ...(address ? { address } : {}) }),
 };
 
 // ─── Dispatch ────────────────────────────────────────────────────────────────

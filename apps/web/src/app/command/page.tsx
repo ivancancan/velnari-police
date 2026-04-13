@@ -94,6 +94,24 @@ export default function CommandPage() {
       .catch((err) => reportError(err, { tag: 'command.page' }));
   }, [showHeatmap]);
 
+  // Auto-activate Crisis Mode when ≥3 critical incidents come in within a
+  // rolling 10-minute window. Operators see the interface shift color + a
+  // banner so the severity is legible without reading folios.
+  useEffect(() => {
+    if (crisisMode) return;
+    const now = Date.now();
+    const tenMinutesAgo = now - 10 * 60_000;
+    const recentCritical = incidents.filter(
+      (i) =>
+        i.priority === 'critical' &&
+        i.status !== 'closed' &&
+        new Date(i.createdAt).getTime() >= tenMinutesAgo,
+    );
+    if (recentCritical.length >= 3) {
+      setCrisisMode(true);
+    }
+  }, [incidents, crisisMode]);
+
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       // Don't trigger if user is typing in an input
@@ -138,9 +156,25 @@ export default function CommandPage() {
 
   return (
     <RealtimeProvider>
-      <div className="flex flex-col h-[100dvh] bg-midnight-command">
+      <div
+        className={`flex flex-col h-[100dvh] transition-colors duration-500 ${
+          crisisMode ? 'bg-red-950' : 'bg-midnight-command'
+        }`}
+      >
+        {crisisMode && (
+          <div
+            role="alert"
+            className="bg-red-600 text-white text-center text-xs font-bold uppercase tracking-widest py-1 animate-pulse shrink-0"
+          >
+            🚨 Modo crisis activo — múltiples incidentes críticos · priorizar asignación
+          </div>
+        )}
         {/* Header */}
-        <header className="flex items-center justify-between px-4 lg:px-6 py-3 bg-slate-900 border-b border-slate-800 shrink-0 gap-2">
+        <header
+          className={`flex items-center justify-between px-4 lg:px-6 py-3 border-b shrink-0 gap-2 ${
+            crisisMode ? 'bg-red-900 border-red-800' : 'bg-slate-900 border-slate-800'
+          }`}
+        >
           {/* Left: brand + nav */}
           <div className="flex items-center gap-3 min-w-0">
             <span className="font-bold text-signal-white tracking-tight truncate">

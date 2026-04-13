@@ -1,11 +1,14 @@
 // apps/web/src/components/dashboard/ResponseTimeHeadline.tsx
 import type { DailySummary } from '@/lib/types';
+import { LineChart, Line, ResponsiveContainer, Tooltip } from 'recharts';
 
 interface Props {
   dailySummary: DailySummary;
+  /** Optional last 7 days of avg response minutes, oldest first. */
+  sparkline?: { date: string; avgMinutes: number }[];
 }
 
-export default function ResponseTimeHeadline({ dailySummary }: Props) {
+export default function ResponseTimeHeadline({ dailySummary, sparkline }: Props) {
   const avg = dailySummary.avgResponseMinutes;
   const delta = dailySummary.comparedToYesterday?.responseTime;
 
@@ -66,7 +69,7 @@ export default function ResponseTimeHeadline({ dailySummary }: Props) {
         </div>
 
         {avg != null && (
-          <div className="md:ml-auto flex flex-col items-center md:items-end gap-1">
+          <div className="md:ml-auto flex flex-col items-center md:items-end gap-2">
             <div
               className={`text-xs font-bold px-3 py-1 rounded-full ${
                 avg <= 2
@@ -78,6 +81,35 @@ export default function ResponseTimeHeadline({ dailySummary }: Props) {
             >
               {avg <= 2 ? '✓ Meta cumplida' : avg <= 5 ? '⚠ Cerca de la meta' : '✕ Fuera de meta'}
             </div>
+            {sparkline && sparkline.length >= 2 && (
+              <div
+                className="w-28 h-10 opacity-80"
+                title={`Últimos ${sparkline.length} días`}
+                aria-label="Tendencia tiempo de respuesta últimos días"
+              >
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={sparkline}>
+                    <Tooltip
+                      contentStyle={{
+                        background: '#1e293b',
+                        border: '1px solid #334155',
+                        borderRadius: 4,
+                        fontSize: 11,
+                      }}
+                      labelStyle={{ color: '#94a3b8' }}
+                      formatter={(v) => [`${Number(v).toFixed(1)} min`, '']}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="avgMinutes"
+                      stroke={improved ? '#22c55e' : '#ef4444'}
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </div>
         )}
       </div>
