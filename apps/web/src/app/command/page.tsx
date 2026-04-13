@@ -7,6 +7,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { useIncidentsStore } from '@/store/incidents.store';
 import { useUnitsStore } from '@/store/units.store';
 import { incidentsApi, unitsApi, sectorsApi } from '@/lib/api';
+import { reportError } from '@/lib/report-error';
 import dynamic from 'next/dynamic';
 import IncidentList from '@/components/incidents/IncidentList';
 import IncidentDetail from '@/components/incidents/IncidentDetail';
@@ -65,7 +66,7 @@ export default function CommandPage() {
     incidentsApi
       .getAll()
       .then((res) => setIncidents(res.data))
-      .catch(console.error)
+      .catch((err) => reportError(err, { tag: 'command.page' }))
       .finally(() => setLoading(false));
   }, [setIncidents, setLoading]);
 
@@ -73,15 +74,15 @@ export default function CommandPage() {
     unitsApi
       .getAll()
       .then((res) => setUnits(res.data))
-      .catch(console.error);
+      .catch((err) => reportError(err, { tag: 'command.page' }));
   }, [setUnits]);
 
   useEffect(() => {
-    sectorsApi.getAll().then((data) => setSectors(data)).catch(console.error);
+    sectorsApi.getAll().then((data) => setSectors(data)).catch((err) => reportError(err, { tag: 'command.page' }));
   }, []);
 
   useEffect(() => {
-    sectorsApi.getWithBoundary().then((data) => setSectorsWithBoundary(data)).catch(console.error);
+    sectorsApi.getWithBoundary().then((data) => setSectorsWithBoundary(data)).catch((err) => reportError(err, { tag: 'command.page' }));
   }, []);
 
   useEffect(() => {
@@ -90,7 +91,7 @@ export default function CommandPage() {
     incidentsApi
       .getHeatmap(today + 'T00:00:00Z', today + 'T23:59:59Z')
       .then((res) => setHeatmapPoints(res.data))
-      .catch(console.error);
+      .catch((err) => reportError(err, { tag: 'command.page' }));
   }, [showHeatmap]);
 
   useEffect(() => {
@@ -357,7 +358,7 @@ export default function CommandPage() {
               drawSectorId={drawSectorId}
               onBoundarySet={() => {
                 setDrawSectorId(null);
-                sectorsApi.getWithBoundary().then((data) => setSectorsWithBoundary(data)).catch(console.error);
+                sectorsApi.getWithBoundary().then((data) => setSectorsWithBoundary(data)).catch((err) => reportError(err, { tag: 'command.page' }));
               }}
               heatmapPoints={showHeatmap ? heatmapPoints : []}
               showCoverage={showCoverage}

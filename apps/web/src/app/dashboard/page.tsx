@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/auth.store';
 import { incidentsApi, unitsApi } from '@/lib/api';
+import { reportError } from '@/lib/report-error';
 import type { IncidentStats, UnitStats, Incident, DailySummary } from '@/lib/types';
 import StatsCard from '@/components/dashboard/StatsCard';
 import MiniBarChart from '@/components/dashboard/MiniBarChart';
@@ -83,7 +84,7 @@ export default function DashboardPage() {
           .slice(0, 15);
         setRecentIncidents(forDate);
       })
-      .catch(console.error)
+      .catch((err) => reportError(err, { tag: 'dashboard.loadData' }))
       .finally(() => setLoading(false));
   }, [date]);
 

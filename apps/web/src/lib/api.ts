@@ -42,12 +42,16 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       isRefreshing = true;
       try {
-        const refreshToken = localStorage.getItem('refreshToken');
+        // Both tokens now in sessionStorage; fall back to legacy localStorage for users
+        // mid-session during the rollout (next login will move it).
+        const refreshToken =
+          sessionStorage.getItem('refreshToken') ??
+          localStorage.getItem('refreshToken');
         if (!refreshToken) throw new Error('No refresh token');
         const res = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
         const newToken = res.data.accessToken;
         sessionStorage.setItem('accessToken', newToken);
-        if (res.data.refreshToken) localStorage.setItem('refreshToken', res.data.refreshToken);
+        if (res.data.refreshToken) sessionStorage.setItem('refreshToken', res.data.refreshToken);
         originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
         failedQueue.forEach((p) => p.resolve(newToken));
         failedQueue = [];
@@ -56,6 +60,7 @@ api.interceptors.response.use(
         failedQueue.forEach((p) => p.reject(error));
         failedQueue = [];
         sessionStorage.removeItem('accessToken');
+        sessionStorage.removeItem('refreshToken');
         localStorage.removeItem('refreshToken');
         if (typeof window !== 'undefined') window.location.href = '/login';
         return Promise.reject(error);

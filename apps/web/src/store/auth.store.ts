@@ -24,8 +24,14 @@ export const useAuthStore = create<AuthState>()((set) => ({
 
   setAuth: (user, accessToken, refreshToken) => {
     if (typeof window !== 'undefined') {
+      // Both tokens live in sessionStorage so they die on tab close.
+      // Eliminates the localStorage-survives-XSS persistence vector.
+      // Trade-off: operator re-logs in when tab closes — acceptable for a
+      // command center used one-shift-at-a-time.
       sessionStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
+      sessionStorage.setItem('refreshToken', refreshToken);
+      // Clean any legacy tokens from previous localStorage-based session.
+      localStorage.removeItem('refreshToken');
     }
     set({ user, accessToken, isAuthenticated: true });
   },
@@ -33,6 +39,7 @@ export const useAuthStore = create<AuthState>()((set) => ({
   clearAuth: () => {
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('accessToken');
+      sessionStorage.removeItem('refreshToken');
       localStorage.removeItem('refreshToken');
     }
     set({ user: null, accessToken: null, isAuthenticated: false });

@@ -177,10 +177,19 @@ export default function LandingPage() {
             &copy; 2026 Velnari &middot; Public Safety Tech &middot; Mexico
           </p>
           <div className="flex items-center gap-5">
-            {/* Social links placeholder */}
-            <a href="#" className="text-slate-600 hover:text-slate-400 transition-colors text-xs">LinkedIn</a>
-            <a href="#" className="text-slate-600 hover:text-slate-400 transition-colors text-xs">X / Twitter</a>
-            <a href="#" className="text-slate-600 hover:text-slate-400 transition-colors text-xs">Contacto</a>
+            <a
+              href="mailto:contacto@velnari.mx"
+              className="text-slate-600 hover:text-slate-400 transition-colors text-xs"
+            >
+              Contacto
+            </a>
+            <a
+              href="https://velnari.mx/privacidad"
+              rel="noopener"
+              className="text-slate-600 hover:text-slate-400 transition-colors text-xs"
+            >
+              Privacidad
+            </a>
           </div>
         </div>
       </footer>

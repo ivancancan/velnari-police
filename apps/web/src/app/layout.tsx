@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import Polyfills from '@/components/Polyfills';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 export const metadata: Metadata = {
   title: 'Velnari Command',
@@ -20,7 +21,7 @@ export default function RootLayout({
           Ir al contenido principal
         </a>
         <Polyfills />
-        {children}
+        <ErrorBoundary>{children}</ErrorBoundary>
       </body>
     </html>
   );

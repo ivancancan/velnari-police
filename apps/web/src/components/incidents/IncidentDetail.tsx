@@ -12,6 +12,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { useIncidentsStore } from '@/store/incidents.store';
 import { permissions } from '@/lib/permissions';
 import { exportToPdf } from '@/lib/pdf-export';
+import { reportError } from '@/lib/report-error';
 
 const TYPE_LABELS: Record<string, string> = {
   robbery: 'Robo',
@@ -154,7 +155,10 @@ export default function IncidentDetail({ incident, onBack }: IncidentDetailProps
       updateIncident(res.data);
       setShowCloseForm(false);
     } catch (err) {
-      console.error(err);
+      reportError(err, { tag: 'incident.close' });
+      if (typeof window !== 'undefined') {
+        window.alert('No se pudo cerrar el incidente. Intenta de nuevo.');
+      }
     } finally {
       setClosing(false);
     }
@@ -169,7 +173,10 @@ export default function IncidentDetail({ incident, onBack }: IncidentDetailProps
       setLocalEvents(prev => [...prev, res.data]);
       setNoteText('');
     } catch (err) {
-      console.error(err);
+      reportError(err, { tag: 'incident.addNote' });
+      if (typeof window !== 'undefined') {
+        window.alert('No se pudo agregar la nota. Intenta de nuevo.');
+      }
     } finally {
       setAddingNote(false);
     }
@@ -179,10 +186,10 @@ export default function IncidentDetail({ incident, onBack }: IncidentDetailProps
     if (!incident?.id) return;
     attachmentsApi.getByIncident(incident.id)
       .then((res) => setAttachments(res.data))
-      .catch(console.error);
+      .catch((err) => reportError(err, { tag: 'incident.getAttachments' }));
     incidentsApi.getAssignments(incident.id)
       .then((res) => setAssignments(res.data))
-      .catch(console.error);
+      .catch((err) => reportError(err, { tag: 'incident.getAssignments' }));
   }, [incident?.id]);
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -193,7 +200,10 @@ export default function IncidentDetail({ incident, onBack }: IncidentDetailProps
       const res = await attachmentsApi.upload(incident.id, file);
       setAttachments((prev) => [...prev, res.data]);
     } catch (err) {
-      console.error(err);
+      reportError(err, { tag: 'incident.uploadAttachment' });
+      if (typeof window !== 'undefined') {
+        window.alert('No se pudo subir el archivo. Verifica el tamaño (máx 10 MB) y formato.');
+      }
     } finally {
       setUploading(false);
       e.target.value = '';

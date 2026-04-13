@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { patrolsApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
 import { permissions } from '@/lib/permissions';
+import { reportError } from '@/lib/report-error';
 import type { Patrol, Sector, Unit } from '@/lib/types';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -71,7 +72,9 @@ export default function PatrolPanel({ units, sectors }: PatrolPanelProps) {
   const [error, setError] = useState<string | null>(null);
 
   function loadPatrols() {
-    patrolsApi.getActive().then((res) => setPatrols(res.data)).catch(console.error);
+    patrolsApi.getActive()
+      .then((res) => setPatrols(res.data))
+      .catch((err) => reportError(err, { tag: 'patrols.load' }));
   }
 
   useEffect(() => { loadPatrols(); }, []);
@@ -100,7 +103,7 @@ export default function PatrolPanel({ units, sectors }: PatrolPanelProps) {
       setStartOffset(0); setDurationHours(6);
       loadPatrols();
     } catch (err: unknown) {
-      console.error('[PatrolPanel] create error:', err);
+      reportError(err, { tag: 'patrol.create' });
       const axiosErr = err as { response?: { status?: number; data?: unknown } };
       const data = axiosErr?.response?.data;
       const status = axiosErr?.response?.status;
@@ -239,7 +242,12 @@ export default function PatrolPanel({ units, sectors }: PatrolPanelProps) {
                     setCancelling(patrol.id);
                     patrolsApi.cancel(patrol.id)
                       .then(() => loadPatrols())
-                      .catch(console.error)
+                      .catch((err) => {
+                        reportError(err, { tag: 'patrol.cancel' });
+                        if (typeof window !== 'undefined') {
+                          window.alert('No se pudo cancelar el patrullaje. Intenta de nuevo.');
+                        }
+                      })
                       .finally(() => setCancelling(null));
                   }}
                   disabled={cancelling === patrol.id}

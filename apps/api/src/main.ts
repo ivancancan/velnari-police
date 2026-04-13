@@ -1,6 +1,7 @@
 import { NestFactory, Reflector } from '@nestjs/core';
 import { ValidationPipe, ClassSerializerInterceptor } from '@nestjs/common';
 import helmet from 'helmet';
+import { json, urlencoded } from 'express';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 import { ConfigService } from '@nestjs/config';
@@ -20,6 +21,11 @@ async function bootstrap() {
   // Enable graceful shutdown hooks (calls onModuleDestroy/onApplicationShutdown on SIGTERM/SIGINT).
   // Railway/containers send SIGTERM on deploy; without this, in-flight requests get killed.
   app.enableShutdownHooks();
+
+  // Explicit body-size caps — prevents memory-exhaustion DoS via huge JSON payloads.
+  // File uploads use Multer which has its own per-file cap (10MB), see attachments module.
+  app.use(json({ limit: '1mb' }));
+  app.use(urlencoded({ extended: true, limit: '1mb' }));
 
   app.use(helmet({
     // Allow swagger UI to load its assets
