@@ -1,9 +1,12 @@
 name: Staging
 
 on:
-  push:
-    branches: [staging]
+  # Staging branch is not actively used yet. Run this workflow manually when
+  # you want to smoke-test a branch before promoting to main.
+  #   gh workflow run .github/workflows/staging.yml --ref <branch>
   workflow_dispatch:
+  # push:
+  #   branches: [staging]
 
 jobs:
   # ── 1. Lint + test (same as CI) ─────────────────────────────

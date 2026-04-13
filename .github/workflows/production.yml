@@ -11,14 +11,19 @@ name: Production
 #   SLACK_WEBHOOK_URL         — optional, notification on success/failure
 
 on:
-  push:
-    branches: [main]
+  # Manual-only until the required secrets are configured (RAILWAY_DEPLOY_HOOK_URL,
+  # VERCEL_DEPLOY_HOOK_URL, PRODUCTION_API_URL). Trigger via:
+  #   gh workflow run .github/workflows/production.yml
+  # or the Actions tab "Run workflow" button. Once secrets are wired, uncomment
+  # the push trigger below to auto-deploy on merges to main.
   workflow_dispatch:
     inputs:
       skip_tests:
         description: 'Skip tests (emergency rollback only)'
         required: false
         default: 'false'
+  # push:
+  #   branches: [main]
 
 concurrency:
   group: production-deploy

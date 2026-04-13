@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --port 3000",
+    "prebuild": "pnpm --filter @velnari/shared-types build",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
