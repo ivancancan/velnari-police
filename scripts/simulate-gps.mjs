@@ -10,7 +10,7 @@
  * Tip: Run `pnpm --filter api db:seed` first if units are missing.
  */
 
-const API = 'http://localhost:3001/api';
+const API = process.env.API_URL ?? 'http://localhost:3001/api';
 const LOCATION_INTERVAL_MS = 2500;   // GPS ping every 2.5s
 const INCIDENT_INTERVAL_MS = 20000;  // new incident every ~20s
 const STATUS_LOG_EVERY    = 8;       // print status every N ticks
@@ -110,6 +110,8 @@ const RESOLUTIONS = [
 ];
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
+let currentToken = null;
+
 async function login() {
   const res = await fetch(`${API}/auth/login`, {
     method: 'POST',
@@ -117,18 +119,31 @@ async function login() {
     body: JSON.stringify({ email: 'admin@velnari.mx', password: 'Velnari2024!' }),
   });
   if (!res.ok) throw new Error(`Login failed: ${res.status} ${await res.text()}`);
-  return (await res.json()).accessToken;
+  currentToken = (await res.json()).accessToken;
+  return currentToken;
+}
+
+async function refreshTokenLoop() {
+  // Re-login every 10 minutes (JWT expires in 15)
+  setInterval(async () => {
+    try {
+      await login();
+      console.log(`  🔑 token renovado ${new Date().toISOString()}`);
+    } catch (err) {
+      console.warn(`  ⚠ refresh falló: ${err.message}`);
+    }
+  }, 10 * 60 * 1000);
 }
 
 // ── API helpers ───────────────────────────────────────────────────────────────
 async function loadUnits(token) {
-  const res = await fetch(`${API}/units`, { headers: { Authorization: `Bearer ${token}` } });
+  const res = await fetch(`${API}/units`, { headers: { Authorization: `Bearer ${currentToken}` } });
   if (!res.ok) throw new Error(`Failed to load units: ${res.status}`);
   return await res.json();
 }
 
 async function loadSectors(token) {
-  const res = await fetch(`${API}/sectors`, { headers: { Authorization: `Bearer ${token}` } });
+  const res = await fetch(`${API}/sectors`, { headers: { Authorization: `Bearer ${currentToken}` } });
   if (!res.ok) return [];
   return await res.json();
 }
@@ -136,7 +151,7 @@ async function loadSectors(token) {
 async function updateLocation(token, unitId, lat, lng) {
   const res = await fetch(`${API}/units/${unitId}/location`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentToken}` },
     body: JSON.stringify({ lat, lng }),
   });
   if (!res.ok && res.status !== 204) {
@@ -147,7 +162,7 @@ async function updateLocation(token, unitId, lat, lng) {
 async function setUnitStatus(token, unitId, status) {
   const res = await fetch(`${API}/units/${unitId}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentToken}` },
     body: JSON.stringify({ status }),
   });
   if (!res.ok) {
@@ -158,7 +173,7 @@ async function setUnitStatus(token, unitId, status) {
 async function createIncident(token, sectorId, lat, lng, template) {
   const res = await fetch(`${API}/incidents`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentToken}` },
     body: JSON.stringify({
       type: template.type,
       priority: template.priority,
@@ -179,7 +194,7 @@ async function createIncident(token, sectorId, lat, lng, template) {
 async function assignUnit(token, incidentId, unitId) {
   const res = await fetch(`${API}/incidents/${incidentId}/assign`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentToken}` },
     body: JSON.stringify({ unitId }),
   });
   if (!res.ok) {
@@ -194,7 +209,7 @@ async function closeIncident(token, incidentId) {
   const resolution = RESOLUTIONS[Math.floor(Math.random() * RESOLUTIONS.length)];
   const res = await fetch(`${API}/incidents/${incidentId}/close`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentToken}` },
     body: JSON.stringify({ resolution }),
   });
   if (!res.ok) console.warn(`  ⚠ close failed: ${res.status}`);
@@ -246,7 +261,8 @@ async function main() {
   let token;
   try {
     token = await login();
-    console.log('   ✓ Autenticado como admin@velnari.mx');
+    refreshTokenLoop();
+    console.log('   ✓ Autenticado como admin@velnari.mx (auto-refresh cada 10 min)');
   } catch (err) {
     console.error(`\n   ❌ ${err.message}`);
     console.error('   Asegúrate que la API esté corriendo: cd apps/api && pnpm dev\n');
