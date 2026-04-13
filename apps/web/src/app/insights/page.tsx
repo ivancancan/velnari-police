@@ -27,22 +27,28 @@ export default function InsightsPage() {
   return (
     <div className="min-h-screen bg-midnight-command flex flex-col">
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-3 border-b border-slate-800 bg-slate-900/50 shrink-0">
-        <div className="flex items-center gap-3">
+      <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 px-4 sm:px-6 py-3 border-b border-slate-800 bg-slate-900/50 shrink-0">
+        <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={() => router.push('/command')}
-            className="text-slate-400 hover:text-signal-white transition-colors text-sm"
+            className="text-slate-400 hover:text-signal-white transition-colors text-base w-9 h-9 flex items-center justify-center rounded-md active:bg-slate-800"
             aria-label="Volver al mapa"
           >
             ←
           </button>
-          <div>
-            <h1 className="text-sm font-bold text-signal-white tracking-tight">📊 Velnari Insights</h1>
-            <p className="text-[10px] text-slate-500">Analítica operativa · acumulado por período</p>
+          <div className="min-w-0">
+            <h1 className="text-sm font-bold text-signal-white tracking-tight truncate">Velnari Insights</h1>
+            <p className="text-[10px] text-slate-500 truncate">Analítica operativa · acumulado por período</p>
           </div>
+          <button
+            onClick={() => { clearAuth(); router.push('/login'); }}
+            className="md:hidden ml-auto text-slate-500 hover:text-red-400 text-xs transition-colors px-2 py-1"
+          >
+            Salir
+          </button>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           <DateRangeSelector
             range={range}
             onChange={setRange}
@@ -50,12 +56,12 @@ export default function InsightsPage() {
             onPresetChange={setActivePreset}
             supervisorLocked={isSupervisor}
           />
-          <span className="text-[10px] bg-slate-800 border border-slate-700 px-2 py-1 rounded-lg text-slate-400">
+          <span className="text-[10px] bg-slate-800 border border-slate-700 px-2 py-1 rounded-lg text-slate-400 capitalize">
             {user?.role}
           </span>
           <button
             onClick={() => { clearAuth(); router.push('/login'); }}
-            className="text-slate-500 hover:text-red-400 text-xs transition-colors"
+            className="hidden md:inline text-slate-500 hover:text-red-400 text-xs transition-colors"
           >
             Salir
           </button>
@@ -64,8 +70,8 @@ export default function InsightsPage() {
 
       {/* Loading skeleton */}
       {data.loading && (
-        <div className="flex-1 p-6 animate-pulse">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="flex-1 p-4 sm:p-6 animate-pulse">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="bg-slate-800 rounded-xl p-4 flex flex-col gap-3">
                 <div className="h-3 w-20 bg-slate-700 rounded" />

@@ -148,7 +148,7 @@ export default function KpiGrid({ data }: Props) {
   ];
 
   return (
-    <div className="grid grid-cols-4 gap-3 p-6 auto-rows-auto">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 p-4 sm:p-6 auto-rows-auto">
       {cards.map((c) => (
         <KpiCard
           key={c.id}

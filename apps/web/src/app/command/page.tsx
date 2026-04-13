@@ -50,6 +50,8 @@ export default function CommandPage() {
   const [heatmapPoints, setHeatmapPoints] = useState<HeatmapPoint[]>([]);
   const [sidebarTab, setSidebarTab] = useState<'incidents' | 'dispatch' | 'patrols' | 'chat'>('incidents');
   const [crisisMode, setCrisisMode] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileSheetExpanded, setMobileSheetExpanded] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -137,13 +139,13 @@ export default function CommandPage() {
     <RealtimeProvider>
       <div className="flex flex-col h-[100dvh] bg-midnight-command">
         {/* Header */}
-        <header className="flex items-center justify-between px-6 py-3 bg-slate-900 border-b border-slate-800 shrink-0">
-          {/* Left group: brand + nav */}
-          <div className="flex items-center gap-3">
-            <span className="font-bold text-signal-white tracking-tight">
-              Velnari Command
+        <header className="flex items-center justify-between px-4 lg:px-6 py-3 bg-slate-900 border-b border-slate-800 shrink-0 gap-2">
+          {/* Left: brand + nav */}
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="font-bold text-signal-white tracking-tight truncate">
+              Velnari
             </span>
-            <span className="text-xs text-slate-gray font-mono">
+            <span className="hidden sm:inline text-xs text-slate-gray font-mono shrink-0">
               {new Date().toLocaleDateString('es-MX', {
                 weekday: 'short',
                 day: '2-digit',
@@ -155,14 +157,14 @@ export default function CommandPage() {
               Dashboard
             </Link>
             {user?.role === 'admin' && (
-              <Link href="/admin" className="text-xs text-slate-gray hover:text-signal-white transition-colors duration-200">
+              <Link href="/admin" className="hidden md:inline text-xs text-slate-gray hover:text-signal-white transition-colors duration-200">
                 Usuarios
               </Link>
             )}
           </div>
 
-          {/* Center group: map controls + status */}
-          <div className="flex items-center gap-2">
+          {/* Center (desktop only): map controls + status */}
+          <div className="hidden lg:flex items-center gap-2">
             {sectors.length > 0 && (
               <select
                 onChange={(e) => {
@@ -170,7 +172,7 @@ export default function CommandPage() {
                   setDrawSectorId(e.target.value);
                   e.target.value = '';
                 }}
-                className="hidden lg:block text-xs bg-slate-800 border border-slate-700 text-slate-gray rounded px-2 py-1 min-h-[28px] focus:outline-none focus:ring-1 focus:ring-tactical-blue"
+                className="text-xs bg-slate-800 border border-slate-700 text-slate-gray rounded px-2 py-1 min-h-[28px] focus:outline-none focus:ring-1 focus:ring-tactical-blue"
                 defaultValue=""
                 aria-label="Dibujar geocerca"
               >
@@ -204,8 +206,8 @@ export default function CommandPage() {
             <ConnectionStatus />
           </div>
 
-          {/* Right group: crisis + user + shortcuts */}
-          <div className="flex items-center gap-3">
+          {/* Right (desktop): crisis + user + shortcuts */}
+          <div className="hidden lg:flex items-center gap-3">
             <button
               onClick={() => {
                 if (!crisisMode) {
@@ -242,7 +244,7 @@ export default function CommandPage() {
                 href="/insights"
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs text-slate-300 hover:text-signal-white transition-all"
               >
-                📊 Insights
+                Insights
               </Link>
             )}
             <button
@@ -252,7 +254,93 @@ export default function CommandPage() {
               Salir
             </button>
           </div>
+
+          {/* Mobile right cluster: notifications + hamburger */}
+          <div className="flex lg:hidden items-center gap-2 shrink-0">
+            <NotificationBell />
+            <button
+              onClick={() => setMobileMenuOpen((v) => !v)}
+              aria-label="Abrir menú"
+              aria-expanded={mobileMenuOpen}
+              className="w-10 h-10 flex items-center justify-center rounded-lg bg-slate-800 border border-slate-700 text-slate-200 active:bg-slate-700"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                {mobileMenuOpen ? (
+                  <><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></>
+                ) : (
+                  <><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></>
+                )}
+              </svg>
+            </button>
+          </div>
         </header>
+
+        {/* Mobile menu overlay */}
+        {mobileMenuOpen && (
+          <div className="lg:hidden fixed inset-0 z-40 top-[57px]" onClick={() => setMobileMenuOpen(false)}>
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="relative ml-auto w-72 max-w-[85vw] h-[calc(100dvh-57px)] bg-slate-900 border-l border-slate-800 flex flex-col overflow-y-auto"
+            >
+              <div className="px-4 py-3 border-b border-slate-800">
+                <p className="text-xs text-slate-500">Sesión</p>
+                <p className="text-sm text-signal-white truncate">{user?.name}</p>
+                <p className="text-[11px] text-slate-gray capitalize">{user?.role}</p>
+              </div>
+              <nav className="flex flex-col py-2">
+                <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)} className="px-4 py-3 text-sm text-slate-200 active:bg-slate-800">Dashboard</Link>
+                {(user?.role === 'admin' || user?.role === 'commander' || user?.role === 'supervisor') && (
+                  <Link href="/insights" onClick={() => setMobileMenuOpen(false)} className="px-4 py-3 text-sm text-slate-200 active:bg-slate-800">Insights</Link>
+                )}
+                {user?.role === 'admin' && (
+                  <Link href="/admin" onClick={() => setMobileMenuOpen(false)} className="px-4 py-3 text-sm text-slate-200 active:bg-slate-800">Usuarios</Link>
+                )}
+                <Link href="/ayuda" target="_blank" onClick={() => setMobileMenuOpen(false)} className="px-4 py-3 text-sm text-slate-200 active:bg-slate-800">Ayuda</Link>
+              </nav>
+              <div className="px-4 py-3 border-t border-slate-800 flex flex-col gap-2">
+                <button
+                  onClick={() => { setShowHeatmap((v) => !v); setMobileMenuOpen(false); }}
+                  className={`text-xs px-3 py-2 rounded border transition-colors ${
+                    showHeatmap ? 'bg-alert-amber text-midnight-command border-alert-amber' : 'bg-slate-800 text-slate-gray border-slate-700'
+                  }`}
+                >
+                  Mapa de calor {showHeatmap ? '· ON' : ''}
+                </button>
+                <button
+                  onClick={() => { setShowCoverage((v) => !v); setMobileMenuOpen(false); }}
+                  className={`text-xs px-3 py-2 rounded border transition-colors ${
+                    showCoverage ? 'bg-green-500 text-midnight-command border-green-500' : 'bg-slate-800 text-slate-gray border-slate-700'
+                  }`}
+                >
+                  Cobertura {showCoverage ? '· ON' : ''}
+                </button>
+                <button
+                  onClick={() => {
+                    if (!crisisMode) {
+                      if (confirm('¿Activar modo crisis? Esto alertará a todos los operadores.')) {
+                        setCrisisMode(true);
+                        setSidebarTab('incidents');
+                        setMobileMenuOpen(false);
+                      }
+                    } else {
+                      setCrisisMode(false);
+                      setMobileMenuOpen(false);
+                    }
+                  }}
+                  className={`text-xs px-3 py-2 rounded border font-semibold transition-all ${
+                    crisisMode ? 'bg-red-600 text-white border-red-500' : 'bg-slate-800 text-slate-gray border-slate-700'
+                  }`}
+                >
+                  {crisisMode ? 'CRISIS ACTIVA' : 'Modo crisis'}
+                </button>
+              </div>
+              <div className="mt-auto px-4 py-3 border-t border-slate-800">
+                <button onClick={clearAuth} className="w-full text-sm text-red-400 py-2">Salir</button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {crisisMode && (
           <div className="bg-red-600 text-white text-center py-2 text-sm font-semibold animate-pulse shrink-0">
@@ -261,7 +349,7 @@ export default function CommandPage() {
         )}
 
         {/* Main content */}
-        <div id="main-content" className="flex flex-1 overflow-hidden">
+        <div id="main-content" className="flex flex-1 overflow-hidden relative">
           <div className="flex-1 relative">
             <CommandMap
               trailPoints={trailPoints}
@@ -276,7 +364,22 @@ export default function CommandPage() {
             />
           </div>
 
-          <aside className="w-[300px] lg:w-[380px] shrink-0 bg-slate-900 border-l border-slate-800 flex flex-col overflow-hidden">
+          <aside
+            className={`
+              lg:w-[300px] xl:w-[380px] lg:shrink-0 lg:static lg:translate-y-0 lg:h-auto lg:border-l lg:border-t-0
+              fixed left-0 right-0 bottom-0 z-30 bg-slate-900 border-t border-slate-800 rounded-t-2xl lg:rounded-none flex flex-col overflow-hidden shadow-2xl shadow-black/40 lg:shadow-none
+              transition-transform duration-300 ease-out
+              ${mobileSheetExpanded ? 'h-[80dvh] translate-y-0' : 'h-[45dvh] translate-y-0'}
+            `}
+          >
+            {/* Mobile drag handle */}
+            <button
+              onClick={() => setMobileSheetExpanded((v) => !v)}
+              aria-label={mobileSheetExpanded ? 'Contraer panel' : 'Expandir panel'}
+              className="lg:hidden w-full flex flex-col items-center pt-2 pb-1 active:bg-slate-800/50 transition-colors"
+            >
+              <span className="block w-10 h-1 rounded-full bg-slate-600" />
+            </button>
             {selectedUnit ? (
               <UnitDetailPanel
                 unit={selectedUnit}

@@ -1,10 +1,10 @@
 'use client';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/auth.store';
 import {
-  Users, Truck, AlertTriangle, Map, BarChart2, FileText, LogOut, ArrowLeft, Shield, Clock, ClipboardList,
+  Users, Truck, AlertTriangle, Map, BarChart2, FileText, LogOut, ArrowLeft, Shield, Clock, ClipboardList, Menu, X,
 } from 'lucide-react';
 
 const NAV = [
@@ -42,18 +42,61 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { isAuthenticated, user, clearAuth } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) { router.push('/login'); return; }
     if (user?.role !== 'admin') { router.push('/command'); return; }
   }, [isAuthenticated, user, router]);
 
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [pathname]);
+
   if (!isAuthenticated || user?.role !== 'admin') return null;
 
   return (
-    <div className="flex h-screen bg-gray-50 font-sans">
+    <div className="flex flex-col lg:flex-row h-[100dvh] bg-gray-50 font-sans">
+      {/* Mobile top bar */}
+      <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 shrink-0">
+        <button
+          onClick={() => setMobileNavOpen(true)}
+          aria-label="Abrir menú"
+          className="w-10 h-10 flex items-center justify-center rounded-md border border-gray-200 text-gray-700 active:bg-gray-100"
+        >
+          <Menu size={18} />
+        </button>
+        <div className="flex items-center gap-2">
+          <Shield size={16} className="text-blue-600" />
+          <span className="font-semibold text-gray-900 text-sm">Velnari Admin</span>
+        </div>
+        <Link href="/command" className="text-xs text-gray-500 px-2 py-1">Mapa</Link>
+      </header>
+
+      {/* Mobile overlay */}
+      {mobileNavOpen && (
+        <div className="lg:hidden fixed inset-0 z-50" onClick={() => setMobileNavOpen(false)}>
+          <div className="absolute inset-0 bg-black/40" />
+        </div>
+      )}
+
       {/* Sidebar */}
-      <aside className="w-56 bg-white border-r border-gray-200 flex-shrink-0 flex flex-col">
+      <aside
+        className={`
+          bg-white border-r border-gray-200 flex-shrink-0 flex flex-col
+          lg:w-56 lg:static lg:translate-x-0
+          fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] transition-transform duration-300
+          ${mobileNavOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0'}
+        `}
+      >
+        {/* Mobile close button */}
+        <button
+          onClick={() => setMobileNavOpen(false)}
+          aria-label="Cerrar menú"
+          className="lg:hidden absolute top-3 right-3 w-9 h-9 flex items-center justify-center rounded-md text-gray-500 hover:bg-gray-100"
+        >
+          <X size={18} />
+        </button>
         {/* Brand */}
         <div className="px-5 py-4 border-b-2 border-blue-600 bg-gradient-to-b from-blue-50/60 to-white">
           <div className="flex items-center gap-2">

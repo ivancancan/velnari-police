@@ -73,7 +73,7 @@ export default function AnalyticsSection({ data }: Props) {
   const sectorMax = sectorData[0]?.count ?? 1;
 
   return (
-    <div className="px-6 pb-8 space-y-6">
+    <div className="px-4 sm:px-6 pb-8 space-y-6">
 
       {/* ── Full-width trend ─────────────────────────────────────────── */}
       <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
@@ -126,7 +126,7 @@ export default function AnalyticsSection({ data }: Props) {
       </div>
 
       {/* ── Middle row: type bars + priority donut + unit performance ─── */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 
         {/* Por tipo */}
         <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
@@ -219,7 +219,7 @@ export default function AnalyticsSection({ data }: Props) {
       </div>
 
       {/* ── Bottom row: hourly heatmap + sector ranking ───────────────── */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
         {/* Heatmap horario */}
         <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">

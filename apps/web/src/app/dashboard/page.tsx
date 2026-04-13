@@ -120,10 +120,10 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col min-h-screen bg-midnight-command">
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-3 bg-slate-900 border-b border-slate-800 shrink-0">
-        <div className="flex items-center gap-6">
-          <span className="font-bold text-signal-white tracking-tight">Velnari Insights</span>
-          <nav className="flex items-center gap-4 text-sm">
+      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-6 py-3 bg-slate-900 border-b border-slate-800 shrink-0">
+        <div className="flex items-center justify-between sm:justify-start gap-4 sm:gap-6 min-w-0">
+          <span className="font-bold text-signal-white tracking-tight truncate">Velnari Insights</span>
+          <nav className="flex items-center gap-4 text-sm shrink-0">
             <Link href="/command" className="text-slate-gray hover:text-signal-white transition-colors">
               Mapa
             </Link>
@@ -132,11 +132,11 @@ export default function DashboardPage() {
             </span>
           </nav>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
           <button
             onClick={downloadCSV}
             disabled={recentIncidents.length === 0}
-            className="text-xs bg-slate-800 hover:bg-slate-700 disabled:opacity-40 border border-slate-700 text-signal-white px-3 py-1 rounded transition-colors"
+            className="text-xs bg-slate-800 hover:bg-slate-700 disabled:opacity-40 border border-slate-700 text-signal-white px-3 py-1.5 rounded transition-colors min-h-[36px]"
             aria-label="Exportar a CSV"
           >
             ↓ CSV
@@ -146,13 +146,13 @@ export default function DashboardPage() {
             value={date}
             max={toDateString(new Date())}
             onChange={(e) => setDate(e.target.value)}
-            className="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-signal-white text-xs focus:outline-none focus:border-tactical-blue"
+            className="bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-signal-white text-xs focus:outline-none focus:border-tactical-blue min-h-[36px]"
             aria-label="Fecha del reporte"
           />
-          <span className="text-sm text-slate-gray">{user?.name}</span>
+          <span className="hidden sm:inline text-sm text-slate-gray truncate max-w-[140px]">{user?.name}</span>
           <button
             onClick={clearAuth}
-            className="text-xs text-slate-gray hover:text-signal-white transition-colors"
+            className="text-xs text-slate-gray hover:text-signal-white transition-colors ml-auto sm:ml-0"
           >
             Salir
           </button>
@@ -160,7 +160,7 @@ export default function DashboardPage() {
       </header>
 
       {/* Content */}
-      <main className="flex-1 px-6 py-8 max-w-6xl mx-auto w-full space-y-0">
+      <main className="flex-1 px-4 sm:px-6 py-6 sm:py-8 max-w-6xl mx-auto w-full space-y-0">
         {loading && !incidentStats && (
           <p className="text-slate-gray text-center py-20 text-sm">Cargando métricas...</p>
         )}
@@ -276,9 +276,9 @@ export default function DashboardPage() {
                   </div>
 
                   {/* Per-priority breakdown */}
-                  <div className="bg-slate-800/60 rounded-xl p-5 lg:col-span-2 border border-slate-700/50">
+                  <div className="bg-slate-800/60 rounded-xl p-5 lg:col-span-2 border border-slate-700/50 overflow-x-auto">
                     <p className="text-xs text-slate-500 uppercase tracking-widest mb-3">Desglose por Prioridad</p>
-                    <table className="w-full text-sm">
+                    <table className="w-full text-sm min-w-[420px]">
                       <thead>
                         <tr className="text-slate-500 text-xs uppercase tracking-widest">
                           <th className="text-left pb-2">Prioridad</th>
@@ -441,7 +441,37 @@ export default function DashboardPage() {
               <h2 className="text-xs text-slate-gray uppercase tracking-widest mb-3 font-semibold">
                 Últimos Incidentes del Día
               </h2>
-              <div className="bg-slate-800 rounded-lg overflow-hidden">
+              {/* Mobile cards */}
+              <div className="sm:hidden space-y-2">
+                {recentIncidents.length === 0 && (
+                  <p className="text-center text-slate-gray py-10 text-sm">Sin incidentes para esta fecha</p>
+                )}
+                {recentIncidents.map((inc) => {
+                  const statusInfo = STATUS_BADGE[inc.status] ?? { label: inc.status, className: 'bg-slate-700 text-slate-300' };
+                  return (
+                    <div key={inc.id} className="bg-slate-800 rounded-lg p-3 border border-slate-700/50">
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <span className="font-mono text-signal-white font-bold text-xs">{inc.folio}</span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${statusInfo.className}`}>{statusInfo.label}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs mb-1">
+                        <span className="font-semibold" style={{ color: PRIORITY_COLORS[inc.priority] }}>
+                          {PRIORITY_LABELS[inc.priority] ?? inc.priority}
+                        </span>
+                        <span className="text-slate-500">·</span>
+                        <span className="text-slate-300 capitalize">{TYPE_LABELS[inc.type] ?? inc.type}</span>
+                        <span className="text-slate-500 ml-auto font-mono">
+                          {new Date(inc.createdAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400 truncate">{inc.address ?? '—'}</p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Desktop table */}
+              <div className="hidden sm:block bg-slate-800 rounded-lg overflow-hidden">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-700 text-slate-gray text-xs uppercase tracking-widest">
