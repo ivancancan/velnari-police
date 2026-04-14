@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, In, MoreThanOrEqual, Repository } from 'typeorm';
 import { IncidentEntity } from '../../entities/incident.entity';
@@ -116,49 +116,72 @@ export class IncidentsService {
   }
 
   async create(dto: CreateIncidentDto, actorId: string, tenantId?: string | null): Promise<IncidentEntity> {
-    const count = await this.repo.count();
-    const folio = `IC-${String(count + 1).padStart(3, '0')}`;
+    // Temporarily instrumented with step-by-step logging so production 500s
+    // surface their root cause in Railway logs. Remove logs once the suite
+    // is green again.
+    const log = new Logger('IncidentsService.create');
+    try {
+      log.log(`[step 1/8] count incidents (actor=${actorId}, tenant=${tenantId ?? 'null'})`);
+      const count = await this.repo.count();
+      const folio = `IC-${String(count + 1).padStart(3, '0')}`;
+      log.log(`[step 2/8] folio = ${folio}`);
 
-    const result = await this.repo
-      .createQueryBuilder()
-      .insert()
-      .into(IncidentEntity)
-      .values({
-        folio,
-        type: dto.type,
-        priority: dto.priority,
-        lat: dto.lat,
-        lng: dto.lng,
-        address: dto.address,
-        description: dto.description,
-        sectorId: dto.sectorId,
-        createdBy: actorId,
-        status: IncidentStatus.OPEN,
-        tenantId: tenantId ?? undefined,
-        location: () => `ST_SetSRID(ST_MakePoint(${dto.lng}, ${dto.lat}), 4326)`,
-      })
-      .returning('id')
-      .execute();
+      log.log(`[step 3/8] insert with PostGIS location`);
+      const result = await this.repo
+        .createQueryBuilder()
+        .insert()
+        .into(IncidentEntity)
+        .values({
+          folio,
+          type: dto.type,
+          priority: dto.priority,
+          lat: dto.lat,
+          lng: dto.lng,
+          address: dto.address,
+          description: dto.description,
+          sectorId: dto.sectorId,
+          createdBy: actorId,
+          status: IncidentStatus.OPEN,
+          tenantId: tenantId ?? undefined,
+          location: () => `ST_SetSRID(ST_MakePoint(${dto.lng}, ${dto.lat}), 4326)`,
+        })
+        .returning('id')
+        .execute();
 
-    const savedId = result.raw[0]?.id as string;
+      const savedId = result.raw[0]?.id as string;
+      log.log(`[step 4/8] insert OK id=${savedId}`);
 
-    // Auto-link to active patrol if the creator has an assigned unit
-    const units = await this.unitRepo.find({ where: { assignedUserId: actorId } });
-    if (units.length > 0) {
-      const activePatrol = await this.patrolRepo.findOne({
-        where: { unitId: units[0]!.id, status: PatrolStatus.ACTIVE },
-      });
-      if (activePatrol) {
-        await this.repo.update(savedId, { patrolId: activePatrol.id });
+      log.log(`[step 5/8] patrol lookup`);
+      const units = await this.unitRepo.find({ where: { assignedUserId: actorId } });
+      if (units.length > 0) {
+        const activePatrol = await this.patrolRepo.findOne({
+          where: { unitId: units[0]!.id, status: PatrolStatus.ACTIVE },
+        });
+        if (activePatrol) {
+          await this.repo.update(savedId, { patrolId: activePatrol.id });
+        }
       }
-    }
 
-    const saved = await this.findOne(savedId);
+      log.log(`[step 6/8] load with relations`);
+      const saved = await this.findOne(savedId);
 
-    // Generate tracking token for citizen reports
-    if (dto.description?.includes('[Reporte ciudadano]')) {
-      const token = this.generateTrackingToken();
-      await this.repo.update(savedId, { trackingToken: token });
+      // Generate tracking token for citizen reports
+      if (dto.description?.includes('[Reporte ciudadano]')) {
+        log.log(`[step 7/8] citizen report branch — generate tracking token`);
+        const token = this.generateTrackingToken();
+        await this.repo.update(savedId, { trackingToken: token });
+        const event = this.eventRepo.create({
+          incidentId: saved.id,
+          type: 'created',
+          description: `Incidente ${folio} creado`,
+          actorId,
+        });
+        await this.eventRepo.save(event);
+        log.log(`[step 8/8] OK citizen`);
+        return this.findOne(savedId);
+      }
+
+      log.log(`[step 7/8] save created-event`);
       const event = this.eventRepo.create({
         incidentId: saved.id,
         type: 'created',
@@ -166,18 +189,13 @@ export class IncidentsService {
         actorId,
       });
       await this.eventRepo.save(event);
-      return this.findOne(savedId);
+      log.log(`[step 8/8] OK`);
+
+      return saved;
+    } catch (err) {
+      log.error(`CREATE FAILED: ${(err as Error).message}\n${(err as Error).stack}`);
+      throw err;
     }
-
-    const event = this.eventRepo.create({
-      incidentId: saved.id,
-      type: 'created',
-      description: `Incidente ${folio} creado`,
-      actorId,
-    });
-    await this.eventRepo.save(event);
-
-    return saved;
   }
 
   async update(
