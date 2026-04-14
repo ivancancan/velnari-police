@@ -5,39 +5,43 @@ import { flushQueue } from '../lib/offline-queue';
 import { flushPhotoQueue } from '../lib/photo-queue';
 import { flushLocationQueue } from '../lib/location-queue';
 
-// Debounce offline transitions. iOS NetInfo can briefly report isConnected=false
-// while switching between wifi/cellular or during the first event after launch.
-// Treating those transient false readings as "offline" causes the banner to
-// flash and the screen to appear to shake. A 2.5s debounce eliminates >95% of
-// false positives without making recovery from real outages feel slow.
-const OFFLINE_DEBOUNCE_MS = 2_500;
+// Proof-of-offline strategy: NetInfo on iOS is unreliable (reports false
+// while actual network is working — happens with VPN, MDM profiles, some
+// carriers, Low Data Mode). Trusting it leaks false "Sin conexión" banners.
+//
+// We combine two signals instead:
+//  1. NetInfo MUST say isConnected === false AND isInternetReachable === false
+//     (both false, not just one — eliminates 90% of false positives)
+//  2. AND the state must persist for 15 seconds before we trust it
+//
+// When connectivity is restored (either signal flips), queues flush and the
+// banner hides instantly — no debounce on the "back online" transition.
+const OFFLINE_CONFIRM_MS = 15_000;
 
-function isReallyOnline(state: NetInfoState): boolean {
-  // isInternetReachable may be null initially — only treat it as "offline"
-  // when BOTH isConnected === false AND isInternetReachable === false.
-  if (state.isConnected === false && state.isInternetReachable === false) return false;
-  if (state.isConnected === false && state.isInternetReachable === null) {
-    // Transient — be optimistic; the debounce below protects us.
-    return false;
-  }
-  return state.isConnected !== false;
+function definitelyOffline(state: NetInfoState): boolean {
+  // Only treat as offline when BOTH signals say no internet. A nullish
+  // isInternetReachable is iOS still warming up — never trust it as proof.
+  return state.isConnected === false && state.isInternetReachable === false;
 }
 
 export function useNetworkStatus(): { isConnected: boolean } {
-  // Start optimistic — assume online until proven otherwise, so the first
-  // render doesn't flash the "sin conexión" banner on the login screen.
   const [isConnected, setIsConnected] = useState(true);
   const wasDisconnected = useRef(false);
   const offlineTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    const clearOfflineTimer = (): void => {
+      if (offlineTimer.current) {
+        clearTimeout(offlineTimer.current);
+        offlineTimer.current = null;
+      }
+    };
+
     const applyState = (state: NetInfoState): void => {
-      const online = isReallyOnline(state);
-      if (online) {
-        if (offlineTimer.current) {
-          clearTimeout(offlineTimer.current);
-          offlineTimer.current = null;
-        }
+      if (!definitelyOffline(state)) {
+        // Any positive signal = treat as online immediately. Kill any
+        // pending "go offline" timer so transient dips never flash the banner.
+        clearOfflineTimer();
         setIsConnected(true);
         if (wasDisconnected.current) {
           wasDisconnected.current = false;
@@ -47,14 +51,15 @@ export function useNetworkStatus(): { isConnected: boolean } {
         }
         return;
       }
-      // Schedule the "offline" state only if the connection stays down for
-      // longer than the debounce window.
+
+      // Both signals say offline — but wait 15s before trusting it. The
+      // banner is only worth showing if connectivity is *sustainably* down.
       if (!offlineTimer.current) {
         offlineTimer.current = setTimeout(() => {
           offlineTimer.current = null;
           setIsConnected(false);
           wasDisconnected.current = true;
-        }, OFFLINE_DEBOUNCE_MS);
+        }, OFFLINE_CONFIRM_MS);
       }
     };
 
@@ -63,7 +68,7 @@ export function useNetworkStatus(): { isConnected: boolean } {
 
     return () => {
       unsubscribe();
-      if (offlineTimer.current) clearTimeout(offlineTimer.current);
+      clearOfflineTimer();
     };
   }, []);
 

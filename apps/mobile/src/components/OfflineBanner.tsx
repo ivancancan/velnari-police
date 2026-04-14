@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { getQueueSize } from '@/lib/offline-queue';
 
@@ -27,15 +28,18 @@ async function getPendingCount(): Promise<number> {
 
 export default function OfflineBanner() {
   const { isConnected } = useNetworkStatus();
+  const insets = useSafeAreaInsets();
   const [pendingCount, setPendingCount] = useState(0);
-  const slideAnim = useRef(new Animated.Value(-48)).current;
+  // Start above the screen by (notch height + banner height) so it slides
+  // down cleanly onto the safe area when offline is confirmed.
+  const slideAnim = useRef(new Animated.Value(-80)).current;
 
   useEffect(() => {
     if (!isConnected) {
       getPendingCount().then(setPendingCount);
       Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, bounciness: 4 }).start();
     } else {
-      Animated.timing(slideAnim, { toValue: -48, useNativeDriver: true, duration: 200 }).start();
+      Animated.timing(slideAnim, { toValue: -80, useNativeDriver: true, duration: 200 }).start();
     }
   }, [isConnected, slideAnim]);
 
@@ -48,8 +52,18 @@ export default function OfflineBanner() {
     return () => clearInterval(interval);
   }, [isConnected]);
 
+  // Safe-area-top respects iPhone notch / Dynamic Island so the banner
+  // never gets clipped under the status bar. +8pt for comfortable padding.
+  const topPadding = Math.max(insets.top, 20) + 8;
+
   return (
-    <Animated.View style={[styles.banner, { transform: [{ translateY: slideAnim }] }]}>
+    <Animated.View
+      style={[
+        styles.banner,
+        { transform: [{ translateY: slideAnim }], paddingTop: topPadding },
+      ]}
+      pointerEvents="box-none"
+    >
       <View style={styles.inner}>
         <Text style={styles.dot}>●</Text>
         <Text style={styles.text}>
@@ -69,9 +83,13 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 9999,
     backgroundColor: '#F59E0B',
-    paddingTop: 44, // safe area offset — covers status bar on iPhone
-    paddingBottom: 8,
+    paddingBottom: 10,
     paddingHorizontal: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 6,
   },
   inner: {
     flexDirection: 'row',
