@@ -179,15 +179,6 @@ export const incidentsApi = {
       overall: { total: number; withinSla: number; complianceRate: number };
     }>('/incidents/sla-compliance', { params: { from, to } }),
 
-  classify: (description: string, address?: string) =>
-    api.post<{
-      type: string;
-      priority: string;
-      confidence: 'high' | 'medium' | 'low';
-      reasoning: string;
-      tacticalHints?: string[];
-    }>('/incidents/classify', { description, ...(address ? { address } : {}) }),
-
   getReplay: (id: string) =>
     api.get<{
       incident: { id: string; folio: string; lat: number; lng: number; createdAt: string; assignedAt?: string; closedAt?: string };

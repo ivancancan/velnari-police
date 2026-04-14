@@ -1,14 +1,13 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { incidentsApi, dispatchApi } from '@/lib/api';
 import { useIncidentsStore } from '@/store/incidents.store';
 import { IncidentType, IncidentPriority } from '@velnari/shared-types';
-import { MapPin, X, Sparkles } from 'lucide-react';
+import { MapPin, X } from 'lucide-react';
 import { reportError } from '@/lib/report-error';
 
 const LocationPickerMap = dynamic(() => import('./LocationPickerMap'), {
@@ -54,12 +53,6 @@ interface Props {
 
 export default function CreateIncidentModal({ onClose }: Props) {
   const addIncident = useIncidentsStore((s) => s.addIncident);
-  const [classifying, setClassifying] = useState(false);
-  const [classification, setClassification] = useState<{
-    confidence: 'high' | 'medium' | 'low';
-    reasoning: string;
-    tacticalHints?: string[];
-  } | null>(null);
 
   const {
     register,
@@ -75,28 +68,6 @@ export default function CreateIncidentModal({ onClose }: Props) {
 
   const lat = watch('lat');
   const lng = watch('lng');
-  const description = watch('description');
-  const address = watch('address');
-
-  async function handleClassify(): Promise<void> {
-    if (!description || description.trim().length < 5 || classifying) return;
-    setClassifying(true);
-    setClassification(null);
-    try {
-      const res = await incidentsApi.classify(description.trim(), address);
-      setValue('type', res.data.type as IncidentType, { shouldValidate: true });
-      setValue('priority', res.data.priority as IncidentPriority, { shouldValidate: true });
-      setClassification({
-        confidence: res.data.confidence,
-        reasoning: res.data.reasoning,
-        tacticalHints: res.data.tacticalHints,
-      });
-    } catch (err) {
-      reportError(err, { tag: 'incident.classify' });
-    } finally {
-      setClassifying(false);
-    }
-  }
 
   function handlePick(pickedLat: number, pickedLng: number) {
     setValue('lat', pickedLat, { shouldValidate: true });
@@ -225,55 +196,15 @@ export default function CreateIncidentModal({ onClose }: Props) {
 
             {/* Description */}
             <div className="flex flex-col gap-1">
-              <div className="flex items-center justify-between">
-                <label className="text-xs text-slate-gray uppercase tracking-wider">Descripción (opcional)</label>
-                <button
-                  type="button"
-                  onClick={handleClassify}
-                  disabled={!description || description.trim().length < 5 || classifying}
-                  className="flex items-center gap-1 text-xs text-tactical-blue hover:text-blue-300 disabled:text-slate-600 disabled:cursor-not-allowed transition-colors"
-                  title="Clasificar con IA (Claude)"
-                >
-                  <Sparkles size={12} className={classifying ? 'animate-pulse' : ''} />
-                  {classifying ? 'Analizando…' : 'Clasificar con IA'}
-                </button>
-              </div>
+              <label className="text-xs text-slate-gray uppercase tracking-wider">Descripción (opcional)</label>
               <textarea
                 rows={3}
-                placeholder="Ej. Dos sujetos discutiendo con arma blanca afuera del Oxxo de Federalismo…"
+                placeholder="Detalles del incidente…"
                 {...register('description')}
                 className={`${inputClass} resize-none`}
               />
               {errors.description && <span className="text-red-400 text-xs">{errors.description.message}</span>}
             </div>
-
-            {classification && (
-              <div
-                className={`rounded-lg border px-3 py-2 text-xs space-y-1.5 ${
-                  classification.confidence === 'high'
-                    ? 'bg-tactical-blue/10 border-tactical-blue/40'
-                    : classification.confidence === 'medium'
-                    ? 'bg-amber-500/10 border-amber-500/40'
-                    : 'bg-slate-800 border-slate-700'
-                }`}
-              >
-                <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-bold">
-                  <Sparkles size={10} />
-                  <span>Sugerencia IA · confianza {classification.confidence}</span>
-                </div>
-                <p className="text-slate-300 leading-snug">{classification.reasoning}</p>
-                {classification.tacticalHints && classification.tacticalHints.length > 0 && (
-                  <ul className="list-disc list-inside text-slate-400 mt-1 space-y-0.5">
-                    {classification.tacticalHints.map((h, i) => (
-                      <li key={i}>{h}</li>
-                    ))}
-                  </ul>
-                )}
-                <p className="text-[10px] text-slate-500 italic pt-1">
-                  Revisa los campos arriba — la IA los pre-llenó pero tú decides.
-                </p>
-              </div>
-            )}
 
             {errors.root && <p className="text-red-400 text-sm">{errors.root.message}</p>}
           </div>

@@ -12,7 +12,6 @@ import { IncidentsService } from './incidents.service';
 import { IncidentsController } from './incidents.controller';
 import { PublicReportController } from './public-report.controller';
 import { EscalationService } from './escalation.service';
-import { AIClassifierService } from './ai-classifier.service';
 import { RealtimeModule } from '../realtime/realtime.module';
 import { DispatchModule } from '../dispatch/dispatch.module';
 
@@ -23,7 +22,7 @@ import { DispatchModule } from '../dispatch/dispatch.module';
     forwardRef(() => DispatchModule),
   ],
   controllers: [IncidentsController, PublicReportController],
-  providers: [IncidentsService, EscalationService, AIClassifierService],
+  providers: [IncidentsService, EscalationService],
   exports: [IncidentsService],
 })
 export class IncidentsModule {}

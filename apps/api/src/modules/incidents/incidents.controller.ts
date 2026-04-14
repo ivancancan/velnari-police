@@ -19,7 +19,6 @@ function endOfDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
 }
 import { IncidentsService, DailySummary, ShiftHandoff, AnalyticsResult, PatrolReport } from './incidents.service';
-import { AIClassifierService, type ClassificationResult } from './ai-classifier.service';
 import { DispatchService } from '../dispatch/dispatch.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { RolesGuard } from '../../shared/guards/roles.guard';
@@ -45,16 +44,7 @@ export class IncidentsController {
     private readonly service: IncidentsService,
     @Inject(forwardRef(() => DispatchService))
     private readonly dispatchService: DispatchService,
-    private readonly aiClassifier: AIClassifierService,
   ) {}
-
-  @Post('classify')
-  @Roles(UserRole.OPERATOR, UserRole.SUPERVISOR, UserRole.ADMIN)
-  async classify(
-    @Body() body: { description: string; address?: string },
-  ): Promise<ClassificationResult> {
-    return this.aiClassifier.classify(body.description, body.address);
-  }
 
   @Get()
   findAll(
