@@ -15,7 +15,10 @@ validateEnv();
 initSentry();
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  // Disable NestJS's built-in body parser so we can supply our own with
+  // explicit size limits. Running both parsers conflicts and has been
+  // observed to cause "body already consumed" style failures on POSTs.
+  const app = await NestFactory.create(AppModule, { bufferLogs: true, bodyParser: false });
   app.useLogger(app.get(Logger));
 
   // Enable graceful shutdown hooks (calls onModuleDestroy/onApplicationShutdown on SIGTERM/SIGINT).
