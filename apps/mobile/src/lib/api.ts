@@ -191,7 +191,7 @@ export const incidentsApi = {
     api.get<{
       id: string; folio: string; type: string; priority: string;
       status: string; address?: string; description?: string;
-      assignedUnitId?: string; lat: number; lng: number;
+      assignedUnitId?: string; createdBy?: string; lat: number; lng: number;
     }[]>('/incidents'),
   getById: (id: string) => api.get<IncidentDetail>(`/incidents/${id}`),
   getEvents: (id: string) => api.get<IncidentEvent[]>(`/incidents/${id}/events`),

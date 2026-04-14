@@ -8,9 +8,8 @@
 // 6 tabs overwhelms officers with thick gloves trying to scan one-handed.
 //
 // Label fontSize dropped 11→10 so names don't wrap on iPhone SE (375pt).
-import { Text, View } from 'react-native';
+import { Text } from 'react-native';
 import { Tabs } from 'expo-router';
-import OfflineBanner from '@/components/OfflineBanner';
 
 function TabIcon({ emoji }: { emoji: string }) {
   return <Text style={{ fontSize: 20 }}>{emoji}</Text>;
@@ -18,8 +17,6 @@ function TabIcon({ emoji }: { emoji: string }) {
 
 export default function TabLayout() {
   return (
-    <View style={{ flex: 1 }}>
-      <OfflineBanner />
     <Tabs
       screenOptions={{
         tabBarStyle: { backgroundColor: '#0F172A', borderTopColor: '#1E293B', height: 60, paddingBottom: 8 },
@@ -82,6 +79,5 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
-    </View>
   );
 }

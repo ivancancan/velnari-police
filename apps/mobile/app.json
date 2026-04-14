@@ -71,7 +71,8 @@
       "expo-image-picker",
       "expo-router",
       "expo-secure-store",
-      "expo-local-authentication"
+      "expo-local-authentication",
+      "@maplibre/maplibre-react-native"
     ],
     "newArchEnabled": false,
     "extra": {

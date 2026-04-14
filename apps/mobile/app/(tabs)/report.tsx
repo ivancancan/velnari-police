@@ -9,6 +9,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { incidentsApi } from '@/lib/api';
 import { enqueuePhoto } from '@/lib/photo-queue';
+import { invalidateCache, CACHE_KEYS } from '@/lib/api-cache';
 
 const TYPES = [
   { value: 'robbery', label: 'Robo', icon: '💰' },
@@ -140,6 +141,7 @@ export default function ReportScreen() {
       });
 
       const incidentId = res.data.id;
+      invalidateCache(CACHE_KEYS.incidents);
       Vibration.vibrate(200);
 
       // Upload photos — queue offline, upload online

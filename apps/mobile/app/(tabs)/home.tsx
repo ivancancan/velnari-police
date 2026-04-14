@@ -11,6 +11,7 @@ import * as Clipboard from 'expo-clipboard';
 import { useAuthStore } from '@/store/auth.store';
 import { useUnitStore } from '@/store/unit.store';
 import { unitsApi, incidentsApi, patrolsApi } from '@/lib/api';
+import { withCache, invalidateCache, CACHE_KEYS } from '@/lib/api-cache';
 import { startLocationTracking, stopLocationTracking } from '@/lib/location';
 import { flushQueue, enqueue } from '@/lib/offline-queue';
 import { flushPhotoQueue, enqueuePhoto } from '@/lib/photo-queue';
@@ -112,7 +113,7 @@ export default function HomeScreen() {
         // silent — patrols are non-critical
       }
 
-      const incidentsRes = await incidentsApi.getAll();
+      const incidentsRes = await withCache(CACHE_KEYS.incidents, () => incidentsApi.getAll());
       const myIncident = incidentsRes.data.find(
         (i) => i.assignedUnitId === myUnit.id && i.status !== 'closed',
       );
@@ -246,6 +247,7 @@ export default function HomeScreen() {
             setClosingIncident(true);
             try {
               await incidentsApi.close(assignedIncident.id, opt.value);
+              invalidateCache(CACHE_KEYS.incidents);
               setAssignedIncident(null);
               // Strong 3-pulse pattern so officer knows the finalization
               // went through even if they can't check the screen immediately.
@@ -344,6 +346,7 @@ export default function HomeScreen() {
         return;
       }
       const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      invalidateCache(CACHE_KEYS.incidents);
       await incidentsApi.create({
         type: 'other',
         priority: 'critical',
