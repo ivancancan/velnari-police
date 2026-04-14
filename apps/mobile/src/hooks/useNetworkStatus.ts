@@ -1,35 +1,37 @@
 // apps/mobile/src/hooks/useNetworkStatus.ts
 //
-// Connectivity detection strategy:
+// Offline detection designed for field operations, not a coffee shop.
+// Officers go genuinely offline in rural/underground areas for minutes
+// at a time — the banner should only appear then, not on a slow API
+// cold-start or a 3-second cellular handoff.
 //
-// NetInfo.isInternetReachable is unreliable on iOS — it uses Apple's
-// SCNetworkReachability which returns false positives with VPN, MDM profiles,
-// carrier-level filtering, and Low Data Mode. We cannot trust it alone.
-//
-// Instead: do a real HTTP HEAD request to our API every 20s. If the request
-// succeeds, we're online. If it times out or errors, we wait one more cycle
-// before declaring offline (prevents flashing on a single bad request).
-// NetInfo is kept only as a fast "came back online" signal to flush queues.
+// Strategy:
+//  1. 30-second startup grace — never show the banner right after login.
+//     Railway cold-start, cellular attach, and VPN startup all happen here.
+//  2. After grace: ping the API every 25s. Need 3 consecutive failures
+//     (~75 seconds of no response) before showing the banner.
+//  3. Single success clears the counter and hides the banner immediately.
+//  4. NetInfo kept as a fast "came back online" trigger to flush queues.
 import { useEffect, useRef, useState } from 'react';
 import NetInfo from '@react-native-community/netinfo';
 import { flushQueue } from '../lib/offline-queue';
 import { flushPhotoQueue } from '../lib/photo-queue';
 import { flushLocationQueue } from '../lib/location-queue';
 
-const PING_URL = (process.env['EXPO_PUBLIC_API_URL'] ?? 'http://localhost:3001/api') + '/auth/login';
-const PING_INTERVAL_MS = 20_000;
-const PING_TIMEOUT_MS = 6_000;
-// Require two consecutive failures before showing the banner
-const FAIL_THRESHOLD = 2;
+const API_BASE = process.env['EXPO_PUBLIC_API_URL'] ?? 'http://localhost:3001/api';
+const PING_URL = `${API_BASE}/units/stats`;  // GET, returns 401 but server IS reachable
+const STARTUP_GRACE_MS = 30_000;
+const PING_INTERVAL_MS = 25_000;
+const PING_TIMEOUT_MS  =  8_000;
+const FAIL_THRESHOLD   = 3;       // 3 × 25s ≈ 75s of sustained failure
 
 async function pingServer(): Promise<boolean> {
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), PING_TIMEOUT_MS);
-    // HEAD on /auth/login — fast, no auth needed, always returns 2xx or 4xx (both mean reachable)
-    const res = await fetch(PING_URL, { method: 'HEAD', signal: controller.signal });
+    const res = await fetch(PING_URL, { method: 'GET', signal: controller.signal });
     clearTimeout(timer);
-    return res.status < 500; // 4xx = auth error but server is reachable
+    return res.status > 0; // any HTTP response = network works
   } catch {
     return false;
   }
@@ -37,8 +39,9 @@ async function pingServer(): Promise<boolean> {
 
 export function useNetworkStatus(): { isConnected: boolean } {
   const [isConnected, setIsConnected] = useState(true);
-  const failCount = useRef(0);
-  const wasDisconnected = useRef(false);
+  const failCount  = useRef(0);
+  const wasOffline = useRef(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const flushQueues = () => {
     void flushQueue().catch(() => {});
@@ -51,40 +54,42 @@ export function useNetworkStatus(): { isConnected: boolean } {
 
     async function check() {
       if (cancelled) return;
-      const reachable = await pingServer();
+      const ok = await pingServer();
       if (cancelled) return;
-
-      if (reachable) {
+      if (ok) {
         failCount.current = 0;
-        if (!isConnected || wasDisconnected.current) {
-          wasDisconnected.current = false;
+        if (wasOffline.current) {
+          wasOffline.current = false;
           setIsConnected(true);
           flushQueues();
         }
       } else {
         failCount.current += 1;
         if (failCount.current >= FAIL_THRESHOLD) {
-          wasDisconnected.current = true;
+          wasOffline.current = true;
           setIsConnected(false);
         }
       }
     }
 
-    // Run immediately, then on interval
-    void check();
-    const interval = setInterval(check, PING_INTERVAL_MS);
+    // Grace period: don't ping at all for the first 30s
+    const grace = setTimeout(() => {
+      if (cancelled) return;
+      void check();
+      intervalRef.current = setInterval(() => { void check(); }, PING_INTERVAL_MS);
+    }, STARTUP_GRACE_MS);
 
-    // Also use NetInfo as a fast "back online" trigger to flush queues sooner
+    // NetInfo: fast wake-up signal when coming back online
     const unsubscribe = NetInfo.addEventListener((state) => {
-      if (state.isConnected && state.isInternetReachable !== false) {
-        // Optimistic: run a ping right away to confirm
+      if (state.isConnected && state.isInternetReachable !== false && wasOffline.current) {
         void check();
       }
     });
 
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      clearTimeout(grace);
+      if (intervalRef.current) clearInterval(intervalRef.current);
       unsubscribe();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
