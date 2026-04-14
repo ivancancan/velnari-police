@@ -246,9 +246,10 @@ export class RealtimeGateway {
   }
 
   emitIncidentStatusChanged(incidentId: string, status: string): void {
-    this.server
-      .to(`incident:${incidentId}`)
-      .emit('incident:status:changed', { incidentId, status });
+    const payload = { incidentId, status };
+    // Emit to command room (web operators) AND incident room (mobile units watching the incident)
+    this.server.to('command').emit('incident:status:changed', payload);
+    this.server.to(`incident:${incidentId}`).emit('incident:status:changed', payload);
   }
 
   emitIncidentClosed(incidentId: string, resolution: string): void {

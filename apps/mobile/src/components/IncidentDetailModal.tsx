@@ -2,9 +2,11 @@
 import { useEffect, useState } from 'react';
 import {
   Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet,
-  ActivityIndicator, Image, Linking, Alert,
+  ActivityIndicator, Image, Alert,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { incidentsApi, type IncidentDetail, type IncidentEvent, type IncidentAttachment } from '../lib/api';
+import { useUnitStore } from '../store/unit.store';
 
 const PRIORITY_COLORS: Record<string, string> = {
   critical: '#EF4444', high: '#F97316', medium: '#F59E0B', low: '#22C55E',
@@ -40,11 +42,14 @@ interface Props {
 }
 
 export default function IncidentDetailModal({ incidentId, onClose }: Props) {
+  const router = useRouter();
+  const setFocusCoords = useUnitStore((s) => s.setFocusCoords);
   const [incident, setIncident] = useState<IncidentDetail | null>(null);
   const [events, setEvents] = useState<IncidentEvent[]>([]);
   const [attachments, setAttachments] = useState<IncidentAttachment[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lightboxUri, setLightboxUri] = useState<string | null>(null);
 
   useEffect(() => {
     if (!incidentId) {
@@ -80,10 +85,11 @@ export default function IncidentDetailModal({ incidentId, onClose }: Props) {
 
   const open = incidentId !== null;
 
-  const openInMaps = () => {
-    if (!incident) return;
-    const url = `http://maps.apple.com/?daddr=${incident.lat},${incident.lng}&dirflg=d`;
-    Linking.openURL(url).catch(() => Alert.alert('No se pudo abrir el mapa'));
+  const openInMap = () => {
+    if (!incident?.lat || !incident?.lng) return;
+    setFocusCoords({ lat: incident.lat, lng: incident.lng });
+    onClose();
+    router.push('/(tabs)/map');
   };
 
   return (
@@ -138,8 +144,8 @@ export default function IncidentDetailModal({ incidentId, onClose }: Props) {
               <View style={styles.section}>
                 <Text style={styles.sectionLabel}>Ubicación</Text>
                 {incident.address && <Text style={styles.body}>📍 {incident.address}</Text>}
-                <TouchableOpacity style={styles.navButton} onPress={openInMaps} activeOpacity={0.7}>
-                  <Text style={styles.navButtonText}>Abrir en Mapas →</Text>
+                <TouchableOpacity style={styles.navButton} onPress={openInMap} activeOpacity={0.7}>
+                  <Text style={styles.navButtonText}>Ver en mapa →</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -176,8 +182,10 @@ export default function IncidentDetailModal({ incidentId, onClose }: Props) {
                       <TouchableOpacity
                         key={a.id}
                         style={styles.attachCard}
-                        onPress={() => a.url && Linking.openURL(a.url).catch(() => {})}
-                        activeOpacity={0.7}
+                        onPress={() => {
+                          if (isImage && a.url) setLightboxUri(a.url);
+                        }}
+                        activeOpacity={0.8}
                       >
                         {isImage && a.url ? (
                           <Image source={{ uri: a.url }} style={styles.attachImage} />
@@ -235,6 +243,29 @@ export default function IncidentDetailModal({ incidentId, onClose }: Props) {
           </ScrollView>
         )}
       </View>
+
+      {/* Lightbox for full-screen image preview */}
+      <Modal
+        visible={lightboxUri !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLightboxUri(null)}
+      >
+        <TouchableOpacity
+          style={styles.lightboxOverlay}
+          activeOpacity={1}
+          onPress={() => setLightboxUri(null)}
+        >
+          {lightboxUri && (
+            <Image
+              source={{ uri: lightboxUri }}
+              style={styles.lightboxImage}
+              resizeMode="contain"
+            />
+          )}
+          <Text style={styles.lightboxClose}>✕ Cerrar</Text>
+        </TouchableOpacity>
+      </Modal>
     </Modal>
   );
 }
@@ -293,6 +324,15 @@ const styles = StyleSheet.create({
   },
   attachIconText: { fontSize: 36 },
   attachDate: { color: '#64748B', fontSize: 10, fontFamily: 'Menlo' },
+  lightboxOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.93)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  lightboxImage: { width: '100%', height: '85%' },
+  lightboxClose: {
+    color: '#94A3B8', fontSize: 14, fontWeight: '600',
+    marginTop: 16, padding: 12,
+  },
   timeline: { marginTop: 4 },
   timelineItem: { flexDirection: 'row', gap: 12 },
   timelineDotCol: { alignItems: 'center', width: 12 },

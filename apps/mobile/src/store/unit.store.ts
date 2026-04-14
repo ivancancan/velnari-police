@@ -17,6 +17,7 @@ interface UnitState {
   status: string;
   assignedIncident: AssignedIncident | null;
   pendingAssignments: AssignedIncident[];
+  focusCoords: { lat: number; lng: number } | null;
   setUnit: (unitId: string, callSign: string, status: string) => void;
   setStatus: (status: string) => void;
   setAssignedIncident: (incident: AssignedIncident | null) => void;
@@ -25,6 +26,7 @@ interface UnitState {
   updateNearbyUnitPosition: (unitId: string, lat: number, lng: number) => void;
   addPendingAssignment: (incident: AssignedIncident) => void;
   clearPendingAssignment: (incidentId: string) => void;
+  setFocusCoords: (coords: { lat: number; lng: number } | null) => void;
 }
 
 export const useUnitStore = create<UnitState>((set) => ({
@@ -34,6 +36,7 @@ export const useUnitStore = create<UnitState>((set) => ({
   assignedIncident: null,
   pendingAssignments: [],
   nearbyUnits: [],
+  focusCoords: null,
   setNearbyUnits: (units) => set({ nearbyUnits: units }),
   updateNearbyUnitPosition: (unitId, lat, lng) =>
     set((state) => ({
@@ -52,4 +55,5 @@ export const useUnitStore = create<UnitState>((set) => ({
     set((state) => ({
       pendingAssignments: state.pendingAssignments.filter((i) => i.id !== incidentId),
     })),
+  setFocusCoords: (coords) => set({ focusCoords: coords }),
 }));

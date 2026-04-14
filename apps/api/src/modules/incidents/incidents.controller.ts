@@ -20,6 +20,7 @@ function endOfDay(d: Date): Date {
 }
 import { IncidentsService, DailySummary, ShiftHandoff, AnalyticsResult, PatrolReport } from './incidents.service';
 import { DispatchService } from '../dispatch/dispatch.service';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { RolesGuard } from '../../shared/guards/roles.guard';
 import { Roles } from '../../shared/decorators/roles.decorator';
@@ -44,6 +45,7 @@ export class IncidentsController {
     private readonly service: IncidentsService,
     @Inject(forwardRef(() => DispatchService))
     private readonly dispatchService: DispatchService,
+    private readonly realtime: RealtimeGateway,
   ) {}
 
   @Get()
@@ -226,12 +228,16 @@ export class IncidentsController {
 
   @Post(':id/close')
   @Roles(UserRole.ADMIN, UserRole.OPERATOR, UserRole.SUPERVISOR, UserRole.FIELD_UNIT)
-  close(
+  async close(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: CloseIncidentDto,
     @CurrentUser() user: JwtPayload,
   ): Promise<IncidentEntity> {
-    return this.service.close(id, dto, user.sub);
+    const result = await this.service.close(id, dto, user.sub);
+    // Notify command room and incident room so web updates in real-time
+    this.realtime.emitIncidentStatusChanged(id, 'closed');
+    this.realtime.emitIncidentClosed(id, dto.resolution);
+    return result;
   }
 
   @Post(':id/reassign')

@@ -457,24 +457,34 @@ export default function IncidentDetail({ incident, onBack }: IncidentDetailProps
           {attachments.length === 0 ? (
             <p className="text-xs text-slate-gray">Sin archivos adjuntos.</p>
           ) : (
-            <div className="space-y-1">
-              {attachments.map((att) => (
-                <a
-                  key={att.id}
-                  href={att.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-xs text-signal-white hover:text-tactical-blue"
-                >
-                  <span className="text-slate-gray">
-                    {att.mimetype.startsWith('image/') ? '🖼' : '📄'}
-                  </span>
-                  <span className="truncate">{att.originalName}</span>
-                  <span className="text-slate-gray ml-auto">
-                    {(att.size / 1024).toFixed(0)} KB
-                  </span>
-                </a>
-              ))}
+            <div className="flex flex-wrap gap-2 mt-1">
+              {attachments.map((att) => {
+                const isImage = att.mimetype.startsWith('image/');
+                return (
+                  <a
+                    key={att.id}
+                    href={att.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={att.originalName}
+                    className="block rounded-lg overflow-hidden border border-white/10 hover:border-tactical-blue/50 transition-colors"
+                  >
+                    {isImage ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={att.url}
+                        alt={att.originalName}
+                        className="w-20 h-20 object-cover"
+                      />
+                    ) : (
+                      <div className="w-20 h-20 flex flex-col items-center justify-center bg-white/5 gap-1">
+                        <span className="text-2xl">📄</span>
+                        <span className="text-[10px] text-slate-400 px-1 text-center truncate w-full">{att.originalName}</span>
+                      </div>
+                    )}
+                  </a>
+                );
+              })}
             </div>
           )}
         </div>

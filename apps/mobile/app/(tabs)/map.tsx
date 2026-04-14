@@ -62,7 +62,7 @@ interface OpenIncident {
 
 export default function MapScreen() {
   const mapRef = useRef<MapView>(null);
-  const { callSign, status, nearbyUnits, setNearbyUnits, unitId: myUnitId, assignedIncident } = useUnitStore();
+  const { callSign, status, nearbyUnits, setNearbyUnits, unitId: myUnitId, assignedIncident, focusCoords, setFocusCoords } = useUnitStore();
 
   const [currentPos, setCurrentPos] = useState<Coord | null>(null);
   const [following, setFollowing] = useState(true);
@@ -95,6 +95,17 @@ export default function MapScreen() {
       sub?.remove?.();
     };
   }, [following]);
+
+  // Navigate to focusCoords when set from IncidentDetailModal
+  useEffect(() => {
+    if (!focusCoords || !mapRef.current) return;
+    setFollowing(false);
+    mapRef.current.animateToRegion(
+      { latitude: focusCoords.lat, longitude: focusCoords.lng, latitudeDelta: 0.008, longitudeDelta: 0.008 },
+      600,
+    );
+    setFocusCoords(null);
+  }, [focusCoords, setFocusCoords]);
 
   useEffect(() => {
     async function load(): Promise<void> {

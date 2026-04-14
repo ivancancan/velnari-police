@@ -144,6 +144,23 @@ export default function RealtimeProvider({ children }: { children: React.ReactNo
       },
     );
 
+    // Incident closed — update status in store and notify operators
+    socket.on(
+      'incident:closed',
+      (payload: { incidentId: string; resolution: string }) => {
+        const incidents = useIncidentsStore.getState().incidents;
+        const incident = incidents.find((i) => i.id === payload.incidentId);
+        if (incident) {
+          updateIncident({ ...incident, status: 'closed' as Incident['status'] });
+          addAlert({
+            folio: incident.folio,
+            message: `Cerrado · ${payload.resolution}`,
+            priority: 'low',
+          });
+        }
+      },
+    );
+
     // Server-side GPS stale alert
     socket.on(
       'unit:gps:stale',
@@ -194,6 +211,7 @@ export default function RealtimeProvider({ children }: { children: React.ReactNo
       socket.off('unit:status:changed');
       socket.off('incident:created');
       socket.off('incident:status:changed');
+      socket.off('incident:closed');
       socket.off('geofence:entered');
       socket.off('geofence:exited');
       disconnectSocket();
