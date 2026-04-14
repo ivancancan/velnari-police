@@ -17,14 +17,16 @@
       "buildNumber": "5",
       "supportsTablet": false,
       "infoPlist": {
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Velnari necesita tu ubicación para el despacho.",
-        "NSLocationWhenInUseUsageDescription": "Velnari necesita tu ubicación para el despacho.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Velnari necesita tu ubicación en todo momento durante el turno para que el centro de mando coordine despachos.",
+        "NSLocationAlwaysUsageDescription": "Velnari envía tu posición al centro de mando mientras estés en turno, incluso con la pantalla apagada.",
+        "NSLocationWhenInUseUsageDescription": "Velnari necesita tu ubicación para operaciones de despacho.",
         "NSCameraUsageDescription": "Velnari necesita la cámara para adjuntar fotos a incidentes.",
         "NSMicrophoneUsageDescription": "Velnari necesita el micrófono para notas de voz en incidentes.",
         "NSPhotoLibraryUsageDescription": "Velnari necesita acceso a tu galería para adjuntar evidencia a incidentes.",
         "NSPhotoLibraryAddUsageDescription": "Velnari guardará fotos del servicio en tu dispositivo.",
         "NSFaceIDUsageDescription": "Velnari usa Face ID para proteger el acceso a datos operativos.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": ["location", "fetch", "remote-notification"]
       }
     },
     "android": {
@@ -47,7 +49,11 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Velnari necesita tu ubicación."
+          "locationAlwaysAndWhenInUsePermission": "Velnari necesita tu ubicación para mantener tu posición visible en el centro de mando durante el turno.",
+          "locationAlwaysPermission": "Velnari envía tu posición al centro de mando incluso en segundo plano mientras estés en turno.",
+          "locationWhenInUsePermission": "Velnari necesita tu ubicación para operaciones de despacho.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true
         }
       ],
       [

@@ -30,31 +30,47 @@ TaskManager.defineTask(LOCATION_TASK, async ({ data, error }: TaskManager.TaskMa
   }
 });
 
-export async function startLocationTracking(unitId: string): Promise<boolean> {
+export interface StartTrackingResult {
+  ok: boolean;
+  reason?: 'foreground_denied' | 'background_denied' | 'start_failed';
+  error?: string;
+}
+
+export async function startLocationTracking(unitId: string): Promise<StartTrackingResult> {
   _unitId = unitId;
 
-  const { status } = await Location.requestForegroundPermissionsAsync();
-  if (status !== 'granted') return false;
+  // Need foreground permission first (baseline).
+  const fg = await Location.requestForegroundPermissionsAsync();
+  if (fg.status !== 'granted') return { ok: false, reason: 'foreground_denied' };
 
-  // Battery-conscious tuning:
-  // - Accuracy.Balanced (~100m) is plenty for dispatch maps; High drains ~2x.
-  // - timeInterval 30s upper bound; the OS still fires sooner if distanceInterval (25m)
-  //   is exceeded — so moving units update frequently, stationary ones stay quiet.
-  // - Operators viewing the command map get smooth tracks because the API
-  //   interpolates between points; officers get hours more runtime per shift.
-  await Location.startLocationUpdatesAsync(LOCATION_TASK, {
-    accuracy: Location.Accuracy.Balanced,
-    timeInterval: 30000,
-    distanceInterval: 25,
-    foregroundService: {
-      notificationTitle: 'Velnari Field activo',
-      notificationBody: 'Enviando ubicación al centro de mando.',
-    },
-    deferredUpdatesInterval: 15000,
-    activityType: Location.ActivityType.AutomotiveNavigation,
-    pausesUpdatesAutomatically: false,
-  });
-  return true;
+  // Background permission is what allows startLocationUpdatesAsync to keep
+  // sending points with the app backgrounded / screen off. Without it, iOS
+  // throws "backgroundLocationUpdates mode is not set" and the updates stop.
+  const bg = await Location.requestBackgroundPermissionsAsync();
+  if (bg.status !== 'granted') return { ok: false, reason: 'background_denied' };
+
+  try {
+    // Battery-conscious tuning:
+    // - Accuracy.Balanced (~100m) is plenty for dispatch maps; High drains ~2x.
+    // - timeInterval 30s upper bound; the OS still fires sooner if distanceInterval (25m)
+    //   is exceeded — so moving units update frequently, stationary ones stay quiet.
+    await Location.startLocationUpdatesAsync(LOCATION_TASK, {
+      accuracy: Location.Accuracy.Balanced,
+      timeInterval: 30000,
+      distanceInterval: 25,
+      foregroundService: {
+        notificationTitle: 'Velnari Field activo',
+        notificationBody: 'Enviando ubicación al centro de mando.',
+      },
+      deferredUpdatesInterval: 15000,
+      activityType: Location.ActivityType.AutomotiveNavigation,
+      pausesUpdatesAutomatically: false,
+      showsBackgroundLocationIndicator: true,
+    });
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, reason: 'start_failed', error: (err as Error).message };
+  }
 }
 
 export async function stopLocationTracking(): Promise<void> {

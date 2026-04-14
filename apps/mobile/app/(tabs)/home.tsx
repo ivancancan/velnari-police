@@ -151,26 +151,52 @@ export default function HomeScreen() {
   }
 
   async function toggleTracking() {
-    if (!unitId) { Alert.alert('Sin unidad asignada'); return; }
+    if (!unitId) {
+      Alert.alert('Sin unidad asignada', 'No tienes una patrulla asignada. Contacta a tu supervisor.');
+      return;
+    }
     if (trackingActive) {
       await stopLocationTracking();
       setTrackingActive(false);
       setGpsCount(0);
-    } else {
-      const started = await startLocationTracking(unitId);
-      if (started) {
+      return;
+    }
+
+    try {
+      const result = await startLocationTracking(unitId);
+      if (result.ok) {
         setTrackingActive(true);
         Vibration.vibrate(100);
-        // Get initial position
+        // Emit initial position immediately so the web map shows the pin on start
         try {
           const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
           setCurrentCoords({ lat: loc.coords.latitude, lng: loc.coords.longitude });
           await unitsApi.updateLocation(unitId, loc.coords.latitude, loc.coords.longitude);
           setGpsCount(1);
-        } catch { /* ignore */ }
-      } else {
-        Alert.alert('Permiso denegado', 'Activa los permisos de ubicación en configuración.');
+        } catch { /* initial fix is best-effort */ }
+        return;
       }
+
+      // Surface *why* tracking failed so the officer can fix it themselves
+      // instead of tapping a silent button.
+      if (result.reason === 'foreground_denied') {
+        Alert.alert(
+          'Permiso de ubicación denegado',
+          'Ve a Ajustes → Velnari Field → Ubicación y elige "Siempre" o "Al usar la app".',
+        );
+      } else if (result.reason === 'background_denied') {
+        Alert.alert(
+          'Permiso "Siempre" requerido',
+          'Para que el centro de mando te vea cuando la app esté en segundo plano, necesitas "Siempre" en Ajustes → Velnari Field → Ubicación.',
+        );
+      } else {
+        Alert.alert(
+          'No se pudo iniciar GPS',
+          result.error ?? 'Error desconocido al iniciar el tracking. Cierra y abre la app e intenta de nuevo.',
+        );
+      }
+    } catch (err) {
+      Alert.alert('Error', (err as Error).message ?? 'Falló la activación de GPS.');
     }
   }
 
@@ -237,8 +263,8 @@ export default function HomeScreen() {
       }
       // Auto-start GPS tracking
       if (unitId && !trackingActive) {
-        const started = await startLocationTracking(unitId);
-        if (started) {
+        const result = await startLocationTracking(unitId);
+        if (result.ok) {
           setTrackingActive(true);
           try {
             const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
