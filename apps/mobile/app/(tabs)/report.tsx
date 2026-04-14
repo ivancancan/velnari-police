@@ -270,6 +270,8 @@ export default function ReportScreen() {
         onChangeText={setAddress}
         placeholder="Calle, colonia…"
         placeholderTextColor="#475569"
+        returnKeyType="next"
+        autoCapitalize="sentences"
       />
 
       {/* Description */}
@@ -282,6 +284,9 @@ export default function ReportScreen() {
         placeholderTextColor="#475569"
         multiline
         numberOfLines={3}
+        returnKeyType="default"
+        autoCapitalize="sentences"
+        blurOnSubmit
       />
 
       {/* Photos */}
@@ -382,8 +387,15 @@ const styles = StyleSheet.create({
   photoStatusOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.35)' },
   photoStatusDone: { color: '#22C55E', fontSize: 24, fontWeight: '800' },
   photoStatusQueued: { fontSize: 20 },
-  photoRemove: { position: 'absolute', top: 4, right: 4, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 10, width: 20, height: 20, alignItems: 'center', justifyContent: 'center' },
-  photoRemoveText: { color: '#F8FAFC', fontSize: 12, fontWeight: '700' },
+  // 40pt minimum tap target (WCAG 2.5.5) — the old 20pt was unusable with gloves.
+  photoRemove: {
+    position: 'absolute', top: -6, right: -6,
+    backgroundColor: '#EF4444',
+    borderRadius: 20, width: 40, height: 40,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: '#0F172A',
+  },
+  photoRemoveText: { color: '#FFFFFF', fontSize: 18, fontWeight: '700', lineHeight: 20 },
 
   submitButton: { backgroundColor: '#3B82F6', borderRadius: 14, paddingVertical: 18, alignItems: 'center', marginTop: 28, minHeight: 60, justifyContent: 'center', shadowColor: '#3B82F6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6 },
   submitDisabled: { opacity: 0.4, shadowOpacity: 0 },

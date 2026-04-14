@@ -3,8 +3,9 @@ import { useState } from 'react';
 
 const SHORTCUTS = [
   { key: '1', desc: 'Tab Incidentes' },
-  { key: '2', desc: 'Tab Patrullajes' },
-  { key: '3', desc: 'Tab Chat' },
+  { key: '2', desc: 'Tab Despacho' },
+  { key: '3', desc: 'Tab Patrullajes' },
+  { key: '4', desc: 'Tab Chat' },
   { key: 'Esc', desc: 'Deseleccionar unidad/incidente' },
   { key: 'H', desc: 'Abrir ayuda' },
 ];

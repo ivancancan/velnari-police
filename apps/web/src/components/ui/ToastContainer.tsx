@@ -28,7 +28,7 @@ export default function ToastContainer() {
   if (alerts.length === 0) return null;
 
   return (
-    <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+    <div className="fixed top-4 right-4 lg:right-6 2xl:right-8 z-50 flex flex-col gap-2 pointer-events-none max-w-[calc(100vw-2rem)]">
       {alerts.map((alert) => (
         <div key={alert.id} className="pointer-events-auto">
           <Toast

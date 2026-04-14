@@ -62,7 +62,7 @@ interface OpenIncident {
 
 export default function MapScreen() {
   const mapRef = useRef<MapView>(null);
-  const { callSign, status, nearbyUnits, setNearbyUnits, unitId: myUnitId } = useUnitStore();
+  const { callSign, status, nearbyUnits, setNearbyUnits, unitId: myUnitId, assignedIncident } = useUnitStore();
 
   const [currentPos, setCurrentPos] = useState<Coord | null>(null);
   const [following, setFollowing] = useState(true);
@@ -169,27 +169,34 @@ export default function MapScreen() {
           </Marker>
         ))}
 
-        {/* Open incidents */}
-        {openIncidents.map((incident) => (
-          <Marker
-            key={`inc-${incident.id}`}
-            coordinate={{ latitude: incident.lat, longitude: incident.lng }}
-            anchor={{ x: 0.5, y: 0.5 }}
-            onPress={() => setDetailIncidentId(incident.id)}
-            accessibilityRole="button"
-            accessibilityLabel={`Incidente ${incident.folio}, prioridad ${incident.priority}`}
-          >
-            <View style={styles.incidentMarker}>
-              <View
-                style={[
-                  styles.incidentTriangle,
-                  { borderBottomColor: PRIORITY_COLORS[incident.priority] ?? '#F59E0B' },
-                ]}
-              />
-              <Text style={styles.incidentLabel}>{incident.folio}</Text>
-            </View>
-          </Marker>
-        ))}
+        {/* Open incidents. The officer's own assigned incident gets a
+            gold pulsing ring so they can spot it instantly among many. */}
+        {openIncidents.map((incident) => {
+          const isMine = assignedIncident?.id === incident.id;
+          return (
+            <Marker
+              key={`inc-${incident.id}`}
+              coordinate={{ latitude: incident.lat, longitude: incident.lng }}
+              anchor={{ x: 0.5, y: 0.5 }}
+              onPress={() => setDetailIncidentId(incident.id)}
+              accessibilityRole="button"
+              accessibilityLabel={`Incidente ${incident.folio}${isMine ? ' (asignado a ti)' : ''}, prioridad ${incident.priority}`}
+            >
+              <View style={isMine ? styles.incidentMarkerMine : styles.incidentMarker}>
+                {isMine && <View style={styles.incidentHaloMine} />}
+                <View
+                  style={[
+                    styles.incidentTriangle,
+                    { borderBottomColor: PRIORITY_COLORS[incident.priority] ?? '#F59E0B' },
+                  ]}
+                />
+                <Text style={[styles.incidentLabel, isMine && styles.incidentLabelMine]}>
+                  {isMine ? `⭐ ${incident.folio}` : incident.folio}
+                </Text>
+              </View>
+            </Marker>
+          );
+        })}
       </MapView>
 
       {/* Floating speed badge — only while actually moving */}
@@ -268,6 +275,19 @@ const styles = StyleSheet.create({
 
   // Incidents
   incidentMarker: { alignItems: 'center' },
+  incidentMarkerMine: { alignItems: 'center', position: 'relative' },
+  incidentHaloMine: {
+    position: 'absolute',
+    top: -6, left: -6, right: -6, bottom: -6,
+    borderRadius: 40,
+    backgroundColor: 'rgba(251, 191, 36, 0.25)',
+    borderWidth: 2,
+    borderColor: '#FBBF24',
+  },
+  incidentLabelMine: {
+    backgroundColor: '#78350FE6',
+    color: '#FCD34D',
+  },
   incidentTriangle: {
     width: 0,
     height: 0,

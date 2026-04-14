@@ -91,8 +91,14 @@ export default function IncidentDetailModal({ incidentId, onClose }: Props) {
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Detalle de incidente</Text>
-          <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={12}>
-            <Text style={styles.closeBtnText}>✕</Text>
+          <TouchableOpacity
+            onPress={onClose}
+            style={styles.closeBtn}
+            hitSlop={16}
+            accessibilityRole="button"
+            accessibilityLabel="Cerrar detalle de incidente"
+          >
+            <Text style={styles.closeBtnText}>← Cerrar</Text>
           </TouchableOpacity>
         </View>
 
@@ -242,10 +248,12 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 16, fontWeight: '700', color: '#F8FAFC' },
   closeBtn: {
-    width: 36, height: 36, borderRadius: 8, alignItems: 'center', justifyContent: 'center',
+    minWidth: 48, minHeight: 48, paddingHorizontal: 14, borderRadius: 10,
+    alignItems: 'center', justifyContent: 'center',
     backgroundColor: '#1E293B',
+    flexDirection: 'row', gap: 6,
   },
-  closeBtnText: { color: '#94A3B8', fontSize: 18 },
+  closeBtnText: { color: '#CBD5E1', fontSize: 14, fontWeight: '600' },
   loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
   errorText: { color: '#F87171', fontSize: 14, textAlign: 'center' },
   scroll: { flex: 1 },

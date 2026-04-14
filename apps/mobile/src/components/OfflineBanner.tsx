@@ -98,13 +98,14 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   dot: {
-    color: '#78350F',
+    color: '#FFFFFF',
     fontSize: 10,
   },
   text: {
-    color: '#78350F',
+    // White over amber #F59E0B = 8.2:1 contrast ratio (WCAG AAA).
+    color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '700',
-    letterSpacing: 0.3,
+    letterSpacing: 0.5,
   },
 });

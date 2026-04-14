@@ -7,6 +7,7 @@ import {
 } from 'react-native';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
+import * as Clipboard from 'expo-clipboard';
 import { useAuthStore } from '@/store/auth.store';
 import { useUnitStore } from '@/store/unit.store';
 import { unitsApi, incidentsApi, patrolsApi } from '@/lib/api';
@@ -144,7 +145,8 @@ export default function HomeScreen() {
     try {
       await unitsApi.updateStatus(unitId, newStatus);
       setStatus(newStatus);
-      Vibration.vibrate(50);
+      // Pattern haptic gives tactile confirmation with gloves on.
+      Vibration.vibrate([0, 100, 50, 100]);
     } catch {
       Alert.alert('Error', 'No se pudo actualizar el estado.');
     }
@@ -156,9 +158,20 @@ export default function HomeScreen() {
       return;
     }
     if (trackingActive) {
+      // Safety interlock: never let an officer disable GPS while an incident
+      // is assigned or they're on-scene. The command center relies on their
+      // position for coordination; losing it mid-operation is dangerous.
+      if (assignedIncident && (assignedIncident.status === 'assigned' || assignedIncident.status === 'on_scene')) {
+        Alert.alert(
+          'GPS bloqueado',
+          `No puedes detener el rastreo mientras tienes un incidente activo (${assignedIncident.folio ?? ''}). Cierra el incidente primero.`,
+        );
+        return;
+      }
       await stopLocationTracking();
       setTrackingActive(false);
       setGpsCount(0);
+      Vibration.vibrate([0, 60, 40, 60]);
       return;
     }
 
@@ -234,7 +247,9 @@ export default function HomeScreen() {
             try {
               await incidentsApi.close(assignedIncident.id, opt.value);
               setAssignedIncident(null);
-              Vibration.vibrate(100);
+              // Strong 3-pulse pattern so officer knows the finalization
+              // went through even if they can't check the screen immediately.
+              Vibration.vibrate([0, 150, 80, 150, 80, 150]);
               Alert.alert('Incidente cerrado', `${assignedIncident.folio} marcado como "${opt.label}".`);
             } catch {
               Alert.alert('Error', 'No se pudo cerrar el incidente. Intenta de nuevo.');
@@ -419,13 +434,26 @@ export default function HomeScreen() {
         </View>
         {unitId && (
           <TouchableOpacity
+            onPressIn={() => {
+              // Mid-press haptic at 500ms so the officer knows the hold is
+              // registered. Confirms only at 1500ms — prevents accidental
+              // fires from a glove brush or holster bump.
+              const halfway = setTimeout(() => Vibration.vibrate(80), 500);
+              // Store the timer so we can clear it on pressOut.
+              (globalThis as unknown as { __sosHapticTimer?: ReturnType<typeof setTimeout> }).__sosHapticTimer = halfway;
+            }}
+            onPressOut={() => {
+              const t = (globalThis as unknown as { __sosHapticTimer?: ReturnType<typeof setTimeout> }).__sosHapticTimer;
+              if (t) clearTimeout(t);
+            }}
             onLongPress={handlePanic}
-            delayLongPress={1000}
+            delayLongPress={1500}
+            hitSlop={20}
             disabled={sendingPanic}
             style={[styles.sosIconButton, sendingPanic && { opacity: 0.5 }]}
             accessibilityRole="button"
             accessibilityLabel="Botón de pánico SOS"
-            accessibilityHint="Mantén presionado un segundo para enviar alerta crítica al centro de mando"
+            accessibilityHint="Mantén presionado 1.5 segundos para enviar alerta crítica al centro de mando"
           >
             <Animated.View
               style={[
@@ -469,11 +497,28 @@ export default function HomeScreen() {
 
       {/* Coordinates readout */}
       {trackingActive && currentCoords && (
-        <View style={styles.coordsBar}>
+        <TouchableOpacity
+          style={styles.coordsBar}
+          onPress={async () => {
+            try {
+              await Clipboard.setStringAsync(
+                `${currentCoords.lat.toFixed(5)}, ${currentCoords.lng.toFixed(5)}`,
+              );
+              Vibration.vibrate(40);
+              Alert.alert('Copiado', 'Coordenadas copiadas al portapapeles.');
+            } catch {
+              // expo-clipboard may not be installed — silently skip
+            }
+          }}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Copiar coordenadas al portapapeles"
+        >
           <Text style={styles.coordsText}>
-            {currentCoords.lat.toFixed(5)}, {currentCoords.lng.toFixed(5)}
+            📍 {currentCoords.lat.toFixed(5)}, {currentCoords.lng.toFixed(5)}
           </Text>
-        </View>
+          <Text style={styles.coordsHint}>Toca para copiar</Text>
+        </TouchableOpacity>
       )}
 
       {/* Active patrol */}
@@ -641,7 +686,7 @@ export default function HomeScreen() {
             activeOpacity={0.7}
           >
             <Text style={styles.closeIncidentButtonText}>
-              {closingIncident ? 'Cerrando...' : '✓ Cerrar incidente'}
+              {closingIncident ? 'FINALIZANDO…' : '⚠ FINALIZAR INCIDENTE'}
             </Text>
           </TouchableOpacity>
         )}
@@ -649,8 +694,11 @@ export default function HomeScreen() {
       ) : (
         <View style={styles.emptyCard}>
           <Text style={styles.emptyIcon}>✓</Text>
-          <Text style={styles.emptyText}>Sin incidente asignado</Text>
-          <Text style={styles.emptySubtext}>Estás disponible para despacho</Text>
+          <Text style={styles.emptyText}>Disponible para despacho</Text>
+          <Text style={styles.emptySubtext}>
+            El centro de mando te asignará el siguiente incidente.{'\n'}
+            Desliza hacia abajo para refrescar.
+          </Text>
         </View>
       )}
 
@@ -687,8 +735,16 @@ const styles = StyleSheet.create({
   gpsPulse: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#22C55E', marginLeft: 'auto' },
 
   // Coords bar
-  coordsBar: { backgroundColor: '#1E293B', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 14, marginBottom: 16, alignItems: 'center' },
-  coordsText: { color: '#3B82F6', fontSize: 13, fontFamily: 'monospace', fontWeight: '600' },
+  coordsBar: {
+    backgroundColor: '#1E293B', borderRadius: 10,
+    paddingVertical: 10, paddingHorizontal: 14,
+    marginBottom: 16, alignItems: 'center',
+    borderWidth: 1, borderColor: '#334155',
+  },
+  // 16pt so coords are readable in sunlight; dropped monospace in favor of
+  // the default variable font which renders cleaner at small sizes.
+  coordsText: { color: '#60A5FA', fontSize: 16, fontWeight: '700', letterSpacing: 0.5 },
+  coordsHint: { color: '#64748B', fontSize: 10, marginTop: 2, letterSpacing: 0.5 },
 
   // Section
   sectionLabel: { color: '#64748B', fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 10, marginTop: 10 },
@@ -738,17 +794,20 @@ const styles = StyleSheet.create({
   patrolBadgeActiveText: { color: '#22C55E', fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
   patrolBadgePending: { backgroundColor: '#F59E0B22', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
   patrolBadgePendingText: { color: '#F59E0B', fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
-  patrolTime: { color: '#94A3B8', fontSize: 15, fontFamily: 'monospace', marginBottom: 4 },
+  // Non-monospace + numberOfLines=1 via parent prevents midnight-crossing
+  // times from wrapping unexpectedly. Tabular-nums keeps hours aligned.
+  patrolTime: { color: '#CBD5E1', fontSize: 15, fontWeight: '600', marginBottom: 4, fontVariant: ['tabular-nums'] },
   patrolAccepted: { color: '#64748B', fontSize: 13, marginTop: 2 },
   acceptButton: { backgroundColor: '#F59E0B', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 12, minHeight: 48 },
   acceptButtonDisabled: { opacity: 0.4 },
   acceptButtonText: { color: '#0F172A', fontWeight: '800', fontSize: 16, letterSpacing: 0.5 },
 
-  // Close incident button
+  // Close incident button — amber so it reads as "caution: finalizing"
+  // rather than "available/ready" (which is the green status color).
   closeIncidentButton: {
-    backgroundColor: '#134E4A',
+    backgroundColor: '#78350F',
     borderWidth: 1.5,
-    borderColor: '#22C55E',
+    borderColor: '#F59E0B',
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
@@ -759,10 +818,10 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   closeIncidentButtonText: {
-    color: '#22C55E',
-    fontSize: 15,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+    color: '#FCD34D',
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 1,
   },
 
   // SOS icon in header — minimal footprint. Long-press to activate; the

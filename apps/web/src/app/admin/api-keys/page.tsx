@@ -140,7 +140,7 @@ export default function ApiKeysPage() {
                     {k.isActive ? (
                       <button
                         onClick={() => handleRevoke(k.id, k.name)}
-                        className="text-red-600 hover:text-red-700 text-xs font-medium inline-flex items-center gap-1"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 text-xs font-medium inline-flex items-center gap-1 px-2 py-1 rounded cursor-pointer transition-colors"
                       >
                         <Trash2 size={13} /> Revocar
                       </button>

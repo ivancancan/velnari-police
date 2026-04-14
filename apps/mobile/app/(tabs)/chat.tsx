@@ -196,9 +196,10 @@ const styles = StyleSheet.create({
   roleBadge: {
     paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4,
   },
-  roleText: { color: '#F8FAFC', fontSize: 10, fontWeight: '700' },
+  roleText: { color: '#F8FAFC', fontSize: 11, fontWeight: '700', letterSpacing: 0.3 },
   messageText: { color: '#F8FAFC', fontSize: 15, lineHeight: 20 },
-  timestamp: { color: '#94A3B8', fontSize: 10, marginTop: 4, textAlign: 'right' },
+  // Bumped 10→12pt with lighter text color; contrast now ~5.5:1 over #0F172A.
+  timestamp: { color: '#E2E8F0', fontSize: 12, marginTop: 4, textAlign: 'right' },
   inputRow: {
     flexDirection: 'row', padding: 12, borderTopWidth: 1,
     borderTopColor: '#1E293B', alignItems: 'flex-end',

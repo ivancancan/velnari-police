@@ -47,7 +47,7 @@ export default function IncidentCard({ incident, isSelected, onClick }: Incident
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left px-4 py-4 border-b border-slate-800 border-l-[3px] transition-all duration-200 ${borderColor} ${glowEffect} ${
+      className={`w-full text-left px-4 py-4 border-b border-slate-800 border-l-[3px] cursor-pointer transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-tactical-blue/60 ${borderColor} ${glowEffect} ${
         isSelected ? 'bg-slate-800/80' : 'hover:bg-slate-800/50'
       }`}
       aria-selected={isSelected}

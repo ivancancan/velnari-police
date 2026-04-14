@@ -38,6 +38,29 @@ const NAV = [
   },
 ];
 
+function Breadcrumbs({ pathname }: { pathname: string }) {
+  let section: string | null = null;
+  let page: string | null = null;
+  for (const { section: s, items } of NAV) {
+    const match = items.find((it) => it.href === pathname);
+    if (match) { section = s; page = match.label; break; }
+  }
+  if (!page) {
+    // Nested route: find closest parent
+    for (const { section: s, items } of NAV) {
+      const match = items.find((it) => it.href !== '/admin' && pathname.startsWith(it.href));
+      if (match) { section = s; page = match.label; break; }
+    }
+  }
+  return (
+    <nav aria-label="Breadcrumb" className="px-4 lg:px-6 py-2.5 bg-white border-b border-gray-200 text-xs text-gray-500 flex items-center gap-1.5">
+      <Link href="/admin" className="hover:text-gray-900 transition-colors">Admin</Link>
+      {section && <><span className="text-gray-300">/</span><span>{section}</span></>}
+      {page && <><span className="text-gray-300">/</span><span className="text-gray-900 font-medium">{page}</span></>}
+    </nav>
+  );
+}
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, user, clearAuth } = useAuthStore();
   const router = useRouter();
@@ -156,6 +179,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Main */}
       <div className="flex-1 overflow-y-auto min-w-0">
+        <Breadcrumbs pathname={pathname} />
         {children}
       </div>
     </div>

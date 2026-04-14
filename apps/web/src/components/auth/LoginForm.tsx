@@ -29,12 +29,17 @@ export default function LoginForm() {
     setValue,
   } = useForm<LoginFormData>({ resolver: zodResolver(loginSchema) });
 
+  // Demo auto-fill is env-gated so it never accidentally ships in a
+  // customer-facing deploy. The Vercel demo environment sets
+  // NEXT_PUBLIC_DEMO_ENABLED=true; production municipalities leave it unset.
+  const demoEnabled = process.env['NEXT_PUBLIC_DEMO_ENABLED'] === 'true';
+
   useEffect(() => {
-    if (isDemo) {
+    if (isDemo && demoEnabled) {
       setValue('email', 'admin@velnari.mx');
       setValue('password', 'Velnari2024!');
     }
-  }, [isDemo, setValue]);
+  }, [isDemo, demoEnabled, setValue]);
 
   const onSubmit = async (data: LoginFormData) => {
     try {
@@ -59,7 +64,7 @@ export default function LoginForm() {
       className="flex flex-col gap-5 w-full max-w-sm"
       aria-label="Formulario de inicio de sesion"
     >
-      {isDemo && (
+      {isDemo && demoEnabled && (
         <div className="bg-tactical-blue/10 border border-tactical-blue/20 rounded-xl px-4 py-3 text-center backdrop-blur-sm">
           <p className="text-tactical-blue text-xs font-medium">Modo demo — datos de prueba precargados</p>
         </div>
@@ -67,7 +72,8 @@ export default function LoginForm() {
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="email" className="text-sm text-slate-400 font-medium">
-          Email
+          Email <span className="text-red-400" aria-hidden="true">*</span>
+          <span className="sr-only">requerido</span>
         </label>
         <input
           id="email"
@@ -91,7 +97,8 @@ export default function LoginForm() {
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="password" className="text-sm text-slate-400 font-medium">
-          Contrasena
+          Contraseña <span className="text-red-400" aria-hidden="true">*</span>
+          <span className="sr-only">requerido</span>
         </label>
         <input
           id="password"

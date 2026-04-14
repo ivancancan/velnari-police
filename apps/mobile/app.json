@@ -14,7 +14,7 @@
     },
     "ios": {
       "bundleIdentifier": "mx.velnari.field",
-      "buildNumber": "5",
+      "buildNumber": "6",
       "supportsTablet": false,
       "infoPlist": {
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Velnari necesita tu ubicación en todo momento durante el turno para que el centro de mando coordine despachos.",
@@ -26,7 +26,11 @@
         "NSPhotoLibraryAddUsageDescription": "Velnari guardará fotos del servicio en tu dispositivo.",
         "NSFaceIDUsageDescription": "Velnari usa Face ID para proteger el acceso a datos operativos.",
         "ITSAppUsesNonExemptEncryption": false,
-        "UIBackgroundModes": ["location", "fetch", "remote-notification"]
+        "UIBackgroundModes": [
+          "location",
+          "fetch",
+          "remote-notification"
+        ]
       }
     },
     "android": {
