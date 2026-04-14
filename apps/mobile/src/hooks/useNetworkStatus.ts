@@ -12,6 +12,7 @@ import { flushPhotoQueue } from '../lib/photo-queue';
 import { flushLocationQueue } from '../lib/location-queue';
 
 export function useNetworkStatus(): { isConnected: boolean } {
+  console.log('[useNetworkStatus] stub — always online');
   useEffect(() => {
     // Still flush queued writes when connectivity is restored
     const unsubscribe = NetInfo.addEventListener((state) => {

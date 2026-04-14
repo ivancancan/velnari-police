@@ -27,7 +27,8 @@ async function getPendingCount(): Promise<number> {
 }
 
 export default function OfflineBanner() {
-  const { isConnected } = useNetworkStatus();
+  return null; // TODO: re-enable post-demo
+  const { isConnected } = useNetworkStatus(); // eslint-disable-line
   const insets = useSafeAreaInsets();
   const [pendingCount, setPendingCount] = useState(0);
   // Start above the screen by (notch height + banner height) so it slides
