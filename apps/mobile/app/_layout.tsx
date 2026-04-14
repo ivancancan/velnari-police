@@ -8,7 +8,7 @@ import * as SecureStore from 'expo-secure-store';
 import { useAuthStore } from '@/store/auth.store';
 import RealtimeProvider from '@/providers/RealtimeProvider';
 import BiometricGate from '@/components/BiometricGate';
-import OfflineBanner from '@/components/OfflineBanner';
+
 import PrivacyConsentModal, { CONSENT_KEY } from '@/components/PrivacyConsentModal';
 import OnboardingModal, { ONBOARDING_KEY } from '@/components/OnboardingModal';
 import { installLogBuffer } from '@/lib/log-buffer';
@@ -61,7 +61,6 @@ export default function RootLayout() {
             </Stack>
           </BiometricGate>
         </RealtimeProvider>
-        <OfflineBanner />
         {!consentGiven && (
           <PrivacyConsentModal onAccept={() => setConsentGiven(true)} />
         )}
