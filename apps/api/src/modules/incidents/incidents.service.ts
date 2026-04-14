@@ -115,87 +115,94 @@ export class IncidentsService {
     return incident;
   }
 
+  // Folio is "IC-<n>" where <n> is the next sequential number. Previous
+  // implementation used count() which breaks when rows are deleted or when
+  // folios skip for any reason — it would produce collisions ("IC-495" when
+  // one already exists). We now derive from the highest existing folio,
+  // and retry once on the rare race where two simultaneous creates collide.
+  private async nextFolio(): Promise<string> {
+    const rows: Array<{ max_num: string | null }> = await this.repo.query(
+      `SELECT COALESCE(MAX(CAST(SUBSTRING(folio FROM 4) AS INTEGER)), 0) AS max_num
+       FROM incidents
+       WHERE folio ~ '^IC-[0-9]+$'`,
+    );
+    const nextNum = (parseInt(rows[0]?.max_num ?? '0', 10) || 0) + 1;
+    return `IC-${String(nextNum).padStart(3, '0')}`;
+  }
+
   async create(dto: CreateIncidentDto, actorId: string, tenantId?: string | null): Promise<IncidentEntity> {
-    // Temporarily instrumented with step-by-step logging so production 500s
-    // surface their root cause in Railway logs. Remove logs once the suite
-    // is green again.
-    const log = new Logger('IncidentsService.create');
-    try {
-      log.log(`[step 1/8] count incidents (actor=${actorId}, tenant=${tenantId ?? 'null'})`);
-      const count = await this.repo.count();
-      const folio = `IC-${String(count + 1).padStart(3, '0')}`;
-      log.log(`[step 2/8] folio = ${folio}`);
+    let savedId: string | null = null;
+    let attempt = 0;
+    const MAX_ATTEMPTS = 3;
+    let folio = '';
 
-      log.log(`[step 3/8] insert with PostGIS location`);
-      const result = await this.repo
-        .createQueryBuilder()
-        .insert()
-        .into(IncidentEntity)
-        .values({
-          folio,
-          type: dto.type,
-          priority: dto.priority,
-          lat: dto.lat,
-          lng: dto.lng,
-          address: dto.address,
-          description: dto.description,
-          sectorId: dto.sectorId,
-          createdBy: actorId,
-          status: IncidentStatus.OPEN,
-          tenantId: tenantId ?? undefined,
-          location: () => `ST_SetSRID(ST_MakePoint(${dto.lng}, ${dto.lat}), 4326)`,
-        })
-        .returning('id')
-        .execute();
-
-      const savedId = result.raw[0]?.id as string;
-      log.log(`[step 4/8] insert OK id=${savedId}`);
-
-      log.log(`[step 5/8] patrol lookup`);
-      const units = await this.unitRepo.find({ where: { assignedUserId: actorId } });
-      if (units.length > 0) {
-        const activePatrol = await this.patrolRepo.findOne({
-          where: { unitId: units[0]!.id, status: PatrolStatus.ACTIVE },
-        });
-        if (activePatrol) {
-          await this.repo.update(savedId, { patrolId: activePatrol.id });
-        }
+    while (savedId === null && attempt < MAX_ATTEMPTS) {
+      attempt += 1;
+      folio = await this.nextFolio();
+      try {
+        const result = await this.repo
+          .createQueryBuilder()
+          .insert()
+          .into(IncidentEntity)
+          .values({
+            folio,
+            type: dto.type,
+            priority: dto.priority,
+            lat: dto.lat,
+            lng: dto.lng,
+            address: dto.address,
+            description: dto.description,
+            sectorId: dto.sectorId,
+            createdBy: actorId,
+            status: IncidentStatus.OPEN,
+            tenantId: tenantId ?? undefined,
+            location: () => `ST_SetSRID(ST_MakePoint(${dto.lng}, ${dto.lat}), 4326)`,
+          })
+          .returning('id')
+          .execute();
+        savedId = result.raw[0]?.id as string;
+      } catch (err) {
+        // Concurrent creates can still clash on the unique folio key. Retry
+        // up to MAX_ATTEMPTS — nextFolio() will pick up the winner's folio
+        // and advance past it on the next iteration.
+        const msg = (err as Error).message ?? '';
+        const isDupFolio = msg.includes('incidents_folio_key');
+        if (!isDupFolio || attempt >= MAX_ATTEMPTS) throw err;
       }
-
-      log.log(`[step 6/8] load with relations`);
-      const saved = await this.findOne(savedId);
-
-      // Generate tracking token for citizen reports
-      if (dto.description?.includes('[Reporte ciudadano]')) {
-        log.log(`[step 7/8] citizen report branch — generate tracking token`);
-        const token = this.generateTrackingToken();
-        await this.repo.update(savedId, { trackingToken: token });
-        const event = this.eventRepo.create({
-          incidentId: saved.id,
-          type: 'created',
-          description: `Incidente ${folio} creado`,
-          actorId,
-        });
-        await this.eventRepo.save(event);
-        log.log(`[step 8/8] OK citizen`);
-        return this.findOne(savedId);
-      }
-
-      log.log(`[step 7/8] save created-event`);
-      const event = this.eventRepo.create({
-        incidentId: saved.id,
-        type: 'created',
-        description: `Incidente ${folio} creado`,
-        actorId,
-      });
-      await this.eventRepo.save(event);
-      log.log(`[step 8/8] OK`);
-
-      return saved;
-    } catch (err) {
-      log.error(`CREATE FAILED: ${(err as Error).message}\n${(err as Error).stack}`);
-      throw err;
     }
+
+    if (!savedId) {
+      throw new Error('No se pudo generar un folio único tras varios intentos.');
+    }
+
+    // Auto-link to active patrol if the creator has an assigned unit
+    const units = await this.unitRepo.find({ where: { assignedUserId: actorId } });
+    if (units.length > 0) {
+      const activePatrol = await this.patrolRepo.findOne({
+        where: { unitId: units[0]!.id, status: PatrolStatus.ACTIVE },
+      });
+      if (activePatrol) {
+        await this.repo.update(savedId, { patrolId: activePatrol.id });
+      }
+    }
+
+    const saved = await this.findOne(savedId);
+
+    // Generate tracking token for citizen reports
+    if (dto.description?.includes('[Reporte ciudadano]')) {
+      const token = this.generateTrackingToken();
+      await this.repo.update(savedId, { trackingToken: token });
+    }
+
+    const event = this.eventRepo.create({
+      incidentId: saved.id,
+      type: 'created',
+      description: `Incidente ${folio} creado`,
+      actorId,
+    });
+    await this.eventRepo.save(event);
+
+    return dto.description?.includes('[Reporte ciudadano]') ? this.findOne(savedId) : saved;
   }
 
   async update(
