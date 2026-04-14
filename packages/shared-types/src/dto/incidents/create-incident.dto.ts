@@ -36,7 +36,6 @@ export class CreateIncidentDto {
 
   @IsOptional()
   @IsString()
-  @MinLength(5)
   @MaxLength(500)
   description?: string;
 

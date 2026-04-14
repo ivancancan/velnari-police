@@ -152,8 +152,28 @@ export default function ReportScreen() {
       setPhotos([]);
 
       setTimeout(() => setSuccess(null), 4000);
-    } catch {
-      Alert.alert('Error', 'No se pudo crear el incidente. Se enviará cuando haya conexión.');
+    } catch (err: unknown) {
+      // Distinguish real offline from server errors so the officer knows
+      // whether to fix their input vs wait for the queue to flush.
+      const anyErr = err as { response?: { status?: number; data?: { message?: unknown } } };
+      const status = anyErr?.response?.status;
+      const rawMsg = anyErr?.response?.data?.message;
+      let humanMsg: string | null = null;
+      if (typeof rawMsg === 'string') humanMsg = rawMsg;
+      else if (Array.isArray(rawMsg)) humanMsg = rawMsg.filter((x) => typeof x === 'string').join(' · ');
+      else if (rawMsg && typeof rawMsg === 'object' && 'message' in rawMsg) {
+        const inner = (rawMsg as { message?: unknown }).message;
+        if (typeof inner === 'string') humanMsg = inner;
+        else if (Array.isArray(inner)) humanMsg = inner.filter((x) => typeof x === 'string').join(' · ');
+      }
+
+      if (!anyErr.response) {
+        Alert.alert('Sin conexión', 'Se enviará al centro de mando cuando haya red.');
+      } else if (status && status >= 400 && status < 500) {
+        Alert.alert('Revisa los campos', humanMsg ?? 'Asegúrate de que la descripción tenga al menos 5 caracteres.');
+      } else {
+        Alert.alert('Error del servidor', humanMsg ?? 'Intenta de nuevo en unos segundos.');
+      }
     } finally {
       setSubmitting(false);
     }
