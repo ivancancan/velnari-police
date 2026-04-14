@@ -65,8 +65,15 @@ export class S3Service {
    */
   async upload(filePath: string, mimetype: string): Promise<string> {
     if (!this.s3 || !this.bucket || !this.publicUrl) {
-      // Dev fallback: return local disk URL
-      const apiUrl = this.config.get<string>('API_URL') ?? 'http://localhost:3001';
+      // Dev / no-S3 fallback: compute the public URL of the Railway/hosting
+      // container. Prefer an explicit API_URL env var if set; fall back to
+      // Railway's RAILWAY_PUBLIC_DOMAIN which it injects automatically into
+      // every public service.
+      const railwayDomain = process.env['RAILWAY_PUBLIC_DOMAIN'];
+      const explicit = this.config.get<string>('API_URL');
+      const apiUrl =
+        explicit?.replace(/\/$/, '') ??
+        (railwayDomain ? `https://${railwayDomain}` : 'http://localhost:3001');
       const filename = path.basename(filePath);
       return `${apiUrl}/uploads/${filename}`;
     }

@@ -202,7 +202,11 @@ export class IncidentsController {
   }
 
   @Post()
-  @Roles(UserRole.ADMIN, UserRole.OPERATOR, UserRole.SUPERVISOR)
+  // FIELD_UNIT is included so the mobile SOS (panic) button can create a
+  // critical incident. Mobile rate-limits panic taps, and the backend
+  // throttler adds a second layer. Other field-unit incident creation paths
+  // (photo report, manual) are acceptable scope expansion for the pilot.
+  @Roles(UserRole.ADMIN, UserRole.OPERATOR, UserRole.SUPERVISOR, UserRole.FIELD_UNIT)
   create(
     @Body() dto: CreateIncidentDto,
     @CurrentUser() user: JwtPayload,

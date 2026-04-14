@@ -15,6 +15,9 @@ interface UnitsState {
   selectUnit: (id: string | null) => void;
   insideSectors: Record<string, string[]>;
   setUnitInsideSectors: (unitId: string, sectorIds: string[]) => void;
+  /** Clears all live trails + starts from the command map. Does NOT touch
+   *  server-side history — only the in-memory breadcrumb overlay. */
+  clearTrails: () => void;
 }
 
 const MAX_TRAIL_POINTS = 200;
@@ -73,4 +76,6 @@ export const useUnitsStore = create<UnitsState>()((set) => ({
     set((state) => ({
       insideSectors: { ...state.insideSectors, [unitId]: sectorIds },
     })),
+
+  clearTrails: () => set({ trails: {}, trailStarts: {} }),
 }));

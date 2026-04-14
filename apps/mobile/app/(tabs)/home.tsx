@@ -404,9 +404,11 @@ export default function HomeScreen() {
         />
       }
     >
-      {/* Unit header */}
+      {/* Unit header with SOS icon — long-press to trigger panic alert.
+          Kept visually minimal on purpose; a pulsing red icon is enough
+          affordance without eating screen real estate. */}
       <View style={styles.unitCard}>
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={styles.callSign}>{callSign ?? 'Sin unidad'}</Text>
           <Text style={styles.userName}>{user?.name}</Text>
         </View>
@@ -415,6 +417,27 @@ export default function HomeScreen() {
             {currentStatusOption?.icon} {currentStatusOption?.label ?? status}
           </Text>
         </View>
+        {unitId && (
+          <TouchableOpacity
+            onLongPress={handlePanic}
+            delayLongPress={1000}
+            disabled={sendingPanic}
+            style={[styles.sosIconButton, sendingPanic && { opacity: 0.5 }]}
+            accessibilityRole="button"
+            accessibilityLabel="Botón de pánico SOS"
+            accessibilityHint="Mantén presionado un segundo para enviar alerta crítica al centro de mando"
+          >
+            <Animated.View
+              style={[
+                styles.sosIconGlow,
+                {
+                  opacity: pulseAnim.interpolate({ inputRange: [0.3, 1], outputRange: [0.3, 0.8] }),
+                },
+              ]}
+            />
+            <Text style={styles.sosIconText}>{sendingPanic ? '…' : 'SOS'}</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* GPS tracking — big prominent button */}
@@ -631,36 +654,8 @@ export default function HomeScreen() {
         </View>
       )}
 
-      <View style={{ height: 140 }} />
+      <View style={{ height: 40 }} />
     </ScrollView>
-
-    {/* Panic button — fixed overlay with pulsing red glow */}
-    {unitId && (
-      <View style={styles.panicContainer}>
-        <Animated.View
-          style={[
-            styles.panicGlow,
-            {
-              opacity: pulseAnim,
-              transform: [{ scale: pulseAnim.interpolate({ inputRange: [0.3, 1], outputRange: [1, 1.35] }) }],
-            },
-          ]}
-        />
-        <TouchableOpacity
-          style={[styles.panicButton, sendingPanic && { opacity: 0.6 }]}
-          onLongPress={handlePanic}
-          delayLongPress={1000}
-          activeOpacity={0.8}
-          disabled={sendingPanic}
-          accessibilityRole="button"
-          accessibilityLabel="Botón de pánico SOS"
-          accessibilityHint="Mantén presionado un segundo para enviar alerta de emergencia al centro de mando"
-        >
-          <Text style={styles.panicText}>{sendingPanic ? '···' : 'SOS'}</Text>
-          <Text style={styles.panicHint}>{sendingPanic ? 'Enviando...' : 'Mantener presionado'}</Text>
-        </TouchableOpacity>
-      </View>
-    )}
 
     <IncidentDetailModal
       incidentId={detailIncidentId}
@@ -770,21 +765,32 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 
-  // Panic button — larger with animated pulsing glow
-  panicContainer: {
-    position: 'absolute', bottom: 30, alignSelf: 'center',
-    width: 96, height: 96, alignItems: 'center', justifyContent: 'center',
+  // SOS icon in header — minimal footprint. Long-press to activate; the
+  // pulsing red glow behind it is the affordance that this is live/urgent.
+  sosIconButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginLeft: 10,
+    backgroundColor: '#7F1D1D',
+    borderWidth: 2,
+    borderColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    overflow: 'hidden',
   },
-  panicGlow: {
-    position: 'absolute', width: 96, height: 96, borderRadius: 48,
+  sosIconGlow: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    borderRadius: 24,
     backgroundColor: '#EF4444',
   },
-  panicButton: {
-    width: 88, height: 88, borderRadius: 44,
-    backgroundColor: '#EF4444', alignItems: 'center', justifyContent: 'center',
-    borderWidth: 3, borderColor: '#FCA5A5',
+  sosIconText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1,
     zIndex: 1,
   },
-  panicText: { color: '#fff', fontSize: 24, fontWeight: '900', letterSpacing: 2 },
-  panicHint: { color: '#FCA5A5', fontSize: 10, fontWeight: '600', marginTop: 2 },
 });
