@@ -135,6 +135,10 @@ export const unitsApi = {
     api.patch<{ id: string; status: string }>(`/units/${id}/status`, { status }),
   updateLocation: (id: string, lat: number, lng: number, batteryLevel?: number) =>
     api.patch(`/units/${id}/location`, { lat, lng, ...(batteryLevel != null ? { batteryLevel } : {}) }),
+  getHistory: (id: string, from: string, to: string) =>
+    api.get<{ lat: number; lng: number; recordedAt: string }[]>(
+      `/units/${id}/history?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+    ),
 };
 
 export const patrolsApi = {

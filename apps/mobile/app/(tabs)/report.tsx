@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { incidentsApi } from '@/lib/api';
 import { enqueuePhoto } from '@/lib/photo-queue';
 
@@ -59,6 +60,21 @@ export default function ReportScreen() {
     }
   }
 
+  // Resize to max 1280px on the longest edge and compress to 65% quality.
+  // Typical iPhone photo: 5-12 MB → ~250-400 KB after this. Fast enough on cellular.
+  async function compressPhoto(uri: string): Promise<string> {
+    try {
+      const result = await ImageManipulator.manipulateAsync(
+        uri,
+        [{ resize: { width: 1280 } }],
+        { compress: 0.65, format: ImageManipulator.SaveFormat.JPEG },
+      );
+      return result.uri;
+    } catch {
+      return uri; // fallback to original if manipulator fails
+    }
+  }
+
   async function pickPhoto() {
     Alert.alert(
       'Adjuntar foto',
@@ -72,9 +88,10 @@ export default function ReportScreen() {
               Alert.alert('Permiso denegado', 'Activa la cámara en configuración.');
               return;
             }
-            const result = await ImagePicker.launchCameraAsync({ quality: 0.7, allowsEditing: false });
+            const result = await ImagePicker.launchCameraAsync({ quality: 1, allowsEditing: false });
             if (!result.canceled && result.assets[0]) {
-              setPhotos((prev) => [...prev, { uri: result.assets[0]!.uri, status: 'pending' }]);
+              const compressed = await compressPhoto(result.assets[0].uri);
+              setPhotos((prev) => [...prev, { uri: compressed, status: 'pending' }]);
             }
           },
         },
@@ -87,12 +104,13 @@ export default function ReportScreen() {
               return;
             }
             const result = await ImagePicker.launchImageLibraryAsync({
-              quality: 0.7,
+              quality: 1,
               allowsMultipleSelection: true,
               selectionLimit: 5,
             });
             if (!result.canceled) {
-              setPhotos((prev) => [...prev, ...result.assets.map((a) => ({ uri: a.uri, status: 'pending' as const }))]);
+              const compressed = await Promise.all(result.assets.map((a) => compressPhoto(a.uri)));
+              setPhotos((prev) => [...prev, ...compressed.map((uri) => ({ uri, status: 'pending' as const }))]);
             }
           },
         },

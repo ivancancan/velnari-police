@@ -55,15 +55,19 @@ export async function startLocationTracking(unitId: string): Promise<StartTracki
     // - timeInterval 30s upper bound; the OS still fires sooner if distanceInterval (25m)
     //   is exceeded — so moving units update frequently, stationary ones stay quiet.
     await Location.startLocationUpdatesAsync(LOCATION_TASK, {
+      // Balanced is sufficient for command map (saves ~50% battery vs High).
+      // Distance filter ensures updates while moving; standing still keeps quiet.
       accuracy: Location.Accuracy.Balanced,
-      timeInterval: 30000,
-      distanceInterval: 25,
+      timeInterval: 15000,       // 15s maximum interval
+      distanceInterval: 10,      // or whenever moved 10m — whichever comes first
       foregroundService: {
         notificationTitle: 'Velnari Field activo',
         notificationBody: 'Enviando ubicación al centro de mando.',
+        notificationColor: '#3B82F6',
       },
-      deferredUpdatesInterval: 15000,
-      activityType: Location.ActivityType.AutomotiveNavigation,
+      // Do NOT use deferredUpdatesInterval — it batches iOS updates and causes
+      // the trail to appear to stop. Deliver each fix individually.
+      activityType: Location.ActivityType.Other, // walking patrol — not automotive
       pausesUpdatesAutomatically: false,
       showsBackgroundLocationIndicator: true,
     });

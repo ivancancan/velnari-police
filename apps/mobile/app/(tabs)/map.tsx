@@ -21,10 +21,11 @@
 //   - Distance/time/points stats bar (cognitive load with no operational value)
 //   - People/person-eye toggle (unnecessary)
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
+import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
 import * as Location from 'expo-location';
+import { useFocusEffect } from 'expo-router';
 import { unitsApi, incidentsApi } from '@/lib/api';
 import { useUnitStore } from '@/store/unit.store';
 import IncidentDetailModal from '@/components/IncidentDetailModal';
@@ -65,6 +66,7 @@ export default function MapScreen() {
   const { callSign, status, nearbyUnits, setNearbyUnits, unitId: myUnitId, assignedIncident, focusCoords, setFocusCoords } = useUnitStore();
 
   const [currentPos, setCurrentPos] = useState<Coord | null>(null);
+  const [trail, setTrail] = useState<Coord[]>([]);
   const [following, setFollowing] = useState(true);
   const [speedKmh, setSpeedKmh] = useState(0);
   const [openIncidents, setOpenIncidents] = useState<OpenIncident[]>([]);
@@ -83,6 +85,16 @@ export default function MapScreen() {
         (loc) => {
           const coord: Coord = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
           setCurrentPos(coord);
+          setTrail((prev) => {
+            // Skip if too close to last point to avoid clutter
+            if (prev.length > 0) {
+              const last = prev[prev.length - 1]!;
+              const dlat = Math.abs(last.latitude - coord.latitude);
+              const dlng = Math.abs(last.longitude - coord.longitude);
+              if (dlat < 0.00005 && dlng < 0.00005) return prev; // ~5m threshold
+            }
+            return [...prev, coord];
+          });
           const rawSpeed = loc.coords.speed;
           setSpeedKmh(rawSpeed != null && rawSpeed >= 0 ? Math.round(rawSpeed * 3.6) : 0);
           if (following && mapRef.current) {
@@ -107,37 +119,71 @@ export default function MapScreen() {
     setFocusCoords(null);
   }, [focusCoords, setFocusCoords]);
 
-  useEffect(() => {
-    async function load(): Promise<void> {
-      try {
-        const [unitsRes, incidentsRes] = await Promise.all([
-          unitsApi.getAll(),
-          incidentsApi.getAll(),
-        ]);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const others = (unitsRes.data as any[])
-          .filter((u) => u.id !== myUnitId && u.lat != null && u.lng != null)
-          .map((u) => ({ id: u.id, callSign: u.callSign, status: u.status, lat: u.lat, lng: u.lng }));
-        setNearbyUnits(others);
-        setOpenIncidents(
-          incidentsRes.data
-            .filter((i) => i.status !== 'closed')
-            .map((i) => ({
-              id: i.id,
-              folio: i.folio,
-              type: i.type,
-              priority: i.priority,
-              lat: i.lat,
-              lng: i.lng,
-              address: i.address,
-            })),
-        );
-      } catch {
-        // Silent fail — map still shows user position.
+  // Reload units + incidents every time the tab is focused.
+  // This ensures newly created incidents appear without requiring an app restart,
+  // and that trail history from background tracking is loaded after the screen was off.
+  useFocusEffect(
+    useCallback(() => {
+      async function load(): Promise<void> {
+        try {
+          const [unitsRes, incidentsRes] = await Promise.all([
+            unitsApi.getAll(),
+            incidentsApi.getAll(),
+          ]);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const others = (unitsRes.data as any[])
+            .filter((u) => u.id !== myUnitId && u.lat != null && u.lng != null)
+            .map((u) => ({ id: u.id, callSign: u.callSign, status: u.status, lat: u.lat, lng: u.lng }));
+          setNearbyUnits(others);
+          setOpenIncidents(
+            incidentsRes.data
+              .filter((i) => i.status !== 'closed')
+              .map((i) => ({
+                id: i.id,
+                folio: i.folio,
+                type: i.type,
+                priority: i.priority,
+                lat: i.lat,
+                lng: i.lng,
+                address: i.address,
+              })),
+          );
+        } catch {
+          // Silent fail — map still shows user position.
+        }
+
+        // Load location history for the current shift (last 12h) to show trail
+        // points collected in the background. Merge with in-memory trail.
+        if (!myUnitId) return;
+        try {
+          const to = new Date().toISOString();
+          const from = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
+          const histRes = await unitsApi.getHistory(myUnitId, from, to);
+          if (histRes.data.length > 0) {
+            const historicCoords = histRes.data.map((p) => ({
+              latitude: p.lat,
+              longitude: p.lng,
+            }));
+            // Prepend history; live watchPosition points accumulate after it
+            setTrail((prev) => {
+              const merged = [...historicCoords];
+              // Append any live points that are newer than the last history point
+              const lastHistoric = historicCoords[historicCoords.length - 1];
+              for (const lp of prev) {
+                if (!lastHistoric || lp.latitude !== lastHistoric.latitude || lp.longitude !== lastHistoric.longitude) {
+                  merged.push(lp);
+                }
+              }
+              return merged;
+            });
+          }
+        } catch {
+          // History is best-effort
+        }
       }
-    }
-    void load();
-  }, [myUnitId, setNearbyUnits]);
+      void load();
+    }, [myUnitId, setNearbyUnits]),
+  );
 
   const myStatusColor =
     status === 'available' ? '#22C55E' :
@@ -155,6 +201,16 @@ export default function MapScreen() {
         showsCompass
         onPanDrag={() => setFollowing(false)}
       >
+        {/* GPS trail — accumulated from watchPosition + history API */}
+        {trail.length > 1 && (
+          <Polyline
+            coordinates={trail}
+            strokeColor="#3B82F6"
+            strokeWidth={3}
+            lineDashPattern={undefined}
+          />
+        )}
+
         {/* My live position */}
         {currentPos && (
           <Marker coordinate={currentPos} anchor={{ x: 0.5, y: 0.5 }}>
