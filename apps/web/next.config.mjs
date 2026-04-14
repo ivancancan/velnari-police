@@ -27,14 +27,30 @@ const wsOrigin = (() => {
 })();
 const sentryOrigin = (() => { try { return new URL(SENTRY_DSN).origin; } catch { return ''; } })();
 
+// Allowlist the tile + style providers Velnari actually uses. MapLibre pulls
+// basemap styles from Carto (`basemaps.cartocdn.com`) and raster/vector tiles
+// from various CDN subdomains. We also keep Mapbox hosts whitelisted in case
+// we fall back to Mapbox tiles or use Mapbox-hosted glyphs.
+const MAP_HOSTS = [
+  'https://*.cartocdn.com',
+  'https://*.basemaps.cartocdn.com',
+  'https://basemaps.cartocdn.com',
+  'https://api.mapbox.com',
+  'https://events.mapbox.com',
+  'https://*.tiles.mapbox.com',
+  'https://*.mapbox.com',
+  'https://*.tile.openstreetmap.org',
+  'https://api.maptiler.com',
+].join(' ');
+
 const cspDirectives = [
   `default-src 'self'`,
-  // Next.js inline scripts + mapbox worker-src; no eval outside dev.
-  `script-src 'self' 'unsafe-inline' ${process.env.NODE_ENV !== 'production' ? "'unsafe-eval'" : ''} https://api.mapbox.com https://events.mapbox.com`,
-  `style-src 'self' 'unsafe-inline' https://api.mapbox.com`,
-  `img-src 'self' data: blob: https://*.mapbox.com https://*.tile.openstreetmap.org https://*.amazonaws.com`,
-  `font-src 'self' data:`,
-  `connect-src 'self' ${apiOrigin} ${wsOrigin} ${sentryOrigin} https://api.mapbox.com https://events.mapbox.com https://*.tiles.mapbox.com`,
+  // Next.js inline scripts + maps; no eval outside dev.
+  `script-src 'self' 'unsafe-inline' ${process.env.NODE_ENV !== 'production' ? "'unsafe-eval'" : ''} ${MAP_HOSTS}`,
+  `style-src 'self' 'unsafe-inline' ${MAP_HOSTS}`,
+  `img-src 'self' data: blob: ${MAP_HOSTS} https://*.amazonaws.com`,
+  `font-src 'self' data: ${MAP_HOSTS}`,
+  `connect-src 'self' ${apiOrigin} ${wsOrigin} ${sentryOrigin} ${MAP_HOSTS}`,
   `worker-src 'self' blob:`,
   `frame-ancestors 'none'`,
   `base-uri 'self'`,
