@@ -214,8 +214,9 @@ export class IncidentsService {
     id: string,
     dto: UpdateIncidentDto,
     actorId: string,
+    tenantId?: string | null,
   ): Promise<IncidentEntity> {
-    const incident = await this.findOne(id);
+    const incident = await this.findOne(id, tenantId);
 
     if (incident.status === IncidentStatus.CLOSED) {
       throw new BadRequestException('No se puede actualizar un incidente cerrado.');
@@ -255,8 +256,13 @@ export class IncidentsService {
     return saved;
   }
 
-  async close(id: string, dto: CloseIncidentDto, actorId: string): Promise<IncidentEntity> {
-    const incident = await this.findOne(id);
+  async close(
+    id: string,
+    dto: CloseIncidentDto,
+    actorId: string,
+    tenantId?: string | null,
+  ): Promise<IncidentEntity> {
+    const incident = await this.findOne(id, tenantId);
     incident.status = IncidentStatus.CLOSED;
     incident.closedAt = new Date();
     incident.resolution = dto.resolution;
@@ -275,8 +281,13 @@ export class IncidentsService {
     return saved;
   }
 
-  async addNote(id: string, dto: AddIncidentNoteDto, actorId: string): Promise<IncidentEventEntity> {
-    await this.findOne(id);
+  async addNote(
+    id: string,
+    dto: AddIncidentNoteDto,
+    actorId: string,
+    tenantId?: string | null,
+  ): Promise<IncidentEventEntity> {
+    await this.findOne(id, tenantId);
 
     const event = this.eventRepo.create({
       incidentId: id,
@@ -1163,10 +1174,11 @@ export class IncidentsService {
     sourceId: string,
     targetId: string,
     actorId: string,
+    tenantId?: string | null,
   ): Promise<IncidentEntity> {
     const [source, target] = await Promise.all([
-      this.findOne(sourceId),
-      this.findOne(targetId),
+      this.findOne(sourceId, tenantId),
+      this.findOne(targetId, tenantId),
     ]);
 
     if (source.status === IncidentStatus.CLOSED) {

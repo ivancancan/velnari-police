@@ -226,7 +226,7 @@ export class IncidentsController {
     @Body() dto: UpdateIncidentDto,
     @CurrentUser() user: JwtPayload,
   ): Promise<IncidentEntity> {
-    return this.service.update(id, dto, user.sub);
+    return this.service.update(id, dto, user.sub, user.tenantId ?? null);
   }
 
   @Post(':id/close')
@@ -236,7 +236,7 @@ export class IncidentsController {
     @Body() dto: CloseIncidentDto,
     @CurrentUser() user: JwtPayload,
   ): Promise<IncidentEntity> {
-    const result = await this.service.close(id, dto, user.sub);
+    const result = await this.service.close(id, dto, user.sub, user.tenantId ?? null);
     // Notify command room and incident room so web updates in real-time
     this.realtime.emitIncidentStatusChanged(id, 'closed');
     this.realtime.emitIncidentClosed(id, dto.resolution);
@@ -260,7 +260,7 @@ export class IncidentsController {
     @Body() body: { targetIncidentId: string },
     @CurrentUser() user: JwtPayload,
   ): Promise<IncidentEntity> {
-    return this.service.merge(id, body.targetIncidentId, user.sub);
+    return this.service.merge(id, body.targetIncidentId, user.sub, user.tenantId ?? null);
   }
 
   @Post(':id/notes')
@@ -270,6 +270,6 @@ export class IncidentsController {
     @Body() dto: AddIncidentNoteDto,
     @CurrentUser() user: JwtPayload,
   ): Promise<IncidentEventEntity> {
-    return this.service.addNote(id, dto, user.sub);
+    return this.service.addNote(id, dto, user.sub, user.tenantId ?? null);
   }
 }

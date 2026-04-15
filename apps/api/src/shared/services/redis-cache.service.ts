@@ -52,7 +52,14 @@ export class RedisCacheService implements OnModuleDestroy {
     });
     this.client.on('ready', () => {
       if (!this.redisHealthy) {
-        this.logger.log('Redis RECOVERED — resuming distributed cache');
+        this.logger.log(
+          'Redis RECOVERED — resuming distributed cache, flushing local fallback',
+        );
+        // Drop in-memory copies. Redis is canonical again; stale memory
+        // entries that outlive their Redis TTL would otherwise re-blacklist
+        // already-expired tokens.
+        this.memBlacklist.clear();
+        this.memFailCount.clear();
         this.redisHealthy = true;
       }
     });
