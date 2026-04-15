@@ -48,6 +48,7 @@ export class ReportsController {
   }
 
   @Post('submissions')
+  @Roles(UserRole.ADMIN, UserRole.OPERATOR, UserRole.SUPERVISOR, UserRole.COMMANDER, UserRole.FIELD_UNIT)
   createSubmission(@Body() body: { templateId: string; incidentId?: string; data: Record<string, unknown> }, @CurrentUser() user: JwtPayload) {
     return this.service.createSubmission(body, user.sub);
   }

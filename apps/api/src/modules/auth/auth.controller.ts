@@ -67,26 +67,20 @@ export class AuthController {
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Renovar access token usando refresh token' })
-  @ApiResponse({ status: 200, description: 'Nuevo accessToken' })
-  @ApiResponse({ status: 401, description: 'Refresh token inválido o expirado' })
+  @Throttle({ default: { ttl: 60000, limit: 30 } })
+  @ApiOperation({ summary: 'Renovar access + refresh token (rotación)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Nueva pareja accessToken + refreshToken. El refreshToken anterior queda invalidado.',
+  })
+  @ApiResponse({ status: 401, description: 'Refresh token inválido, expirado o reutilizado (posible compromiso)' })
   async refresh(
     @Body('refreshToken') refreshToken: string,
-  ): Promise<{ accessToken: string; expiresIn: number }> {
+  ): Promise<{ accessToken: string; refreshToken: string; expiresIn: number }> {
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token requerido.');
     }
-
-    let payload: { sub: string; role: string };
-    try {
-      payload = this.jwtService.verify<{ sub: string; role: string }>(refreshToken, {
-        secret: this.configService.get<string>('jwt.refreshSecret') ?? '',
-      });
-    } catch {
-      throw new UnauthorizedException('Refresh token inválido o expirado.');
-    }
-
-    return this.authService.refreshToken(payload.sub, payload.role);
+    return this.authService.rotateRefresh(refreshToken);
   }
 
   @Get('me')

@@ -12,13 +12,16 @@ import BiometricGate from '@/components/BiometricGate';
 import PrivacyConsentModal, { CONSENT_KEY } from '@/components/PrivacyConsentModal';
 import OnboardingModal, { ONBOARDING_KEY } from '@/components/OnboardingModal';
 import { installLogBuffer } from '@/lib/log-buffer';
+import { initSentry, Sentry } from '@/lib/sentry';
 
 // Install the console.log → ring-buffer bridge as early as possible so bug
 // reports have real context (the buffer captures everything logged from
 // module load forward).
 installLogBuffer();
+// Crash reporting — no-op in dev if DSN is unset.
+initSentry();
 
-export default function RootLayout() {
+function RootLayoutInner() {
   const { loadStoredAuth } = useAuthStore();
   const [consentChecked, setConsentChecked] = useState(false);
   const [consentGiven, setConsentGiven] = useState(false);
@@ -71,3 +74,6 @@ export default function RootLayout() {
     </SafeAreaProvider>
   );
 }
+
+// Wrap the root so Sentry auto-captures route names & uncaught render errors.
+export default Sentry.wrap(RootLayoutInner);

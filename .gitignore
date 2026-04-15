@@ -35,3 +35,8 @@ ios/build/
 *.swo
 .vercel
 .env*.local
+
+# Local Claude Code agent state
+.claude/scheduled_tasks.lock
+.claude/projects/
+

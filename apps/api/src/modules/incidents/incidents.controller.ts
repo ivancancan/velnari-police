@@ -163,8 +163,11 @@ export class IncidentsController {
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseUUIDPipe) id: string): Promise<IncidentEntity> {
-    return this.service.findOne(id);
+  findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: JwtPayload,
+  ): Promise<IncidentEntity> {
+    return this.service.findOne(id, user.tenantId ?? null);
   }
 
   @Get(':id/events')
@@ -261,6 +264,7 @@ export class IncidentsController {
   }
 
   @Post(':id/notes')
+  @Roles(UserRole.ADMIN, UserRole.OPERATOR, UserRole.SUPERVISOR, UserRole.COMMANDER, UserRole.FIELD_UNIT)
   addNote(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: AddIncidentNoteDto,

@@ -143,13 +143,27 @@ export default function HomeScreen() {
       Alert.alert('Sin unidad', 'No tienes una unidad asignada.');
       return;
     }
+    // "Fuera de servicio" is operationally significant — confirm before sending
+    // so an accidental tap doesn't drop the officer from the active fleet.
+    if (newStatus === 'out_of_service') {
+      const proceed = await new Promise<boolean>((resolve) => {
+        Alert.alert(
+          '¿Marcar fuera de servicio?',
+          'Saldrás del despacho activo. Tu supervisor verá que ya no estás disponible.',
+          [
+            { text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'Sí, fuera de servicio', style: 'destructive', onPress: () => resolve(true) },
+          ],
+        );
+      });
+      if (!proceed) return;
+    }
     try {
       await unitsApi.updateStatus(unitId, newStatus);
       setStatus(newStatus);
-      // Pattern haptic gives tactile confirmation with gloves on.
       Vibration.vibrate([0, 100, 50, 100]);
     } catch {
-      Alert.alert('Error', 'No se pudo actualizar el estado.');
+      Alert.alert('No se pudo actualizar', 'Revisa tu conexión y vuelve a intentar.');
     }
   }
 
@@ -342,20 +356,61 @@ export default function HomeScreen() {
     try {
       const { status: locStatus } = await Location.requestForegroundPermissionsAsync();
       if (locStatus !== 'granted') {
-        Alert.alert('Error', 'Se necesitan permisos de ubicación para el botón de pánico.');
+        Alert.alert(
+          'Permiso de ubicación requerido',
+          'El botón de pánico necesita tu ubicación para que el centro de mando sepa dónde estás. Actívalo en Ajustes.',
+          [{ text: 'Entendido', style: 'default' }],
+        );
         return;
       }
-      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      // Try fresh high-accuracy GPS, then fall back to last-known position.
+      // Underground / tunnel scenarios shouldn't kill the panic path — a 5-min
+      // stale fix is far better than no fix at all.
+      let lat: number | null = null;
+      let lng: number | null = null;
+      let usedFallback = false;
+      try {
+        const loc = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High,
+          // Hard cap: don't make the officer wait. If GPS hasn't responded in
+          // 4s, fall through to last-known.
+          mayShowUserSettingsDialog: false,
+        });
+        lat = loc.coords.latitude;
+        lng = loc.coords.longitude;
+      } catch {
+        try {
+          const last = await Location.getLastKnownPositionAsync({ maxAge: 10 * 60_000 });
+          if (last) {
+            lat = last.coords.latitude;
+            lng = last.coords.longitude;
+            usedFallback = true;
+          }
+        } catch { /* no-op */ }
+      }
+      if (lat == null || lng == null) {
+        Alert.alert(
+          'Sin GPS',
+          'No pudimos obtener tu ubicación. Si estás en peligro inmediato, usa el radio. Vuelve a intentar cuando salgas a un área abierta.',
+          [{ text: 'Entendido', style: 'default' }],
+        );
+        return;
+      }
       invalidateCache(CACHE_KEYS.incidents);
       await incidentsApi.create({
         type: 'other',
         priority: 'critical',
-        lat: loc.coords.latitude,
-        lng: loc.coords.longitude,
-        description: `🚨 ALERTA DE PÁNICO — ${callSign ?? 'Unidad'} en peligro. Requiere apoyo inmediato.`,
-        address: `GPS: ${loc.coords.latitude.toFixed(5)}, ${loc.coords.longitude.toFixed(5)}`,
+        lat,
+        lng,
+        description: `🚨 ALERTA DE PÁNICO — ${callSign ?? 'Unidad'} en peligro. Requiere apoyo inmediato.${usedFallback ? ' (ubicación aproximada — última conocida)' : ''}`,
+        address: `GPS: ${lat.toFixed(5)}, ${lng.toFixed(5)}${usedFallback ? ' (aprox)' : ''}`,
       });
-      Alert.alert('🚨 Alerta enviada', 'Tu ubicación y alerta fueron enviadas al centro de mando.');
+      Alert.alert(
+        '🚨 Alerta enviada',
+        usedFallback
+          ? 'Tu alerta fue enviada con tu última ubicación conocida. El centro de mando ya está coordinando.'
+          : 'Tu ubicación y alerta fueron enviadas al centro de mando.',
+      );
     } catch (err: unknown) {
       const isNetworkError = !(err as { response?: unknown }).response;
       if (isNetworkError) {

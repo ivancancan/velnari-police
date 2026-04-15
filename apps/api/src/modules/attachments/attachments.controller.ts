@@ -23,6 +23,8 @@ import { AttachmentsService } from './attachments.service';
 import { S3Service } from './s3.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { RolesGuard } from '../../shared/guards/roles.guard';
+import { Roles } from '../../shared/decorators/roles.decorator';
+import { UserRole } from '@velnari/shared-types';
 import type { Request } from 'express';
 import type { IncidentAttachmentEntity } from '../../entities/incident-attachment.entity';
 
@@ -64,6 +66,16 @@ function mimeTypeFilter(
 
 @Controller('incidents/:incidentId/attachments')
 @UseGuards(JwtAuthGuard, RolesGuard)
+// Any authenticated role may attach evidence / read attachments tied to an
+// incident they can see. Mutations (upload, delete) are restricted at the
+// method level.
+@Roles(
+  UserRole.ADMIN,
+  UserRole.OPERATOR,
+  UserRole.SUPERVISOR,
+  UserRole.COMMANDER,
+  UserRole.FIELD_UNIT,
+)
 export class AttachmentsController {
   constructor(
     private readonly service: AttachmentsService,
@@ -144,6 +156,9 @@ export class AttachmentsController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
+  // Only supervisors+ can delete attached evidence. Field units can upload
+  // but never remove — preserves chain of custody.
+  @Roles(UserRole.ADMIN, UserRole.OPERATOR, UserRole.SUPERVISOR, UserRole.COMMANDER)
   delete(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     return this.service.delete(id);
   }

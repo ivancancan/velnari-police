@@ -38,9 +38,32 @@ export default function LoginPage() {
         </Suspense>
       </div>
 
-      <p className="relative z-10 text-slate-600 text-xs">
-        &copy; 2026 Velnari &middot; Public Safety Tech
-      </p>
+      <div className="relative z-10 flex flex-col items-center gap-1 text-xs text-slate-600">
+        <p className="text-slate-500">
+          🔒 Datos cifrados en tránsito y en reposo &middot; Hosted in 🇲🇽
+        </p>
+        <p className="flex items-center gap-2">
+          <span>&copy; 2026 Velnari &middot; v{process.env['NEXT_PUBLIC_APP_VERSION'] ?? '1.0.0'}</span>
+          <span>&middot;</span>
+          <a
+            href="https://velnari.mx/privacidad"
+            className="underline hover:text-slate-400 transition"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Privacidad
+          </a>
+          <span>&middot;</span>
+          <a
+            href="https://velnari.mx/terminos"
+            className="underline hover:text-slate-400 transition"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Términos
+          </a>
+        </p>
+      </div>
     </main>
   );
 }

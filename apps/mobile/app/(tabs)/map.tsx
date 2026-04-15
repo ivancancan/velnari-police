@@ -1,97 +1,91 @@
 // apps/mobile/app/(tabs)/map.tsx
 //
-// Field-officer map powered by MapLibre GL (vector tiles, offline-capable).
+// Simplified field-unit map view using react-native-maps (Apple Maps on iOS).
+// We tried MapLibre for offline tiles + style switching but hit a persistent
+// MLRNPointAnnotation KVO crash that we couldn't work around. Stability wins
+// for field ops — we keep data-saving via api-cache.ts instead.
 //
 // Shows:
-//   - My GPS dot with call sign (status color ring)
-//   - My open/assigned incidents (tappable → detail modal)
+//   - My GPS dot with my call sign
+//   - Open incidents I created or that are assigned to me (tappable → modal)
 //   - Nearby active units
-//   - GPS trail from background tracking (only populated after iniciar rastreo)
-//   - Re-center button
-//   - Speed badge while moving
-//   - Style switcher (Nocturno / Calles / Claro)
-//
-// Data savings:
-//   - Tiles: served from local offline pack after first download (~30 MB, WiFi)
-//   - API: 60-second in-memory cache — tab switching costs zero data
-//
-// Coordinate order: MapLibre uses GeoJSON [longitude, latitude].
-// react-native-maps used { latitude, longitude } — don't mix them up.
+//   - Re-center button, speed badge, GPS trail from background-tracking history
 
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
-import MapLibreGL from '@maplibre/maplibre-react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useFocusEffect } from 'expo-router';
 import { unitsApi, incidentsApi } from '@/lib/api';
 import { useUnitStore } from '@/store/unit.store';
 import { useAuthStore } from '@/store/auth.store';
-import { withCache, invalidateCache, CACHE_KEYS } from '@/lib/api-cache';
-import {
-  MAP_STYLES,
-  DEFAULT_MAP_STYLE,
-  ensureOfflinePack,
-  type MapStyleKey,
-  type OfflinePackStatus,
-} from '@/lib/map-offline';
+import { withCache, CACHE_KEYS } from '@/lib/api-cache';
 import IncidentDetailModal from '@/components/IncidentDetailModal';
 
-// Suppress the MapLibre "no access token" warning — we use free CARTO tiles
-// that don't require a token.
-MapLibreGL.setAccessToken(null);
-
-// Guadalajara city center as the cold-start default (GPS takes over quickly).
-const DEFAULT_COORD: [number, number] = [-103.3496, 20.6597];
+const DEFAULT_REGION = {
+  latitude: 20.6597,
+  longitude: -103.3496,
+  latitudeDelta: 0.03,
+  longitudeDelta: 0.03,
+};
 
 const PRIORITY_COLORS: Record<string, string> = {
   critical: '#EF4444',
-  high:     '#F97316',
-  medium:   '#F59E0B',
-  low:      '#22C55E',
+  high: '#F97316',
+  medium: '#F59E0B',
+  low: '#22C55E',
 };
 
-const STATUS_COLORS: Record<string, string> = {
-  available:      '#22C55E',
-  en_route:       '#3B82F6',
-  on_scene:       '#F59E0B',
+// Single-letter shorthand so colorblind officers can distinguish priority
+// without relying on hue alone. Read aloud by screen readers via the marker's
+// accessibilityLabel below.
+const PRIORITY_LETTER: Record<string, string> = {
+  critical: 'C',
+  high: 'A',
+  medium: 'M',
+  low: 'B',
+};
+
+const STATUS_MARKER_COLORS: Record<string, string> = {
+  available: '#22C55E',
+  en_route: '#3B82F6',
+  on_scene: '#F59E0B',
   out_of_service: '#64748B',
 };
+
+interface Coord {
+  latitude: number;
+  longitude: number;
+}
 
 interface OpenIncident {
   id: string;
   folio: string;
+  type: string;
   priority: string;
   lat: number;
   lng: number;
+  address?: string;
 }
 
 export default function MapScreen() {
-  const cameraRef = useRef<MapLibreGL.Camera>(null);
-
+  const mapRef = useRef<MapView>(null);
   const {
     callSign, status, nearbyUnits, setNearbyUnits,
     unitId: myUnitId, assignedIncident, focusCoords, setFocusCoords,
   } = useUnitStore();
   const myUserId = useAuthStore((s) => s.user?.id);
 
-  const [currentPos, setCurrentPos] = useState<[number, number] | null>(null); // [lng, lat]
-  const [trail, setTrail] = useState<[number, number][]>([]); // GeoJSON [lng, lat]
+  const [currentPos, setCurrentPos] = useState<Coord | null>(null);
+  const [trail, setTrail] = useState<Coord[]>([]);
   const [following, setFollowing] = useState(true);
   const [speedKmh, setSpeedKmh] = useState(0);
   const [openIncidents, setOpenIncidents] = useState<OpenIncident[]>([]);
   const [detailIncidentId, setDetailIncidentId] = useState<string | null>(null);
-  const [mapStyle, setMapStyle] = useState<MapStyleKey>(DEFAULT_MAP_STYLE);
-  const [offlinePack, setOfflinePack] = useState<OfflinePackStatus>({ state: 'idle', progress: 0 });
 
-  // Ensure offline pack is downloaded in the background the first time the
-  // map tab opens. No-op if already downloaded.
-  useEffect(() => {
-    ensureOfflinePack(mapStyle, setOfflinePack);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // only on mount
-
-  // Foreground position watcher — drives the "where am I" dot and speed badge.
-  // Trail comes exclusively from background-tracking API history.
+  // Foreground GPS — drives the "where am I" dot, speed badge, and follow-camera.
+  // Trail is loaded from the API history (background tracking), not accumulated here,
+  // so we don't draw a stale trail segment before the officer taps "iniciar rastreo".
   useEffect(() => {
     let sub: Location.LocationSubscription | null = null;
     (async () => {
@@ -100,41 +94,34 @@ export default function MapScreen() {
       sub = await Location.watchPositionAsync(
         { accuracy: Location.Accuracy.High, timeInterval: 3000, distanceInterval: 5 },
         (loc) => {
-          const coord: [number, number] = [loc.coords.longitude, loc.coords.latitude];
+          const coord: Coord = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
           setCurrentPos(coord);
           const rawSpeed = loc.coords.speed;
           setSpeedKmh(rawSpeed != null && rawSpeed >= 0 ? Math.round(rawSpeed * 3.6) : 0);
+          if (following && mapRef.current) {
+            mapRef.current.animateToRegion(
+              { ...coord, latitudeDelta: 0.008, longitudeDelta: 0.008 },
+              500,
+            );
+          }
         },
       );
     })();
     return () => { sub?.remove?.(); };
-  }, []);
+  }, [following]);
 
-  // Animate camera to follow officer when following mode is on.
+  // Navigate to focusCoords when set from IncidentDetailModal.
   useEffect(() => {
-    if (!following || !currentPos || !cameraRef.current) return;
-    cameraRef.current.setCamera({
-      centerCoordinate: currentPos,
-      zoomLevel: 14,
-      animationDuration: 500,
-      animationMode: 'easeTo',
-    });
-  }, [currentPos, following]);
-
-  // Navigate to incident location when opened from IncidentDetailModal.
-  useEffect(() => {
-    if (!focusCoords || !cameraRef.current) return;
+    if (!focusCoords || !mapRef.current) return;
     setFollowing(false);
-    cameraRef.current.setCamera({
-      centerCoordinate: [focusCoords.lng, focusCoords.lat],
-      zoomLevel: 15,
-      animationDuration: 600,
-      animationMode: 'flyTo',
-    });
+    mapRef.current.animateToRegion(
+      { latitude: focusCoords.lat, longitude: focusCoords.lng, latitudeDelta: 0.008, longitudeDelta: 0.008 },
+      600,
+    );
     setFocusCoords(null);
   }, [focusCoords, setFocusCoords]);
 
-  // Reload units + incidents on tab focus (60s cache keeps data traffic minimal).
+  // Reload units + incidents on tab focus (60s TTL cache keeps traffic minimal).
   useFocusEffect(
     useCallback(() => {
       async function load(): Promise<void> {
@@ -143,111 +130,97 @@ export default function MapScreen() {
             withCache(CACHE_KEYS.units, () => unitsApi.getAll()),
             withCache(CACHE_KEYS.incidents, () => incidentsApi.getAll()),
           ]);
-
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const others = (unitsRes.data as any[])
             .filter((u) => u.id !== myUnitId && u.lat != null && u.lng != null)
             .map((u) => ({ id: u.id, callSign: u.callSign, status: u.status, lat: u.lat, lng: u.lng }));
           setNearbyUnits(others);
-
+          // Officer only sees incidents they reported or that are assigned to them.
           setOpenIncidents(
             incidentsRes.data
               .filter((i) =>
                 i.status !== 'closed' &&
                 (i.assignedUnitId === myUnitId || i.createdBy === myUserId),
               )
-              .map((i) => ({ id: i.id, folio: i.folio, priority: i.priority, lat: i.lat, lng: i.lng })),
+              .map((i) => ({
+                id: i.id,
+                folio: i.folio,
+                type: i.type,
+                priority: i.priority,
+                lat: i.lat,
+                lng: i.lng,
+                address: i.address,
+              })),
           );
-        } catch {
-          // Silent — map still shows position.
-        }
+        } catch { /* silent */ }
 
-        // Load GPS trail from background-tracking history (last 12h).
-        // Only has points if the officer started "Iniciar rastreo".
         if (!myUnitId) return;
         try {
           const to = new Date().toISOString();
           const from = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
           const histRes = await unitsApi.getHistory(myUnitId, from, to);
           if (histRes.data.length > 0) {
-            setTrail(histRes.data.map((p) => [p.lng, p.lat] as [number, number]));
+            setTrail(histRes.data.map((p) => ({ latitude: p.lat, longitude: p.lng })));
           }
-        } catch {
-          // History is best-effort
-        }
+        } catch { /* history is best-effort */ }
       }
       void load();
     }, [myUnitId, myUserId, setNearbyUnits]),
   );
 
-  const myStatusColor = STATUS_COLORS[status ?? ''] ?? '#94A3B8';
-
-  const trailGeoJSON: GeoJSON.Feature<GeoJSON.LineString> = {
-    type: 'Feature',
-    geometry: { type: 'LineString', coordinates: trail },
-    properties: {},
-  };
+  const myStatusColor =
+    status === 'available' ? '#22C55E' :
+    status === 'en_route'  ? '#3B82F6' :
+    status === 'on_scene'  ? '#F59E0B' : '#94A3B8';
 
   return (
     <View style={styles.container}>
-      <MapLibreGL.MapView
+      <MapView
+        ref={mapRef}
         style={styles.map}
-        styleURL={MAP_STYLES[mapStyle].url}
-        compassEnabled
-        compassViewPosition={0}
-        onPress={() => setFollowing(false)}
-        attributionEnabled={false}
-        logoEnabled={false}
+        provider={PROVIDER_DEFAULT}
+        initialRegion={currentPos ? { ...currentPos, latitudeDelta: 0.008, longitudeDelta: 0.008 } : DEFAULT_REGION}
+        showsUserLocation={false}
+        showsCompass
+        onPanDrag={() => setFollowing(false)}
       >
-        <MapLibreGL.Camera
-          ref={cameraRef}
-          defaultSettings={{ centerCoordinate: DEFAULT_COORD, zoomLevel: 13 }}
-        />
-
-        {/* GPS trail — only renders if background tracking produced history */}
         {trail.length > 1 && (
-          <MapLibreGL.ShapeSource id="trail-src" shape={trailGeoJSON}>
-            <MapLibreGL.LineLayer
-              id="trail-line"
-              style={{ lineColor: '#3B82F6', lineWidth: 3, lineOpacity: 0.85 }}
-            />
-          </MapLibreGL.ShapeSource>
+          <Polyline coordinates={trail} strokeColor="#3B82F6" strokeWidth={3} />
         )}
 
-        {/* My live position */}
         {currentPos && (
-          <MapLibreGL.PointAnnotation id="me" coordinate={currentPos}>
+          <Marker coordinate={currentPos} anchor={{ x: 0.5, y: 0.5 }}>
             <View style={styles.meMarkerOuter}>
               <View style={[styles.meMarkerInner, { backgroundColor: myStatusColor }]}>
                 <Text style={styles.meMarkerText}>{callSign ?? 'YO'}</Text>
               </View>
             </View>
-          </MapLibreGL.PointAnnotation>
+          </Marker>
         )}
 
-        {/* Nearby active units */}
         {nearbyUnits.map((unit) => (
-          <MapLibreGL.PointAnnotation
+          <Marker
             key={`unit-${unit.id}`}
-            id={`unit-${unit.id}`}
-            coordinate={[unit.lng, unit.lat]}
+            coordinate={{ latitude: unit.lat, longitude: unit.lng }}
+            anchor={{ x: 0.5, y: 0.5 }}
           >
             <View style={styles.otherUnitMarker}>
-              <View style={[styles.otherUnitDot, { backgroundColor: STATUS_COLORS[unit.status] ?? '#64748B' }]} />
+              <View style={[styles.otherUnitDot, { backgroundColor: STATUS_MARKER_COLORS[unit.status] ?? '#64748B' }]} />
               <Text style={styles.otherUnitLabel}>{unit.callSign}</Text>
             </View>
-          </MapLibreGL.PointAnnotation>
+          </Marker>
         ))}
 
-        {/* Officer's open incidents */}
         {openIncidents.map((incident) => {
           const isMine = assignedIncident?.id === incident.id;
           return (
-            <MapLibreGL.PointAnnotation
+            <Marker
               key={`inc-${incident.id}`}
-              id={`inc-${incident.id}`}
-              coordinate={[incident.lng, incident.lat]}
-              onSelected={() => setDetailIncidentId(incident.id)}
+              coordinate={{ latitude: incident.lat, longitude: incident.lng }}
+              anchor={{ x: 0.5, y: 0.5 }}
+              onPress={() => setDetailIncidentId(incident.id)}
+              accessibilityRole="button"
+              accessibilityLabel={`Incidente ${incident.folio}${isMine ? ' (asignado a ti)' : ''}, prioridad ${incident.priority}`}
             >
               <View style={isMine ? styles.incidentMarkerMine : styles.incidentMarker}>
                 {isMine && <View style={styles.incidentHaloMine} />}
@@ -258,58 +231,34 @@ export default function MapScreen() {
                   ]}
                 />
                 <Text style={[styles.incidentLabel, isMine && styles.incidentLabelMine]}>
-                  {isMine ? `⭐ ${incident.folio}` : incident.folio}
+                  {isMine ? '⭐ ' : ''}
+                  <Text style={styles.priorityTag}>
+                    [{PRIORITY_LETTER[incident.priority] ?? '?'}]
+                  </Text>{' '}
+                  {incident.folio}
                 </Text>
               </View>
-            </MapLibreGL.PointAnnotation>
+            </Marker>
           );
         })}
-      </MapLibreGL.MapView>
+      </MapView>
 
-      {/* Style switcher — top-left */}
-      <View style={styles.styleSwitcher} pointerEvents="box-none">
-        {(Object.keys(MAP_STYLES) as MapStyleKey[]).map((key) => (
-          <TouchableOpacity
-            key={key}
-            style={[styles.styleButton, mapStyle === key && styles.styleButtonActive]}
-            onPress={() => setMapStyle(key)}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.styleButtonText, mapStyle === key && styles.styleButtonTextActive]}>
-              {MAP_STYLES[key].label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Offline pack download indicator */}
-      {offlinePack.state === 'downloading' && (
-        <View style={styles.offlineBadge} pointerEvents="none">
-          <ActivityIndicator size="small" color="#3B82F6" />
-          <Text style={styles.offlineBadgeText}>Mapa offline {offlinePack.progress}%</Text>
-        </View>
-      )}
-
-      {/* Speed badge — only while moving */}
-      {speedKmh > 3 && (
+      {currentPos && speedKmh > 3 && (
         <View style={styles.speedBadge} pointerEvents="none">
           <Text style={styles.speedValue}>{speedKmh}</Text>
           <Text style={styles.speedUnit}>km/h</Text>
         </View>
       )}
 
-      {/* Re-center */}
       <TouchableOpacity
         style={[styles.centerButton, following && styles.centerButtonActive]}
         onPress={() => {
           setFollowing(true);
-          if (currentPos && cameraRef.current) {
-            cameraRef.current.setCamera({
-              centerCoordinate: currentPos,
-              zoomLevel: 14,
-              animationDuration: 500,
-              animationMode: 'easeTo',
-            });
+          if (currentPos && mapRef.current) {
+            mapRef.current.animateToRegion(
+              { ...currentPos, latitudeDelta: 0.008, longitudeDelta: 0.008 },
+              500,
+            );
           }
         }}
         activeOpacity={0.7}
@@ -328,7 +277,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0F172A' },
   map: { flex: 1 },
 
-  // My marker
   meMarkerOuter: {
     width: 56, height: 56, borderRadius: 28,
     backgroundColor: 'rgba(59,130,246,0.22)',
@@ -343,7 +291,6 @@ const styles = StyleSheet.create({
   },
   meMarkerText: { color: '#F8FAFC', fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
 
-  // Other units
   otherUnitMarker: {
     alignItems: 'center', paddingHorizontal: 6, paddingVertical: 4,
     backgroundColor: '#0F172AE6', borderRadius: 8,
@@ -352,14 +299,17 @@ const styles = StyleSheet.create({
   otherUnitDot: { width: 10, height: 10, borderRadius: 5 },
   otherUnitLabel: { color: '#CBD5E1', fontSize: 10, fontWeight: '700', marginTop: 2 },
 
-  // Incidents
   incidentMarker: { alignItems: 'center' },
   incidentMarkerMine: { alignItems: 'center', position: 'relative' },
   incidentHaloMine: {
-    position: 'absolute', top: -6, left: -6, right: -6, bottom: -6,
-    borderRadius: 40, backgroundColor: 'rgba(251,191,36,0.25)',
+    position: 'absolute',
+    top: -6, left: -6, right: -6, bottom: -6,
+    borderRadius: 40,
+    backgroundColor: 'rgba(251, 191, 36, 0.25)',
     borderWidth: 2, borderColor: '#FBBF24',
   },
+  incidentLabelMine: { backgroundColor: '#78350FE6', color: '#FCD34D' },
+  priorityTag: { fontWeight: '900', letterSpacing: 0.5 },
   incidentTriangle: {
     width: 0, height: 0,
     borderLeftWidth: 10, borderRightWidth: 10, borderBottomWidth: 18,
@@ -367,36 +317,11 @@ const styles = StyleSheet.create({
   },
   incidentLabel: {
     color: '#F8FAFC', fontSize: 10, fontWeight: '800', marginTop: 2,
-    backgroundColor: '#0F172AE0', paddingHorizontal: 5, paddingVertical: 1,
+    backgroundColor: '#0F172AE0',
+    paddingHorizontal: 5, paddingVertical: 1,
     borderRadius: 3, overflow: 'hidden',
   },
-  incidentLabelMine: { backgroundColor: '#78350FE6', color: '#FCD34D' },
 
-  // Style switcher
-  styleSwitcher: {
-    position: 'absolute', top: 16, left: 16,
-    flexDirection: 'row', gap: 6,
-  },
-  styleButton: {
-    paddingHorizontal: 12, paddingVertical: 6,
-    backgroundColor: '#1E293BEE', borderRadius: 16,
-    borderWidth: 1, borderColor: '#334155',
-  },
-  styleButtonActive: { backgroundColor: '#3B82F6', borderColor: '#60A5FA' },
-  styleButtonText: { color: '#94A3B8', fontSize: 11, fontWeight: '700' },
-  styleButtonTextActive: { color: '#F8FAFC' },
-
-  // Offline download badge
-  offlineBadge: {
-    position: 'absolute', top: 56, left: 16,
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#1E293BEE', borderRadius: 12,
-    paddingHorizontal: 12, paddingVertical: 7,
-    borderWidth: 1, borderColor: '#334155',
-  },
-  offlineBadgeText: { color: '#94A3B8', fontSize: 11, fontWeight: '600' },
-
-  // Speed badge
   speedBadge: {
     position: 'absolute', top: 60, right: 16,
     backgroundColor: '#0F172AEE', borderRadius: 12,
@@ -406,7 +331,6 @@ const styles = StyleSheet.create({
   speedValue: { color: '#F8FAFC', fontSize: 20, fontWeight: '800', fontVariant: ['tabular-nums'] },
   speedUnit: { color: '#94A3B8', fontSize: 9, fontWeight: '600', letterSpacing: 1, marginTop: -2 },
 
-  // Re-center button
   centerButton: {
     position: 'absolute', bottom: 30, right: 16,
     width: 52, height: 52, borderRadius: 26,

@@ -6,6 +6,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UserEntity } from '../../entities/user.entity';
 import { UserRole } from '@velnari/shared-types';
+import { RedisCacheService } from '../../shared/services/redis-cache.service';
 import * as bcrypt from 'bcrypt';
 
 describe('AuthService', () => {
@@ -29,6 +30,12 @@ describe('AuthService', () => {
 
   const mockJwtService = {
     signAsync: jest.fn(),
+    verify: jest.fn(),
+  };
+
+  const mockRedis = {
+    isTokenBlacklisted: jest.fn().mockResolvedValue(false),
+    blacklistToken: jest.fn().mockResolvedValue(undefined),
   };
 
   const mockConfigService = {
@@ -50,6 +57,7 @@ describe('AuthService', () => {
         { provide: getRepositoryToken(UserEntity), useValue: mockUserRepository },
         { provide: JwtService, useValue: mockJwtService },
         { provide: ConfigService, useValue: mockConfigService },
+        { provide: RedisCacheService, useValue: mockRedis },
       ],
     }).compile();
 
@@ -119,18 +127,46 @@ describe('AuthService', () => {
     });
   });
 
-  describe('refreshToken', () => {
-    it('retorna nuevo accessToken a partir del userId y role', async () => {
-      mockJwtService.signAsync.mockResolvedValueOnce('new_access_token');
-      mockUserRepository.findOne.mockResolvedValue({
-        ...mockUser,
-        passwordHash: 'hashed',
-      });
+  describe('rotateRefresh', () => {
+    const validRefreshPayload = {
+      sub: 'user-uuid-1',
+      role: UserRole.OPERATOR,
+      email: 'operador@corp.gob.mx',
+      tenantId: null,
+      jti: 'old-jti',
+      iat: Math.floor(Date.now() / 1000) - 60,
+      exp: Math.floor(Date.now() / 1000) + 7 * 24 * 3600,
+    };
 
-      const result = await service.refreshToken('user-uuid-1', UserRole.OPERATOR);
+    it('issues new access + refresh on first use, blacklists the old token', async () => {
+      mockJwtService.verify.mockReturnValue(validRefreshPayload);
+      mockJwtService.signAsync
+        .mockResolvedValueOnce('new_access_token')
+        .mockResolvedValueOnce('new_refresh_token');
+      mockUserRepository.findOne.mockResolvedValue({ ...mockUser, passwordHash: 'h' });
+      mockRedis.isTokenBlacklisted.mockResolvedValueOnce(false);
+
+      const result = await service.rotateRefresh('valid_refresh_token');
 
       expect(result.accessToken).toBe('new_access_token');
-      expect(result.expiresIn).toBe(900);
+      expect(result.refreshToken).toBe('new_refresh_token');
+      expect(mockRedis.blacklistToken).toHaveBeenCalled();
+    });
+
+    it('rejects + revokes session on token replay', async () => {
+      mockJwtService.verify.mockReturnValue(validRefreshPayload);
+      mockRedis.isTokenBlacklisted.mockResolvedValueOnce(true);
+
+      await expect(service.rotateRefresh('reused_refresh_token')).rejects.toThrow(
+        /comprometida/i,
+      );
+    });
+
+    it('rejects on invalid signature', async () => {
+      mockJwtService.verify.mockImplementation(() => {
+        throw new Error('invalid signature');
+      });
+      await expect(service.rotateRefresh('bad_token')).rejects.toThrow(/inválido|expirado/i);
     });
   });
 });

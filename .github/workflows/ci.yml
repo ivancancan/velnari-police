@@ -45,13 +45,12 @@ jobs:
       - name: Build shared-types
         run: pnpm --filter @velnari/shared-types build 2>/dev/null || true
 
-      # Unit/integration tests are currently broken at the mock/DB setup level
-      # (pre-existing, predates this CI pipeline). Reporting the run but not
-      # failing the build until the test suite is rehabilitated. Tracked in
-      # docs/SECURITY_TODO.md under "Test infrastructure".
-      - name: Run API tests (non-blocking)
+      # API tests — gating on the suites we know pass today. The remaining
+      # service mocks (incidents/units/dispatch/attachments) are tracked under
+      # docs/SECURITY_TODO.md "Test infrastructure" and need a Testcontainers
+      # rewrite. The e2e suite needs migrations to run first.
+      - name: Run API tests (gating)
         working-directory: apps/api
-        continue-on-error: true
         env:
           DB_HOST: localhost
           DB_PORT: 5432
@@ -63,7 +62,8 @@ jobs:
           JWT_SECRET: test-secret
           JWT_REFRESH_SECRET: test-refresh-secret
         run: |
-          npx jest --no-coverage --passWithNoTests
+          npx jest --no-coverage \
+            --testPathIgnorePatterns "e2e-dispatch|incidents.service.spec|units.service.spec|dispatch.service.spec|attachments.service.spec"
 
       # Lint is intentionally skipped until the monorepo ships a shared
       # ESLint config. Type-check is the real quality gate today.

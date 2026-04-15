@@ -29,7 +29,7 @@ async function seed(): Promise<void> {
 
   console.log('🌱 Starting seed...');
 
-  const hash = await bcrypt.hash(PASSWORD_PLAIN, 10);
+  const hash = await bcrypt.hash(PASSWORD_PLAIN, 12);
 
   // ── Demo Municipio (tenant) ────────────────────────────────────────────────
   const existingMunicipio = await query.query(

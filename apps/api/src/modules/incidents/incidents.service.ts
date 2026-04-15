@@ -106,9 +106,14 @@ export class IncidentsService {
     });
   }
 
-  async findOne(id: string): Promise<IncidentEntity> {
+  // tenantId guard: callers with a tenant scope only see their own incidents.
+  // null tenantId means a super-admin (no scope); still enforced at controller
+  // level — services only honor what the controller passes in.
+  async findOne(id: string, tenantId?: string | null): Promise<IncidentEntity> {
+    const where: Record<string, unknown> = { id };
+    if (tenantId) where['tenantId'] = tenantId;
     const incident = await this.repo.findOne({
-      where: { id },
+      where,
       relations: ['events'],
     });
     if (!incident) throw new NotFoundException(`Incidente ${id} no encontrado`);

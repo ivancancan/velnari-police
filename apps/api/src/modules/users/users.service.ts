@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { UserEntity } from '../../entities/user.entity';
+import { BCRYPT_ROUNDS } from '../auth/auth.service';
 import type { CreateUserDto, UpdateUserDto } from '@velnari/shared-types';
 
 @Injectable()
@@ -35,7 +36,7 @@ export class UsersService {
     const existing = await this.repo.findOne({ where: { email: dto.email } });
     if (existing) throw new ConflictException(`El email ${dto.email} ya está registrado`);
 
-    const passwordHash = await bcrypt.hash(dto.password, 10);
+    const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
     const user = this.repo.create({
       name: dto.name,
       email: dto.email,
@@ -48,7 +49,7 @@ export class UsersService {
   }
 
   async resetPassword(userId: string, newPassword: string): Promise<void> {
-    const hash = await bcrypt.hash(newPassword, 10);
+    const hash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
     await this.repo.update(userId, { passwordHash: hash });
   }
 
@@ -61,7 +62,7 @@ export class UsersService {
     if (dto.isActive !== undefined) user.isActive = dto.isActive;
     if (dto.customPermissions !== undefined) user.customPermissions = dto.customPermissions;
     if (dto.shift !== undefined) user.shift = dto.shift;
-    if (dto.password) user.passwordHash = await bcrypt.hash(dto.password, 10);
+    if (dto.password) user.passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
     return this.repo.save(user);
   }
 }
